@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#333399">
 <title>NowFind</title>
+https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{--azul:rgb(0,0,255);--azul2:rgb(51,51,153);--amarelo:#FFD600;--cinza:#F5F6FA;--texto:#737789;--linha:#E7E7EE}
@@ -65,9 +66,16 @@ main{padding:20px 16px}
 .vazio{text-align:center;color:var(--texto);font-size:13px;padding:18px}
 
 /* KANBAN */
+.dica{color:var(--texto);font-size:12px;margin:-4px 0 10px}
 .kanban{display:flex;gap:12px;overflow-x:auto;padding-bottom:10px;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}
 .coluna{min-width:82%;background:var(--cinza);border-radius:16px;padding:12px;scroll-snap-align:start}
 .coluna h4{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-size:15px}
+.cards{min-height:90px;border-radius:12px}
+.cards:empty{border:2px dashed #D6D6E2}
+.cards:empty::before{content:"Arraste um cartão para cá";display:block;text-align:center;color:var(--texto);font-size:12px;padding:30px 10px}
+#kanban .card{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.arrastando{opacity:.35}
+.escolhido{transform:scale(1.03);box-shadow:0 12px 28px rgba(0,0,0,.18)}
 .pdca{display:flex;gap:4px;margin-bottom:6px}
 .pdca b{width:22px;height:22px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:11px;background:#E7E7EE;color:#999}
 .pdca b.on{background:var(--azul2);color:#fff}
@@ -161,6 +169,7 @@ textarea{min-height:140px;resize:none}
     <!-- PROJETOS -->
     <div id="view-projetos" class="oculto">
       <div class="secao"><h3>Projetos</h3></div>
+      <p class="dica">Segure o cartão e arraste para outra coluna.</p>
       <div id="kanban" class="kanban"></div>
     </div>
 
@@ -360,6 +369,7 @@ function botao(texto, classe, acao){
 function cartao(item, botoes, extra){
   var c = document.createElement('div');
   c.className = 'card';
+  c.setAttribute('data-id', item.id);
   if (extra) c.appendChild(extra);
   var s = document.createElement('small');
   s.textContent = dataCurta(item.criadoEm);
@@ -425,6 +435,36 @@ function botoesKanban(i){
   return [];
 }
 
+/* ARRASTAR COM O DEDO */
+function ativarArrastar(){
+  if (!window.Sortable) return;
+  document.querySelectorAll('#kanban .cards').forEach(function(area){
+    Sortable.create(area, {
+      group: 'kanban',
+      animation: 180,
+      delay: 180,
+      delayOnTouchOnly: true,
+      touchStartThreshold: 5,
+      filter: 'button',
+      preventOnFilter: false,
+      ghostClass: 'arrastando',
+      chosenClass: 'escolhido',
+      scroll: true,
+      scrollSensitivity: 80,
+      scrollSpeed: 14,
+      bubbleScroll: true,
+      onEnd: function(evt){
+        var id = evt.item.getAttribute('data-id');
+        var novo = evt.to.getAttribute('data-status');
+        var antigo = evt.from.getAttribute('data-status');
+        if (novo === antigo) return;
+        if (novo === 'validado') { validar(id); return; }
+        mover(id, novo);
+      }
+    });
+  });
+}
+
 function renderizar(){
   var entrada = dados.itens.filter(function(i){ return i.status === 'entrada'; });
   $('contEntrada').textContent = entrada.length;
@@ -441,6 +481,7 @@ function renderizar(){
     ['realizado','Realizado'], ['validado','Validado']
   ];
   var k = $('kanban');
+  var posicao = k.scrollLeft;
   k.innerHTML = '';
   colunas.forEach(function(col){
     var itens = dados.itens.filter(function(i){ return i.status === col[0]; });
@@ -455,15 +496,15 @@ function renderizar(){
     h.appendChild(t);
     h.appendChild(n);
     c.appendChild(h);
-    if (!itens.length){
-      var v = document.createElement('div');
-      v.className = 'vazio';
-      v.textContent = 'Sem cartões';
-      c.appendChild(v);
-    }
-    itens.forEach(function(i){ c.appendChild(cartao(i, botoesKanban(i), indicadorPDCA(i.status))); });
+    var area = document.createElement('div');
+    area.className = 'cards';
+    area.setAttribute('data-status', col[0]);
+    itens.forEach(function(i){ area.appendChild(cartao(i, botoesKanban(i), indicadorPDCA(i.status))); });
+    c.appendChild(area);
     k.appendChild(c);
   });
+  k.scrollLeft = posicao;
+  ativarArrastar();
 }
 
 /* EVENTOS */
