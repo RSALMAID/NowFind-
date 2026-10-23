@@ -2,1577 +2,501 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-
-<meta
-  name="viewport"
-  content="width=device-width, initial-scale=1.0, viewport-fit=cover"
->
-
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#333399">
-
 <title>NowFind</title>
-
 <style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--azul:rgb(0,0,255);--azul2:rgb(51,51,153);--amarelo:#FFD600;--cinza:#F5F6FA;--texto:#737789;--linha:#E7E7EE}
+body{font-family:-apple-system,Arial,sans-serif;background:#fff;color:#111;min-height:100vh}
+button,input,textarea{font:inherit}
+button{cursor:pointer}
+.oculto{display:none!important}
 
-*{
-  box-sizing:border-box;
-  margin:0;
-  padding:0;
+/* LOGIN */
+.auth{min-height:100vh;background:linear-gradient(145deg,var(--azul),var(--azul2));padding:calc(40px + env(safe-area-inset-top)) 22px 40px;display:flex;flex-direction:column;justify-content:center}
+.auth-marca{color:#fff;margin-bottom:28px}
+.logo-grande{width:64px;height:64px;border-radius:18px;background:#111;color:var(--amarelo);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:32px;margin-bottom:14px}
+.auth-marca h1{font-size:34px}
+.auth-marca p{color:#ddf;margin-top:6px}
+.cartao{background:#fff;border-radius:22px;padding:22px;box-shadow:0 20px 50px rgba(0,0,0,.2)}
+.cartao h2{font-size:22px;margin-bottom:6px}
+.cartao>p{color:var(--texto);font-size:13px;margin-bottom:8px}
+label{display:block;font-size:12px;font-weight:bold;margin:12px 0 6px}
+input,textarea{width:100%;border:1px solid #DDDDE8;border-radius:12px;padding:13px;font-size:16px;outline:none}
+input:focus,textarea:focus{border-color:var(--azul)}
+.btn{width:100%;border:none;border-radius:12px;padding:14px;font-weight:bold;background:var(--azul);color:#fff;margin-top:16px;font-size:15px}
+.link{border:none;background:none;color:var(--azul);font-weight:bold}
+.troca{text-align:center;margin-top:14px;font-size:13px;color:var(--texto)}
+.aviso{background:#FFF7CC;border-left:4px solid var(--amarelo);padding:10px;border-radius:8px;font-size:11px;margin-top:14px;line-height:1.4;color:#111}
+
+/* APP */
+.app{max-width:520px;margin:auto;min-height:100vh;padding-bottom:100px}
+header{padding:calc(16px + env(safe-area-inset-top)) 18px 14px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--linha)}
+.marca{display:flex;align-items:center;gap:10px}
+.logo{width:40px;height:40px;border-radius:12px;background:#111;color:var(--amarelo);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:20px}
+.marca h1{font-size:20px}
+.marca small{color:var(--texto);font-size:11px}
+.avatar{width:40px;height:40px;border-radius:50%;border:none;background:var(--azul2);color:#fff;font-weight:bold}
+main{padding:20px 16px}
+.saudacao small{color:var(--azul);font-weight:bold;font-size:11px;letter-spacing:1px}
+.saudacao h2{font-size:27px;margin:4px 0}
+.saudacao p{color:var(--texto);font-size:14px;margin-bottom:18px}
+.captura{background:linear-gradient(135deg,var(--azul),var(--azul2));border-radius:20px;padding:18px;color:#fff;margin-bottom:20px}
+.captura h3{font-size:19px}
+.captura p{font-size:13px;color:#e4e4ff;margin:5px 0 14px}
+.opcoes{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.opcoes button{border:none;background:#fff;border-radius:12px;padding:11px 4px;font-size:19px}
+.opcoes span{display:block;font-size:10px;font-weight:bold;color:#111;margin-top:4px}
+.secao{display:flex;justify-content:space-between;align-items:center;margin:6px 0 10px}
+.secao h3{font-size:18px}
+.badge{min-width:28px;height:28px;padding:0 8px;border-radius:14px;background:var(--amarelo);display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:12px}
+.lista{background:var(--cinza);border-radius:18px;padding:12px;margin-bottom:20px}
+.card{background:#fff;border-radius:14px;padding:14px;border-left:5px solid var(--amarelo);box-shadow:0 4px 14px rgba(0,0,0,.05);margin-bottom:10px}
+.card:last-child{margin-bottom:0}
+.card small{color:var(--texto);font-size:11px}
+.card p{font-size:14px;margin:6px 0 12px;line-height:1.4;white-space:pre-wrap;word-break:break-word}
+.acoes{display:flex;gap:6px}
+.acoes button{flex:1;border:none;border-radius:9px;padding:9px 4px;font-size:12px;font-weight:bold}
+.b-azul{background:var(--azul);color:#fff}
+.b-claro{background:#ECECFF;color:var(--azul2)}
+.b-cinza{background:#EEE;color:#555}
+.b-amarelo{background:var(--amarelo);color:#111}
+.vazio{text-align:center;color:var(--texto);font-size:13px;padding:18px}
+
+/* KANBAN */
+.kanban{display:flex;gap:12px;overflow-x:auto;padding-bottom:10px;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}
+.coluna{min-width:82%;background:var(--cinza);border-radius:16px;padding:12px;scroll-snap-align:start}
+.coluna h4{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-size:15px}
+.pdca{display:flex;gap:4px;margin-bottom:6px}
+.pdca b{width:22px;height:22px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:11px;background:#E7E7EE;color:#999}
+.pdca b.on{background:var(--azul2);color:#fff}
+.pdca b.ok{background:#1E9E5A;color:#fff}
+
+/* NAVEGAÇÃO */
+nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:520px;background:#fff;border-top:1px solid var(--linha);padding:8px 8px calc(8px + env(safe-area-inset-bottom));display:grid;grid-template-columns:repeat(5,1fr);z-index:10}
+nav button{border:none;background:none;color:#777;font-size:18px}
+nav button span{display:block;font-size:10px;margin-top:3px}
+nav button.ativo{color:var(--azul);font-weight:bold}
+nav .mais{width:52px;height:52px;border-radius:50%;background:var(--amarelo);color:#111;font-size:28px;margin:-24px auto 0;box-shadow:0 6px 16px rgba(0,0,0,.2)}
+
+/* JANELAS */
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:50;display:flex;align-items:flex-end;justify-content:center}
+.folha{background:#fff;width:100%;max-width:520px;border-radius:24px 24px 0 0;padding:22px 18px calc(22px + env(safe-area-inset-bottom))}
+.folha-topo{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px}
+.folha small{color:var(--azul);font-weight:bold;font-size:11px}
+.folha h2{font-size:21px;margin-top:4px}
+.fechar{border:none;background:#F2F2F5;width:36px;height:36px;border-radius:50%;font-size:20px}
+textarea{min-height:140px;resize:none}
+.sair{width:100%;border:1px solid #ddd;background:#fff;color:#C62828;border-radius:12px;padding:13px;font-weight:bold;margin-top:16px}
+</style>
+</head>
+<body>
+
+<!-- LOGIN / CADASTRO -->
+<section id="auth" class="auth">
+  <div class="auth-marca">
+    <div class="logo-grande">N</div>
+    <h1>NowFind</h1>
+    <p>Tire da cabeça. Coloque em movimento.</p>
+  </div>
+  <div class="cartao">
+    <h2 id="authTitulo">Entrar</h2>
+    <p id="authDesc">Acesse seu espaço pessoal.</p>
+    <div id="blocoNome" class="oculto">
+      <label>Como podemos chamar você?</label>
+      <input id="inNome" type="text" placeholder="Seu nome">
+    </div>
+    <label>E-mail</label>
+    <input id="inEmail" type="email" placeholder="voce@email.com" autocapitalize="off">
+    <label>Senha</label>
+    <input id="inSenha" type="password" placeholder="Sua senha">
+    <button id="btnAuth" class="btn">Entrar</button>
+    <div class="troca">
+      <span id="txtTroca">Ainda não tem conta?</span>
+      <button id="btnTroca" class="link">Criar conta</button>
+    </div>
+    <div class="aviso">Versão de teste: os dados ficam somente neste aparelho. Não use uma senha real.</div>
+  </div>
+</section>
+
+<!-- APLICATIVO -->
+<div id="app" class="app oculto">
+  <header>
+    <div class="marca">
+      <div class="logo">N</div>
+      <div><h1>NowFind</h1><small>Organize. Execute. Aprenda.</small></div>
+    </div>
+    <button id="btnAvatar" class="avatar">U</button>
+  </header>
+
+  <main>
+    <!-- HOJE -->
+    <div id="view-hoje">
+      <section class="saudacao">
+        <small>SEU DIA</small>
+        <h2 id="saudacao">Olá.</h2>
+        <p>Tire as coisas da cabeça. Depois decida o que fazer com cada uma.</p>
+      </section>
+      <section class="captura">
+        <h3>O que está na sua cabeça?</h3>
+        <p>Registre agora. Organize depois.</p>
+        <div class="opcoes">
+          <button id="capTexto">✏️<span>Texto</span></button>
+          <button class="em-breve">🎙️<span>Áudio</span></button>
+          <button class="em-breve">📷<span>Imagem</span></button>
+          <button class="em-breve">📎<span>Arquivo</span></button>
+        </div>
+      </section>
+      <div class="secao"><h3>Caixa de entrada</h3><div id="contEntrada" class="badge">0</div></div>
+      <div id="listaHoje" class="lista"></div>
+    </div>
+
+    <!-- ENTRADA -->
+    <div id="view-entrada" class="oculto">
+      <div class="secao"><h3>Caixa de entrada</h3></div>
+      <div id="listaEntrada" class="lista"></div>
+    </div>
+
+    <!-- PROJETOS -->
+    <div id="view-projetos" class="oculto">
+      <div class="secao"><h3>Projetos</h3></div>
+      <div id="kanban" class="kanban"></div>
+    </div>
+
+    <!-- IA / CONHECIMENTO -->
+    <div id="view-ia" class="oculto">
+      <div class="secao"><h3>Conhecimento</h3></div>
+      <div id="listaConhecimento" class="lista"></div>
+      <div class="aviso">A organização com IA será conectada nas próximas etapas.</div>
+    </div>
+  </main>
+
+  <nav>
+    <button data-view="hoje" class="ativo">◉<span>Hoje</span></button>
+    <button data-view="entrada">↓<span>Entrada</span></button>
+    <button id="btnMais" class="mais">+</button>
+    <button data-view="projetos">▦<span>Projetos</span></button>
+    <button data-view="ia">✦<span>IA</span></button>
+  </nav>
+</div>
+
+<!-- JANELA DE CAPTURA -->
+<div id="modalCaptura" class="modal oculto">
+  <div class="folha">
+    <div class="folha-topo">
+      <div><small>CAPTURA RÁPIDA</small><h2>O que está na sua cabeça?</h2></div>
+      <button id="btnFecharCaptura" class="fechar">×</button>
+    </div>
+    <textarea id="txtCaptura" placeholder="Escreva do seu jeito..."></textarea>
+    <button id="btnSalvarCaptura" class="btn">Salvar na Entrada</button>
+  </div>
+</div>
+
+<!-- JANELA DE PERFIL -->
+<div id="modalPerfil" class="modal oculto">
+  <div class="folha">
+    <div class="folha-topo">
+      <div><small>PERFIL</small><h2 id="perfilNome">Usuário</h2></div>
+      <button id="btnFecharPerfil" class="fechar">×</button>
+    </div>
+    <p id="perfilEmail" style="color:#737789;font-size:14px"></p>
+    <button id="btnSair" class="sair">Sair da conta</button>
+  </div>
+</div>
+
+<script>
+(function(){
+
+var modoCadastro = false;
+var usuario = null;
+var dados = { itens: [] };
+
+function $(id){ return document.getElementById(id); }
+function mostrar(id){ $(id).classList.remove('oculto'); }
+function esconder(id){ $(id).classList.add('oculto'); }
+
+/* ARMAZENAMENTO LOCAL POR USUÁRIO */
+function lerUsuarios(){
+  try { return JSON.parse(localStorage.getItem('nowfind_usuarios')) || {}; }
+  catch(e){ return {}; }
+}
+function salvarUsuarios(u){ localStorage.setItem('nowfind_usuarios', JSON.stringify(u)); }
+function chaveDados(){ return 'nowfind_dados_' + usuario.email; }
+function carregarDados(){
+  try { dados = JSON.parse(localStorage.getItem(chaveDados())) || { itens: [] }; }
+  catch(e){ dados = { itens: [] }; }
+}
+function salvarDados(){ localStorage.setItem(chaveDados(), JSON.stringify(dados)); }
+
+async function gerarHash(texto){
+  if (window.crypto && crypto.subtle) {
+    var buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(texto));
+    return Array.from(new Uint8Array(buf)).map(function(b){ return b.toString(16).padStart(2,'0'); }).join('');
+  }
+  return texto;
 }
 
-:root{
-  --azul:rgb(0,0,255);
-  --azul-escuro:rgb(51,51,153);
-  --amarelo:#FFD600;
-  --preto:#111111;
-  --branco:#FFFFFF;
-  --cinza:#F5F6FA;
-  --texto:#737789;
+/* LOGIN / CADASTRO */
+function trocarModo(){
+  modoCadastro = !modoCadastro;
+  $('blocoNome').classList.toggle('oculto', !modoCadastro);
+  $('authTitulo').textContent = modoCadastro ? 'Criar conta' : 'Entrar';
+  $('authDesc').textContent = modoCadastro ? 'Crie seu espaço pessoal no NowFind.' : 'Acesse seu espaço pessoal.';
+  $('btnAuth').textContent = modoCadastro ? 'Criar minha conta' : 'Entrar';
+  $('txtTroca').textContent = modoCadastro ? 'Já tem conta?' : 'Ainda não tem conta?';
+  $('btnTroca').textContent = modoCadastro ? 'Entrar' : 'Criar conta';
 }
 
-body{
-  font-family:Arial,sans-serif;
-  background:white;
-  color:#111;
-  min-height:100vh;
+async function autenticar(){
+  var nome = $('inNome').value.trim();
+  var email = $('inEmail').value.trim().toLowerCase();
+  var senha = $('inSenha').value;
+  var usuarios = lerUsuarios();
+
+  if (!email || !senha){ alert('Preencha e-mail e senha.'); return; }
+  var hash = await gerarHash(senha);
+
+  if (modoCadastro){
+    if (!nome){ alert('Digite seu nome.'); return; }
+    if (usuarios[email]){ alert('Este e-mail já tem conta. Use Entrar.'); return; }
+    usuarios[email] = { nome: nome, email: email, senha: hash };
+    salvarUsuarios(usuarios);
+  } else {
+    if (!usuarios[email] || usuarios[email].senha !== hash){
+      alert('E-mail ou senha incorretos.'); return;
+    }
+  }
+
+  localStorage.setItem('nowfind_sessao', email);
+  abrirApp(usuarios[email]);
 }
 
-button,
-input{
-  font:inherit;
-}
-
-/* LOGIN ================================= */
-
-.auth{
-  min-height:100vh;
-
-  background:
-    linear-gradient(
-      145deg,
-      var(--azul) 0%,
-      var(--azul-escuro) 60%,
-      #20205f 100%
-    );
-
-  padding:
-    calc(45px + env(safe-area-inset-top))
-    24px
-    40px;
-
-  display:flex;
-  flex-direction:column;
-  justify-content:center;
-}
-
-.auth-marca{
-  color:white;
-  margin-bottom:35px;
-}
-
-.auth-logo{
-  width:65px;
-  height:65px;
-
-  background:#111;
-  color:var(--amarelo);
-
-  border-radius:19px;
-
-  display:flex;
-  align-items:center;
-  justify-content:center;
-
-  font-weight:900;
-  font-size:34px;
-
-  margin-bottom:17px;
-}
-
-.auth-marca h1{
-  font-size:35px;
-}
-
-.auth-marca p{
-  margin-top:7px;
-  color:#ddddff;
-  line-height:1.4;
-}
-
-.auth-card{
-  background:white;
-
-  padding:25px;
-  border-radius:25px;
-
-  box-shadow:
-    0 20px 50px rgba(0,0,0,.2);
-}
-
-.auth-card h2{
-  font-size:24px;
-  margin-bottom:7px;
-}
-
-.auth-card > p{
-  color:var(--texto);
-  font-size:13px;
-  line-height:1.4;
-  margin-bottom:23px;
-}
-
-.campo{
-  margin-bottom:14px;
-}
-
-.campo label{
-  display:block;
-  font-size:12px;
-  font-weight:bold;
-  margin-bottom:7px;
-}
-
-.campo input{
-  width:100%;
-
-  border:1px solid #ddddE8;
-
-  padding:14px;
-
-  border-radius:12px;
-
-  outline:none;
-}
-
-.campo input:focus{
-  border-color:var(--azul);
-}
-
-.botao-principal{
-  width:100%;
-
-  background:var(--azul);
-  color:white;
-
-  border:none;
-  border-radius:12px;
-
-  padding:15px;
-
-  font-weight:bold;
-
-  margin-top:5px;
-}
-
-.troca-auth{
-  text-align:center;
-  margin-top:18px;
-
-  color:var(--texto);
-  font-size:13px;
-}
-
-.troca-auth button{
-  border:none;
-  background:none;
-
-  color:var(--azul);
-  font-weight:bold;
-}
-
-.aviso{
-  background:#FFF7CC;
-
-  border-left:4px solid var(--amarelo);
-
-  padding:11px;
-  margin-top:16px;
-
-  border-radius:8px;
-
-  font-size:11px;
-  line-height:1.4;
-}
-
-
-/* APP ================================== */
-
-.app{
-  display:none;
-
-  max-width:520px;
-  margin:auto;
-
-  min-height:100vh;
-
-  padding-bottom:95px;
-}
-
-header{
-  padding:
-    calc(18px + env(safe-area-inset-top))
-    20px
-    18px;
-
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-
-  border-bottom:1px solid #eeeef4;
-}
-
-.marca{
-  display:flex;
-  align-items:center;
-  gap:10px;
-}
-
-.logo{
-  width:42px;
-  height:42px;
-
-  border-radius:12px;
-
-  background:#111;
-  color:var(--amarelo);
-
-  display:flex;
-  align-items:center;
-  justify-content:center;
-
-  font-size:22px;
-  font-weight:900;
-}
-
-.marca h1{
-  font-size:21px;
-}
-
-.marca small{
-  display:block;
-  color:var(--texto);
-  font-size:11px;
-  margin-top:2px;
-}
-
-.perfil{
-  width:42px;
-  height:42px;
-
-  border:none;
-  border-radius:50%;
-
-  background:var(--azul-escuro);
-  color:white;
-
-  font-weight:bold;
-}
-
-main{
-  padding:22px 18px;
-}
-
-.saudacao{
-  margin-bottom:22px;
-}
-
-.saudacao small{
-  color:var(--azul);
-
-  font-weight:bold;
-  font-size:11px;
-  letter-spacing:1px;
-}
-
-.saudacao h2{
-  font-size:28px;
-  margin:5px 0;
-}
-
-.saudacao p{
-  color:var(--texto);
-  font-size:14px;
-  line-height:1.45;
-}
-
-/* CAPTURA */
-
-.captura{
-  background:
-    linear-gradient(
-      135deg,
-      var(--azul),
-      var(--azul-escuro)
-    );
-
-  padding:20px;
-
-  border-radius:22px;
-
-  color:white;
-
-  margin-bottom:22px;
-}
-
-.captura h3{
-  font-size:20px;
-  margin-bottom:7px;
-}
-
-.captura p{
-  font-size:13px;
-  color:#e4e4ff;
-
-  margin-bottom:18px;
-}
-
-.captura-opcoes{
-  display:grid;
-
-  grid-template-columns:
-    repeat(4,1fr);
-
-  gap:9px;
-}
-
-.captura button{
-  border:none;
-
-  background:white;
-
-  padding:12px 5px;
-
-  border-radius:13px;
-
-  font-size:19px;
-}
-
-.captura button span{
-  display:block;
-
-  color:#111;
-
-  font-size:9px;
-
-  margin-top:5px;
-
-  font-weight:bold;
-}
-
-/* ENTRADA */
-
-.titulo-secao{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-
-  margin-bottom:12px;
-}
-
-.titulo-secao h3{
-  font-size:18px;
-}
-
-.contador{
-  width:29px;
-  height:29px;
-
-  border-radius:50%;
-
-  background:var(--amarelo);
-
-  display:flex;
-  justify-content:center;
-  align-items:center;
-
-  font-weight:bold;
-  font-size:12px;
-}
-
-.entrada{
-  background:var(--cinza);
-
-  padding:16px;
-
-  border-radius:18px;
-
-  margin-bottom:22px;
-}
-
-.entrada-card{
-  background:white;
-
-  border-radius:14px;
-
-  border-left:
-    5px solid var(--amarelo);
-
-  padding:15px;
-
-  box-shadow:
-    0 4px 14px rgba(0,0,0,.05);
-}
-
-.entrada-card small{
-  color:var(--texto);
-  font-size:11px;
-}
-
-.entrada-card h4{
-  margin:6px 0;
-
-  font-size:15px;
-}
-
-.entrada-card p{
-  color:var(--texto);
-
-  font-size:12px;
-
-  margin-bottom:13px;
-}
-
-.decisao{
-  display:flex;
-  gap:7px;
-}
-
-.decisao button{
-  flex:1;
-
-  border:none;
-
-  border-radius:9px;
-
-  padding:9px 5px;
-
-  font-size:10px;
-
-  font-weight:bold;
-}
-
-.fazer{
-  background:var(--azul);
-  color:white;
-}
-
-.guardar{
-  background:#ececff;
-  color:var(--azul-escuro);
-}
-
-.arquivar{
-  background:#eee;
-  color:#555;
-}
-
-/* PROJETO */
-
-.projeto{
-  background:white;
-
-  border:
-    1px solid #e8e8f0;
-
-  border-radius:16px;
-
-  padding:16px;
-}
-
-.projeto-topo{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-}
-
-.projeto h4{
-  font-size:15px;
-}
-
-.status{
-  font-size:10px;
-
-  background:#efefff;
-
-  color:var(--azul-escuro);
-
-  padding:5px 8px;
-
-  border-radius:20px;
-
-  font-weight:bold;
-}
-
-.barra{
-  height:7px;
-
-  border-radius:10px;
-
-  background:#ececf2;
-
-  margin-top:13px;
-
-  overflow:hidden;
-}
-
-.progresso{
-  width:35%;
-  height:100%;
-
-  background:var(--azul);
-
-  border-radius:10px;
-}
-
-.legenda{
-  display:flex;
-  justify-content:space-between;
-
-  margin-top:8px;
-
-  color:var(--texto);
-  font-size:10px;
-}
-
-/* MENU PERFIL */
-
-.menu-perfil{
-  display:none;
-
-  position:fixed;
-
-  inset:0;
-
-  background:
-    rgba(0,0,0,.42);
-
-  z-index:30;
-
-  align-items:flex-end;
-  justify-content:center;
-}
-
-.menu-card{
-  background:white;
-
-  width:100%;
-  max-width:520px;
-
-  padding:
-    24px 20px
-    calc(24px + env(safe-area-inset-bottom));
-
-  border-radius:
-    24px 24px 0 0;
-}
-
-.menu-card h3{
-  margin-bottom:5px;
-}
-
-.menu-card p{
-  color:var(--texto);
-
-  font-size:13px;
-
-  margin-bottom:18px;
-}
-
-.sair{
-  width:100%;
-
-  padding:13px;
-
-  border:1px solid #ddd;
-
-  border-radius:12px;
-
-  background:white;
-
-  color:#c62828;
-
-  font-weight:bold;
+function abrirApp(u){
+  usuario = u;
+  esconder('auth');
+  mostrar('app');
+
+  var primeiro = u.nome.trim().split(' ')[0];
+  var h = new Date().getHours();
+  var periodo = h < 12 ? 'Bom dia' : (h < 18 ? 'Boa tarde' : 'Boa noite');
+  $('saudacao').textContent = periodo + ', ' + primeiro + '.';
+  $('btnAvatar').textContent = primeiro.charAt(0).toUpperCase();
+  $('perfilNome').textContent = u.nome;
+  $('perfilEmail').textContent = u.email;
+
+  carregarDados();
+  renderizar();
 }
 
 /* NAVEGAÇÃO */
-
-nav{
-  position:fixed;
-
-  bottom:0;
-  left:50%;
-
-  transform:
-    translateX(-50%);
-
-  width:100%;
-  max-width:520px;
-
-  background:white;
-
-  border-top:
-    1px solid #e7e7ee;
-
-  padding:
-    10px 10px
-    calc(
-      10px +
-      env(safe-area-inset-bottom)
-    );
-
-  display:grid;
-
-  grid-template-columns:
-    repeat(5,1fr);
+function trocarTela(nome){
+  ['hoje','entrada','projetos','ia'].forEach(function(v){
+    $('view-' + v).classList.toggle('oculto', v !== nome);
+  });
+  document.querySelectorAll('nav [data-view]').forEach(function(b){
+    b.classList.toggle('ativo', b.getAttribute('data-view') === nome);
+  });
+  window.scrollTo(0,0);
 }
 
-nav button{
-  border:none;
-  background:transparent;
-
-  color:#777;
-
-  font-size:18px;
+/* CAPTURA */
+function abrirCaptura(){
+  mostrar('modalCaptura');
+  setTimeout(function(){ $('txtCaptura').focus(); }, 150);
 }
-
-nav button span{
-  display:block;
-
-  font-size:9px;
-
-  margin-top:4px;
-}
-
-nav .ativo{
-  color:var(--azul);
-  font-weight:bold;
-}
-
-.botao-centro{
-  width:51px;
-  height:51px;
-
-  border-radius:50%;
-
-  background:var(--amarelo);
-
-  color:black;
-
-  font-size:28px;
-
-  margin:-25px auto 0;
-
-  box-shadow:
-    0 7px 18px
-    rgba(0,0,0,.18);
-}
-
-</style>
-</head>
-
-<body>
-
-
-<!-- LOGIN / CADASTRO -->
-
-<section id="auth" class="auth">
-
-  <div class="auth-marca">
-
-    <div class="auth-logo">
-      N
-    </div>
-
-    <h1>NowFind</h1>
-
-    <p>
-      Tire da cabeça.<br>
-      Coloque em movimento.
-    </p>
-
-  </div>
-
-
-  <div class="auth-card">
-
-    <h2 id="authTitulo">
-      Entrar
-    </h2>
-
-    <p id="authDescricao">
-      Acesse seu espaço pessoal.
-    </p>
-
-
-    <div
-      id="campoNome"
-      class="campo"
-      style="display:none"
-    >
-
-      <label>
-        Como podemos chamar você?
-      </label>
-
-      <input
-        id="nome"
-        type="text"
-        placeholder="Seu primeiro nome"
-      >
-
-    </div>
-
-
-    <div class="campo">
-
-      <label>E-mail</label>
-
-      <input
-        id="email"
-        type="email"
-        placeholder="voce@email.com"
-      >
-
-    </div>
-
-
-    <div class="campo">
-
-      <label>Senha</label>
-
-      <input
-        id="senha"
-        type="password"
-        placeholder="Sua senha"
-      >
-
-    </div>
-
-
-    <button
-      id="botaoAuth"
-      class="botao-principal"
-      onclick="entrar()"
-    >
-      Entrar
-    </button>
-
-
-    <div class="troca-auth">
-
-      <span id="textoTroca">
-        Ainda não tem conta?
-      </span>
-
-      <button onclick="trocarModo()">
-        <span id="acaoTroca">
-          Criar conta
-        </span>
-      </button>
-
-    </div>
-
-
-    <div class="aviso">
-
-      Esta é a primeira versão de teste.
-      Nesta etapa os dados permanecem
-      somente neste aparelho.
-
-    </div>
-
-  </div>
-
-</section>
-
-
-<!-- APLICATIVO -->
-
-<div id="app" class="app">
-
-<header>
-
-  <div class="marca">
-
-    <div class="logo">
-      N
-    </div>
-
-    <div>
-
-      <h1>NowFind</h1>
-
-      <small>
-        Organize. Execute. Aprenda.
-      </small>
-
-    </div>
-
-  </div>
-
-  <button
-    id="perfil"
-    class="perfil"
-    onclick="abrirPerfil()"
-  >
-    U
-  </button>
-
-</header>
-
-
-<main>
-
-<section class="saudacao">
-
-  <small>SEU DIA</small>
-
-  <h2 id="saudacao">
-    Olá.
-  </h2>
-
-  <p>
-    Tire as coisas da cabeça.
-    O NowFind ajuda você a decidir
-    o que fazer com cada uma.
-  </p>
-
-</section>
-
-
-<section class="captura">
-
-  <h3>
-    O que está na sua cabeça?
-  </h3>
-
-  <p>
-    Registre agora.
-    Organize depois.
-  </p>
-
-
-  <div class="captura-opcoes">
-
-    <button onclick="abrirCapturaTexto()">
-
-      ✏️
-      <span>Texto</span>
-    </button>
-
-    <button>
-      🎙️
-      <span>Áudio</span>
-    </button>
-
-    <button>
-      📷
-      <span>Imagem</span>
-    </button>
-
-    <button>
-      📎
-      <span>Arquivo</span>
-    </button>
-
-  </div>
-
-</section>
-
-
-<div class="titulo-secao">
-
-  <h3>
-    Caixa de entrada
-  </h3>
-
-  <div class="contador">
-    1
-  </div>
-
-</div>
-
-
-<section class="entrada">
-
-  <div class="entrada-card">
-
-    <small>AGORA</small>
-
-    <h4>
-      Minha primeira captura
-    </h4>
-
-    <p>
-      Decida o que fazer
-      com este item.
-    </p>
-
-
-    <div class="decisao">
-
-      <button class="fazer">
-        Fazer
-      </button>
-
-      <button class="guardar">
-        Guardar
-      </button>
-
-      <button class="arquivar">
-        Arquivar
-      </button>
-
-    </div>
-
-  </div>
-
-</section>
-
-
-<div class="titulo-secao">
-
-  <h3>Projetos</h3>
-
-</div>
-
-
-<section class="projeto">
-
-  <div class="projeto-topo">
-
-    <h4>
-      Conhecendo o NowFind
-    </h4>
-
-    <span class="status">
-      Em andamento
-    </span>
-
-  </div>
-
-
-  <div class="barra">
-
-    <div class="progresso"></div>
-
-  </div>
-
-
-  <div class="legenda">
-
-    <span>Progresso</span>
-
-    <span>35%</span>
-
-  </div>
-
-</section>
-
-</main>
-
-
-<nav>
-
-  <button class="ativo">
-    ◉
-    <span>Hoje</span>
-  </button>
-
-  <button>
-    ↓
-    <span>Entrada</span>
-  </button>
-
-  <button class="botao-centro">
-    +
-  </button>
-
-  <button>
-    ▦
-    <span>Projetos</span>
-  </button>
-
-  <button>
-    ✦
-    <span>IA</span>
-  </button>
-
-</nav>
-
-</div>
-
-
-<!-- PERFIL -->
-
-<div
-  id="menuPerfil"
-  class="menu-perfil"
-  onclick="fecharPerfil(event)"
->
-
-  <div class="menu-card">
-
-    <h3 id="nomePerfil">
-      Usuário
-    </h3>
-
-    <p id="emailPerfil"></p>
-
-    <button
-      class="sair"
-      onclick="sair()"
-    >
-      Sair da conta
-    </button>
-
-  </div>
-
-</div>
-
-
-<script>
-
-let modoCadastro = false;
-
-
-/* VERIFICA USUÁRIO SALVO */
-
-document.addEventListener(
-  "DOMContentLoaded",
-  function(){
-
-    const usuario =
-      JSON.parse(
-        localStorage.getItem(
-          "nowfind_usuario"
-        )
-      );
-
-    const sessao =
-      localStorage.getItem(
-        "nowfind_sessao"
-      );
-
-    if(usuario && sessao){
-
-      mostrarApp(usuario);
-
-    }
-
-  }
-);
-
-
-/* TROCA LOGIN / CADASTRO */
-
-function trocarModo(){
-
-  modoCadastro =
-    !modoCadastro;
-
-  const campoNome =
-    document.getElementById(
-      "campoNome"
-    );
-
-  if(modoCadastro){
-
-    campoNome.style.display =
-      "block";
-
-    document.getElementById(
-      "authTitulo"
-    ).innerText =
-      "Criar conta";
-
-    document.getElementById(
-      "authDescricao"
-    ).innerText =
-      "Crie seu espaço pessoal no NowFind.";
-
-    document.getElementById(
-      "botaoAuth"
-    ).innerText =
-      "Criar minha conta";
-
-    document.getElementById(
-      "textoTroca"
-    ).innerText =
-      "Já tem uma conta?";
-
-    document.getElementById(
-      "acaoTroca"
-    ).innerText =
-      "Entrar";
-
-  }
-
-  else{
-
-    campoNome.style.display =
-      "none";
-
-    document.getElementById(
-      "authTitulo"
-    ).innerText =
-      "Entrar";
-
-    document.getElementById(
-      "authDescricao"
-    ).innerText =
-      "Acesse seu espaço pessoal.";
-
-    document.getElementById(
-      "botaoAuth"
-    ).innerText =
-      "Entrar";
-
-    document.getElementById(
-      "textoTroca"
-    ).innerText =
-      "Ainda não tem conta?";
-
-    document.getElementById(
-      "acaoTroca"
-    ).innerText =
-      "Criar conta";
-
-  }
-
-}
-
-
-/* LOGIN / CADASTRO */
-
-function entrar(){
-
-  const nome =
-    document.getElementById(
-      "nome"
-    ).value.trim();
-
-  const email =
-    document.getElementById(
-      "email"
-    ).value.trim();
-
-  const senha =
-    document.getElementById(
-      "senha"
-    ).value;
-
-
-  if(modoCadastro){
-
-    if(!nome){
-
-      alert(
-        "Digite seu primeiro nome."
-      );
-
-      return;
-
-    }
-
-    if(!email || !senha){
-
-      alert(
-        "Preencha e-mail e senha."
-      );
-
-      return;
-
-    }
-
-
-    const usuario = {
-      nome:nome,
-      email:email
-    };
-
-
-    localStorage.setItem(
-      "nowfind_usuario",
-      JSON.stringify(usuario)
-    );
-
-
-    /*
-      SOMENTE PROTÓTIPO LOCAL.
-
-      A senha abaixo será retirada
-      quando conectarmos autenticação
-      real ao backend.
-    */
-
-    localStorage.setItem(
-      "nowfind_senha_teste",
-      senha
-    );
-
-
-    localStorage.setItem(
-      "nowfind_sessao",
-      "ativa"
-    );
-
-
-    mostrarApp(usuario);
-
-  }
-
-  else{
-
-    const usuario =
-      JSON.parse(
-        localStorage.getItem(
-          "nowfind_usuario"
-        )
-      );
-
-    const senhaSalva =
-      localStorage.getItem(
-        "nowfind_senha_teste"
-      );
-
-
-    if(
-      !usuario ||
-      usuario.email !== email ||
-      senhaSalva !== senha
-    ){
-
-      alert(
-        "E-mail ou senha incorretos."
-      );
-
-      return;
-
-    }
-
-
-    localStorage.setItem(
-      "nowfind_sessao",
-      "ativa"
-    );
-
-
-    mostrarApp(usuario);
-
-  }
-
-}
-
-
-/* MOSTRAR APP */
-
-function mostrarApp(usuario){
-
-  document.getElementById(
-    "auth"
-  ).style.display =
-    "none";
-
-
-  document.getElementById(
-    "app"
-  ).style.display =
-    "block";
-
-
-  const primeiroNome =
-    usuario.nome
-      .trim()
-      .split(" ")[0];
-
-
-  const hora =
-    new Date().getHours();
-
-
-  let periodo =
-    "Olá";
-
-
-  if(hora < 12){
-
-    periodo =
-      "Bom dia";
-
-  }
-
-  else if(hora < 18){
-
-    periodo =
-      "Boa tarde";
-
-  }
-
-  else{
-
-    periodo =
-      "Boa noite";
-
-  }
-
-
-  document.getElementById(
-    "saudacao"
-  ).innerText =
-    periodo +
-    ", " +
-    primeiroNome +
-    ".";
-
-
-  document.getElementById(
-    "perfil"
-  ).innerText =
-    primeiroNome
-      .charAt(0)
-      .toUpperCase();
-
-
-  document.getElementById(
-    "nomePerfil"
-  ).innerText =
-    usuario.nome;
-
-
-  document.getElementById(
-    "emailPerfil"
-  ).innerText =
-    usuario.email;
-carregarEntradas();
-
-}
-
-
-/* PERFIL */
-
-function abrirPerfil(){
-
-  document.getElementById(
-    "menuPerfil"
-  ).style.display =
-    "flex";
-
-}
-
-
-function fecharPerfil(event){
-
-  if(
-    event.target.id ===
-    "menuPerfil"
-  ){
-
-    document.getElementById(
-      "menuPerfil"
-    ).style.display =
-      "none";
-
-  }
-
-}
-
-/* CAPTURA DE TEXTO */
-
-function abrirCapturaTexto(){
-
-  document.getElementById(
-    "capturaTexto"
-  ).style.display = "flex";
-
-}
-
-
-function fecharCapturaTexto(){
-
-  document.getElementById(
-    "capturaTexto"
-  ).style.display = "none";
-
-}
-
-
-function salvarCapturaTexto(){
-
-  const texto =
-    document.getElementById(
-      "textoCaptura"
-    ).value.trim();
-
-  if(!texto){
-
-    alert("Digite alguma coisa.");
-
-    return;
-
-  }
-
-  let entradas =
-    JSON.parse(
-      localStorage.getItem(
-        "nowfind_entradas"
-      )
-    ) || [];
-
-  entradas.unshift({
-
-    id: Date.now(),
-
+function salvarCaptura(){
+  var texto = $('txtCaptura').value.trim();
+  if (!texto){ alert('Escreva alguma coisa.'); return; }
+  dados.itens.unshift({
+    id: String(Date.now()),
     texto: texto,
-
-    criadoEm:
-      new Date().toISOString()
-
+    origem: 'texto',
+    status: 'entrada',
+    criadoEm: new Date().toISOString()
   });
-
-  localStorage.setItem(
-    "nowfind_entradas",
-    JSON.stringify(entradas)
-  );
-
-  document.getElementById(
-    "textoCaptura"
-  ).value = "";
-
-  fecharCapturaTexto();
-
-  carregarEntradas();
-
+  salvarDados();
+  $('txtCaptura').value = '';
+  esconder('modalCaptura');
+  renderizar();
 }
 
+/* MOVER ITEM */
+function mover(id, status){
+  var item = dados.itens.find(function(i){ return i.id === id; });
+  if (!item) return;
+  item.status = status;
+  item.atualizadoEm = new Date().toISOString();
+  salvarDados();
+  renderizar();
+}
 
-function carregarEntradas(){
+function validar(id){
+  var ok = confirm('O resultado esperado foi alcançado?');
+  if (ok){
+    var aprendizado = prompt('O que você aprendeu? (opcional)') || '';
+    var item = dados.itens.find(function(i){ return i.id === id; });
+    if (item) item.aprendizado = aprendizado;
+    mover(id, 'validado');
+  } else {
+    alert('Item volta para A fazer para ajuste.');
+    mover(id, 'afazer');
+  }
+}
 
-  const lista =
-    document.getElementById(
-      "listaEntradas"
-    );
+/* MONTAGEM DOS CARTÕES */
+function dataCurta(iso){
+  return new Date(iso).toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+}
 
-  if(!lista){
+function botao(texto, classe, acao){
+  var b = document.createElement('button');
+  b.textContent = texto;
+  b.className = classe;
+  b.addEventListener('click', acao);
+  return b;
+}
+
+function cartao(item, botoes, extra){
+  var c = document.createElement('div');
+  c.className = 'card';
+  if (extra) c.appendChild(extra);
+  var s = document.createElement('small');
+  s.textContent = dataCurta(item.criadoEm);
+  var p = document.createElement('p');
+  p.textContent = item.texto;
+  c.appendChild(s);
+  c.appendChild(p);
+  if (botoes.length){
+    var a = document.createElement('div');
+    a.className = 'acoes';
+    botoes.forEach(function(b){ a.appendChild(b); });
+    c.appendChild(a);
+  }
+  return c;
+}
+
+function preencher(alvo, itens, montar, msgVazio){
+  var el = $(alvo);
+  el.innerHTML = '';
+  if (!itens.length){
+    var v = document.createElement('div');
+    v.className = 'vazio';
+    v.textContent = msgVazio;
+    el.appendChild(v);
     return;
   }
+  itens.forEach(function(i){ el.appendChild(montar(i)); });
+}
 
-  const entradas =
-    JSON.parse(
-      localStorage.getItem(
-        "nowfind_entradas"
-      )
-    ) || [];
+function cartaoEntrada(i){
+  return cartao(i, [
+    botao('Fazer', 'b-azul', function(){ mover(i.id, 'afazer'); }),
+    botao('Guardar', 'b-claro', function(){ mover(i.id, 'conhecimento'); }),
+    botao('Arquivar', 'b-cinza', function(){ mover(i.id, 'arquivado'); })
+  ]);
+}
 
-  lista.innerHTML = "";
-
-  entradas.forEach(function(item){
-
-    const card =
-      document.createElement("div");
-
-    card.className =
-      "entrada-card";
-
-    card.style.marginBottom =
-      "10px";
-
-    const data =
-      new Date(
-        item.criadoEm
-      ).toLocaleString(
-        "pt-BR"
-      );
-
-    const small =
-      document.createElement("small");
-
-    small.textContent = data;
-
-
-    const titulo =
-      document.createElement("h4");
-
-    titulo.textContent =
-      item.texto.length > 55
-        ? item.texto.substring(0,55) + "..."
-        : item.texto;
-
-
-    const descricao =
-      document.createElement("p");
-
-    descricao.textContent =
-      item.texto;
-
-
-    const decisao =
-      document.createElement("div");
-
-    decisao.className =
-      "decisao";
-
-
-    const fazer =
-      document.createElement("button");
-
-    fazer.className = "fazer";
-
-    fazer.textContent = "Fazer";
-
-
-    const guardar =
-      document.createElement("button");
-
-    guardar.className = "guardar";
-
-    guardar.textContent = "Guardar";
-
-
-    const arquivar =
-      document.createElement("button");
-
-    arquivar.className = "arquivar";
-
-    arquivar.textContent =
-      "Arquivar";
-
-
-    decisao.appendChild(fazer);
-
-    decisao.appendChild(guardar);
-
-    decisao.appendChild(arquivar);
-
-
-    card.appendChild(small);
-
-    card.appendChild(titulo);
-
-    card.appendChild(descricao);
-
-    card.appendChild(decisao);
-
-
-    lista.appendChild(card);
-
+function indicadorPDCA(status){
+  var nivel = { afazer:0, andamento:1, aguardando:1, realizado:2, validado:3 }[status];
+  var d = document.createElement('div');
+  d.className = 'pdca';
+  ['P','D','C','A'].forEach(function(letra, idx){
+    var b = document.createElement('b');
+    b.textContent = letra;
+    if (status === 'validado') b.className = 'ok';
+    else if (idx <= nivel) b.className = 'on';
+    d.appendChild(b);
   });
-
+  return d;
 }
 
-/* LOGOUT */
+function botoesKanban(i){
+  switch(i.status){
+    case 'afazer': return [ botao('Iniciar', 'b-azul', function(){ mover(i.id, 'andamento'); }) ];
+    case 'andamento': return [
+      botao('Aguardar', 'b-claro', function(){ mover(i.id, 'aguardando'); }),
+      botao('Concluir', 'b-azul', function(){ mover(i.id, 'realizado'); })
+    ];
+    case 'aguardando': return [ botao('Retomar', 'b-azul', function(){ mover(i.id, 'andamento'); }) ];
+    case 'realizado': return [ botao('Validar', 'b-amarelo', function(){ validar(i.id); }) ];
+    case 'validado': return [ botao('Reabrir', 'b-cinza', function(){ mover(i.id, 'afazer'); }) ];
+  }
+  return [];
+}
 
-function sair(){
+function renderizar(){
+  var entrada = dados.itens.filter(function(i){ return i.status === 'entrada'; });
+  $('contEntrada').textContent = entrada.length;
+  preencher('listaHoje', entrada, cartaoEntrada, 'Nada na entrada. Capture algo acima.');
+  preencher('listaEntrada', entrada, cartaoEntrada, 'Caixa de entrada vazia.');
 
-  localStorage.removeItem(
-    "nowfind_sessao"
-  );
+  var conhecimento = dados.itens.filter(function(i){ return i.status === 'conhecimento'; });
+  preencher('listaConhecimento', conhecimento, function(i){
+    return cartao(i, [ botao('Transformar em ação', 'b-azul', function(){ mover(i.id, 'afazer'); }) ]);
+  }, 'Nada guardado ainda.');
 
+  var colunas = [
+    ['afazer','A fazer'], ['andamento','Em andamento'], ['aguardando','Aguardando'],
+    ['realizado','Realizado'], ['validado','Validado']
+  ];
+  var k = $('kanban');
+  k.innerHTML = '';
+  colunas.forEach(function(col){
+    var itens = dados.itens.filter(function(i){ return i.status === col[0]; });
+    var c = document.createElement('div');
+    c.className = 'coluna';
+    var h = document.createElement('h4');
+    var t = document.createElement('span');
+    t.textContent = col[1];
+    var n = document.createElement('span');
+    n.className = 'badge';
+    n.textContent = itens.length;
+    h.appendChild(t);
+    h.appendChild(n);
+    c.appendChild(h);
+    if (!itens.length){
+      var v = document.createElement('div');
+      v.className = 'vazio';
+      v.textContent = 'Sem cartões';
+      c.appendChild(v);
+    }
+    itens.forEach(function(i){ c.appendChild(cartao(i, botoesKanban(i), indicadorPDCA(i.status))); });
+    k.appendChild(c);
+  });
+}
+
+/* EVENTOS */
+$('btnTroca').addEventListener('click', trocarModo);
+$('btnAuth').addEventListener('click', autenticar);
+$('inSenha').addEventListener('keydown', function(e){ if (e.key === 'Enter') autenticar(); });
+
+$('capTexto').addEventListener('click', abrirCaptura);
+$('btnMais').addEventListener('click', abrirCaptura);
+$('btnFecharCaptura').addEventListener('click', function(){ esconder('modalCaptura'); });
+$('btnSalvarCaptura').addEventListener('click', salvarCaptura);
+
+document.querySelectorAll('.em-breve').forEach(function(b){
+  b.addEventListener('click', function(){ alert('Disponível nas próximas etapas.'); });
+});
+
+document.querySelectorAll('nav [data-view]').forEach(function(b){
+  b.addEventListener('click', function(){ trocarTela(b.getAttribute('data-view')); });
+});
+
+$('btnAvatar').addEventListener('click', function(){ mostrar('modalPerfil'); });
+$('btnFecharPerfil').addEventListener('click', function(){ esconder('modalPerfil'); });
+$('btnSair').addEventListener('click', function(){
+  localStorage.removeItem('nowfind_sessao');
   location.reload();
+});
 
-}
+/* SESSÃO SALVA */
+var sessao = localStorage.getItem('nowfind_sessao');
+var usuarios = lerUsuarios();
+if (sessao && usuarios[sessao]) abrirApp(usuarios[sessao]);
 
+})();
 </script>
-
 </body>
 </html>
