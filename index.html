@@ -229,7 +229,8 @@ nav .mais{width:52px;height:52px;border-radius:50%;background:var(--amarelo);col
         <p>Registre agora. Organize depois.</p>
         <div class="opcoes">
           <button id="capTexto">✏️<span>Texto</span></button>
-          <button class="em-breve">🎙️<span>Áudio</span></button>
+          <button id="capAudio">🎙️<span>Áudio</span></button>
+
           <button class="em-breve">📷<span>Imagem</span></button>
           <button class="em-breve">📎<span>Arquivo</span></button>
         </div>
@@ -363,6 +364,102 @@ nav .mais{width:52px;height:52px;border-radius:50%;background:var(--amarelo);col
     <select id="capProjeto"></select>
     <button id="btnSalvarCaptura" class="btn">Salvar na Entrada</button>
     <button id="btnExcluirItem" class="sair oculto">Excluir item</button>
+  </div>
+</div>
+<!-- JANELA DE ÁUDIO -->
+
+<div id="modalAudio" class="modal oculto">
+  <div class="folha">
+
+    <div class="folha-topo">
+      <div>
+        <small>CAPTURA POR ÁUDIO</small>
+        <h2>🎙️ Gravar áudio</h2>
+      </div>
+
+      <button id="btnFecharAudio" class="fechar">
+        ×
+      </button>
+    </div>
+
+    <div style="
+      text-align:center;
+      padding:20px 0;
+    ">
+
+      <div id="tempoAudio" style="
+        font-size:38px;
+        font-weight:800;
+        color:#333399;
+        margin-bottom:18px;
+      ">
+        00:00
+      </div>
+
+      <button id="btnGravarAudio" class="btn">
+        ● Iniciar gravação
+      </button>
+
+      <button
+        id="btnPararAudio"
+        class="btn oculto"
+        style="background:#D32F2F"
+      >
+        ■ Parar gravação
+      </button>
+
+    </div>
+
+    <audio
+      id="playerAudio"
+      controls
+      class="oculto"
+      style="
+        width:100%;
+        margin:8px 0 18px;
+      "
+    ></audio>
+
+    <label>Tipo</label>
+
+    <div id="audioTipo" class="segmento">
+
+      <button data-v="pessoal">
+        🏠 Pessoal
+      </button>
+
+      <button data-v="profissional">
+        💼 Profissional
+      </button>
+
+    </div>
+
+    <label>Projeto</label>
+
+    <select id="audioProjeto">
+      <option value="">
+        Sem projeto
+      </option>
+    </select>
+
+    <button
+      id="btnSalvarAudio"
+      class="btn oculto"
+    >
+      Salvar na Entrada
+    </button>
+
+    <p style="
+      color:#737789;
+      font-size:11px;
+      line-height:1.4;
+      margin-top:12px;
+    ">
+      O áudio ficará associado ao item.
+      A transcrição automática com IA será adicionada
+      quando conectarmos o NowFind ao backend.
+    </p>
+
   </div>
 </div>
 
@@ -989,6 +1086,277 @@ function renderizar(){
   k.scrollLeft = posicao;
   ativarArrastar();
 }
+/* ÁUDIO */
+
+var gravadorAudio = null;
+var streamAudio = null;
+var partesAudio = [];
+var blobAudio = null;
+var urlAudio = null;
+var inicioAudio = null;
+var timerAudio = null;
+
+
+function preencherProjetosAudio(){
+
+  var select = $('audioProjeto');
+
+  select.innerHTML = '';
+
+  var vazio = el(
+    'option',
+    null,
+    'Sem projeto'
+  );
+
+  vazio.value = '';
+
+  select.appendChild(vazio);
+
+  dados.projetos.forEach(function(p){
+
+    var opcao = el(
+      'option',
+      null,
+      p.nome
+    );
+
+    opcao.value = p.id;
+
+    select.appendChild(opcao);
+
+  });
+
+}
+
+
+function abrirAudio(){
+
+  preencherProjetosAudio();
+
+  definirSegmento(
+    'audioTipo',
+    'pessoal'
+  );
+
+  $('tempoAudio').textContent =
+    '00:00';
+
+  $('playerAudio').classList.add(
+    'oculto'
+  );
+
+  $('btnSalvarAudio').classList.add(
+    'oculto'
+  );
+
+  $('btnPararAudio').classList.add(
+    'oculto'
+  );
+
+  $('btnGravarAudio').classList.remove(
+    'oculto'
+  );
+
+  mostrar('modalAudio');
+
+}
+
+
+async function iniciarAudio(){
+
+  try {
+
+    streamAudio =
+      await navigator.mediaDevices
+        .getUserMedia({
+          audio: true
+        });
+
+    partesAudio = [];
+    blobAudio = null;
+
+    gravadorAudio =
+      new MediaRecorder(streamAudio);
+
+    gravadorAudio.ondataavailable =
+      function(event){
+
+        if(
+          event.data &&
+          event.data.size > 0
+        ){
+
+          partesAudio.push(
+            event.data
+          );
+
+        }
+
+      };
+
+
+    gravadorAudio.onstop =
+      function(){
+
+        blobAudio =
+          new Blob(
+            partesAudio,
+            {
+              type:
+                gravadorAudio.mimeType ||
+                'audio/mp4'
+            }
+          );
+
+        if(urlAudio){
+
+          URL.revokeObjectURL(
+            urlAudio
+          );
+
+        }
+
+        urlAudio =
+          URL.createObjectURL(
+            blobAudio
+          );
+
+        $('playerAudio').src =
+          urlAudio;
+
+        $('playerAudio')
+          .classList
+          .remove('oculto');
+
+        $('btnSalvarAudio')
+          .classList
+          .remove('oculto');
+
+      };
+
+
+    gravadorAudio.start();
+
+    inicioAudio = Date.now();
+
+    $('btnGravarAudio')
+      .classList
+      .add('oculto');
+
+    $('btnPararAudio')
+      .classList
+      .remove('oculto');
+
+
+    timerAudio =
+      setInterval(function(){
+
+        var segundos =
+          Math.floor(
+            (
+              Date.now() -
+              inicioAudio
+            ) / 1000
+          );
+
+        var min =
+          String(
+            Math.floor(
+              segundos / 60
+            )
+          ).padStart(2,'0');
+
+        var seg =
+          String(
+            segundos % 60
+          ).padStart(2,'0');
+
+        $('tempoAudio')
+          .textContent =
+            min + ':' + seg;
+
+      }, 250);
+
+
+  } catch(erro){
+
+    alert(
+      'Não foi possível acessar o microfone. Verifique a permissão do Safari.'
+    );
+
+  }
+
+}
+
+
+function pararAudio(){
+
+  if(
+    gravadorAudio &&
+    gravadorAudio.state !==
+      'inactive'
+  ){
+
+    gravadorAudio.stop();
+
+  }
+
+
+  if(timerAudio){
+
+    clearInterval(
+      timerAudio
+    );
+
+    timerAudio = null;
+
+  }
+
+
+  if(streamAudio){
+
+    streamAudio
+      .getTracks()
+      .forEach(function(track){
+
+        track.stop();
+
+      });
+
+    streamAudio = null;
+
+  }
+
+
+  $('btnPararAudio')
+    .classList
+    .add('oculto');
+
+  $('btnGravarAudio')
+    .classList
+    .remove('oculto');
+
+}
+
+
+function fecharAudio(){
+
+  if(
+    gravadorAudio &&
+    gravadorAudio.state ===
+      'recording'
+  ){
+
+    pararAudio();
+
+  }
+
+  esconder(
+    'modalAudio'
+  );
+
+}
 
 /* EVENTOS */
 document.querySelectorAll('.segmento').forEach(function(seg){
@@ -1002,6 +1370,26 @@ $('btnAuth').addEventListener('click', autenticar);
 $('inSenha').addEventListener('keydown', function(e){ if (e.key === 'Enter') autenticar(); });
 
 $('capTexto').addEventListener('click', function(){ abrirCaptura(); });
+  $('capAudio').addEventListener(
+  'click',
+  abrirAudio
+);
+
+$('btnGravarAudio').addEventListener(
+  'click',
+  iniciarAudio
+);
+
+$('btnPararAudio').addEventListener(
+  'click',
+  pararAudio
+);
+
+$('btnFecharAudio').addEventListener(
+  'click',
+  fecharAudio
+);
+
 $('btnMais').addEventListener('click', function(){ abrirCaptura(); });
 $('btnFecharCaptura').addEventListener('click', function(){ esconder('modalCaptura'); });
 $('btnSalvarCaptura').addEventListener('click', salvarCaptura);
