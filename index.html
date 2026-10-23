@@ -362,6 +362,28 @@ nav .mais{width:52px;height:52px;border-radius:50%;background:var(--amarelo);col
     <div id="capTipo" class="segmento"><button data-v="pessoal">🏠 Pessoal</button><button data-v="profissional">💼 Profissional</button></div>
     <label>Projeto</label>
     <select id="capProjeto"></select>
+    <button
+  id="btnOrganizarIA"
+  class="btn"
+  style="
+    background:#333399;
+    margin-bottom:8px;
+  "
+>
+  ✨ Organizar com IA
+</button>
+
+<div
+  id="resultadoIA"
+  class="oculto"
+  style="
+    background:#F5F6FA;
+    border-radius:14px;
+    padding:14px;
+    margin-top:14px;
+  "
+></div>
+
     <button id="btnSalvarCaptura" class="btn">Salvar na Entrada</button>
     <button id="btnExcluirItem" class="sair oculto">Excluir item</button>
   </div>
@@ -1617,6 +1639,488 @@ async function salvarAudio(){
   }
 
 }
+const NOWFIND_IA_URL = "https://nowfind-ia.raul-almeida-siqueira.workers.dev";
+async function organizarComIA(){
+
+  var texto =
+    $('txtCaptura').value.trim();
+
+  if(!texto){
+
+    alert('Escreva ou cole algo para a IA organizar.');
+
+    return;
+
+  }
+
+  var tipo =
+    lerSegmento('capTipo');
+
+  var area =
+    $('resultadoIA');
+
+  area.classList.remove('oculto');
+
+  area.innerHTML =
+    '<b>✨ NowFind IA</b><p style="margin-top:8px;color:#737789">Analisando e organizando...</p>';
+
+  $('btnOrganizarIA').disabled = true;
+
+  try {
+
+    var resposta =
+      await fetch(
+        NOWFIND_IA_URL + '/api/organizar',
+        {
+          method: 'POST',
+
+          headers: {
+            'Content-Type':
+              'application/json'
+          },
+
+          body: JSON.stringify({
+            texto: texto,
+            tipo: tipo
+          })
+        }
+      );
+
+    var dadosIA =
+      await resposta.json();
+
+    if(
+      !resposta.ok ||
+      !dadosIA.ok
+    ){
+
+      throw new Error(
+        dadosIA.erro ||
+        'Falha na análise.'
+      );
+
+    }
+
+    mostrarResultadoIA(
+      dadosIA.analise
+    );
+
+  }
+
+  catch(erro){
+
+    area.innerHTML =
+      '<b>Não consegui organizar esta captura.</b>' +
+      '<p style="margin-top:8px;color:#737789">' +
+      erro.message +
+      '</p>';
+
+  }
+
+  finally{
+
+    $('btnOrganizarIA').disabled =
+      false;
+
+  }
+
+}
+
+
+function mostrarResultadoIA(analise){
+
+  var area =
+    $('resultadoIA');
+
+  area.innerHTML = '';
+
+  var titulo =
+    el(
+      'b',
+      null,
+      '✨ Entendi assim'
+    );
+
+  area.appendChild(titulo);
+
+
+  if(analise.resumo){
+
+    var resumo =
+      el(
+        'p',
+        null,
+        analise.resumo
+      );
+
+    resumo.style.marginTop =
+      '10px';
+
+    resumo.style.lineHeight =
+      '1.4';
+
+    area.appendChild(resumo);
+
+  }
+
+
+  if(analise.objetivo){
+
+    area.appendChild(
+      criarLinhaIA(
+        '🎯 Objetivo',
+        analise.objetivo
+      )
+    );
+
+  }
+
+
+  if(analise.prazo){
+
+    area.appendChild(
+      criarLinhaIA(
+        '📅 Prazo',
+        analise.prazo
+      )
+    );
+
+  }
+
+
+  if(analise.proxima_acao){
+
+    area.appendChild(
+      criarLinhaIA(
+        '⚡ Próxima ação',
+        analise.proxima_acao
+      )
+    );
+
+  }
+
+
+  if(analise.projeto_sugerido){
+
+    area.appendChild(
+      criarLinhaIA(
+        '📁 Projeto sugerido',
+        analise.projeto_sugerido
+      )
+    );
+
+  }
+
+
+  if(
+    analise.tarefas &&
+    analise.tarefas.length
+  ){
+
+    var bloco =
+      document.createElement(
+        'div'
+      );
+
+    bloco.style.marginTop =
+      '14px';
+
+    bloco.innerHTML =
+      '<b>✅ Ações identificadas</b>';
+
+    analise.tarefas.forEach(
+      function(tarefa, indice){
+
+        var item =
+          document.createElement(
+            'div'
+          );
+
+        item.style.cssText =
+          'background:white;' +
+          'padding:10px;' +
+          'border-radius:10px;' +
+          'margin-top:6px;' +
+          'font-size:13px;';
+
+        item.textContent =
+          (indice + 1) +
+          '. ' +
+          tarefa.titulo;
+
+        bloco.appendChild(
+          item
+        );
+
+      }
+    );
+
+    area.appendChild(bloco);
+
+  }
+
+
+  if(
+    analise.marcos &&
+    analise.marcos.length
+  ){
+
+    area.appendChild(
+      criarListaIA(
+        '◆ Marcos',
+        analise.marcos
+      )
+    );
+
+  }
+
+
+  if(
+    analise.riscos &&
+    analise.riscos.length
+  ){
+
+    area.appendChild(
+      criarListaIA(
+        '⚠️ Riscos / impedimentos',
+        analise.riscos
+      )
+    );
+
+  }
+
+
+  if(
+    analise.conhecimento &&
+    analise.conhecimento.length
+  ){
+
+    area.appendChild(
+      criarListaIA(
+        '🧠 Guardar como conhecimento',
+        analise.conhecimento
+      )
+    );
+
+  }
+
+
+  if(analise.conselho){
+
+    var conselho =
+      document.createElement(
+        'div'
+      );
+
+    conselho.style.cssText =
+      'background:#FFF7CC;' +
+      'border-left:4px solid #FFD600;' +
+      'padding:10px;' +
+      'border-radius:8px;' +
+      'margin-top:14px;' +
+      'font-size:13px;' +
+      'line-height:1.4;';
+
+    conselho.innerHTML =
+      '<b>✦ Sugestão da IA</b><br>' +
+      analise.conselho;
+
+    area.appendChild(
+      conselho
+    );
+
+  }
+
+
+  var botoes =
+    document.createElement(
+      'div'
+    );
+
+  botoes.className =
+    'acoes';
+
+  botoes.style.marginTop =
+    '14px';
+
+
+  botoes.appendChild(
+    botao(
+      '✓ Aceitar',
+      'b-azul',
+      function(){
+
+        aceitarAnaliseIA(
+          analise
+        );
+
+      }
+    )
+  );
+
+
+  botoes.appendChild(
+    botao(
+      '↻ Regerar',
+      'b-claro',
+      organizarComIA
+    )
+  );
+
+
+  botoes.appendChild(
+    botao(
+      'Ignorar',
+      'b-cinza',
+      function(){
+
+        area.classList.add(
+          'oculto'
+        );
+
+      }
+    )
+  );
+
+
+  area.appendChild(
+    botoes
+  );
+
+}
+
+
+function criarLinhaIA(
+  titulo,
+  valor
+){
+
+  var bloco =
+    document.createElement(
+      'div'
+    );
+
+  bloco.style.cssText =
+    'margin-top:12px;' +
+    'font-size:13px;' +
+    'line-height:1.4;';
+
+  var t =
+    document.createElement(
+      'b'
+    );
+
+  t.textContent =
+    titulo;
+
+  bloco.appendChild(t);
+
+  bloco.appendChild(
+    document.createElement(
+      'br'
+    )
+  );
+
+  bloco.appendChild(
+    document.createTextNode(
+      valor
+    )
+  );
+
+  return bloco;
+
+}
+
+
+function criarListaIA(
+  titulo,
+  itens
+){
+
+  var bloco =
+    document.createElement(
+      'div'
+    );
+
+  bloco.style.cssText =
+    'margin-top:14px;' +
+    'font-size:13px;';
+
+  var t =
+    document.createElement(
+      'b'
+    );
+
+  t.textContent =
+    titulo;
+
+  bloco.appendChild(t);
+
+
+  itens.forEach(
+    function(item){
+
+      var linha =
+        document.createElement(
+          'div'
+        );
+
+      linha.style.marginTop =
+        '5px';
+
+      linha.textContent =
+        '• ' + item;
+
+      bloco.appendChild(
+        linha
+      );
+
+    }
+  );
+
+  return bloco;
+
+}
+
+
+function aceitarAnaliseIA(
+  analise
+){
+
+  /*
+    Nesta primeira versão,
+    aceitar NÃO cria tudo
+    automaticamente.
+
+    A IA organiza.
+    O usuário continua decidindo.
+  */
+
+  if(analise.proxima_acao){
+
+    $('txtCaptura').value =
+      analise.proxima_acao;
+
+  }
+
+  if(analise.tipo){
+
+    definirSegmento(
+      'capTipo',
+      analise.tipo
+    );
+
+  }
+
+  $('resultadoIA')
+    .classList
+    .add('oculto');
+
+  alert(
+    'Sugestão aplicada. Revise e toque em Salvar quando estiver de acordo.'
+  );
+
+}
 
 /* EVENTOS */
 document.querySelectorAll('.segmento').forEach(function(seg){
@@ -1630,6 +2134,11 @@ $('btnAuth').addEventListener('click', autenticar);
 $('inSenha').addEventListener('keydown', function(e){ if (e.key === 'Enter') autenticar(); });
 
 $('capTexto').addEventListener('click', function(){ abrirCaptura(); });
+  $('btnOrganizarIA').addEventListener(
+  'click',
+  organizarComIA
+);
+
   $('capAudio').addEventListener(
   'click',
   abrirAudio
