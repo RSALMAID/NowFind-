@@ -931,6 +931,120 @@ function cartao(item, botoes, extra){
   var p = el('p', null, item.texto);
   p.addEventListener('click', function(){ abrirCaptura(item.id); });
   c.appendChild(p);
+  if(
+  item.origem === 'audio' &&
+  item.audioId
+){
+
+  var ouvirAudio =
+    botao(
+      '▶️ Ouvir áudio',
+      'b-claro',
+      function(){
+
+        pedido(
+          'readonly',
+          function(store){
+
+            return store.get(
+              item.audioId
+            );
+
+          }
+        )
+        .then(function(audioSalvo){
+
+          if(
+            !audioSalvo ||
+            !audioSalvo.blob
+          ){
+
+            alert(
+              'Áudio não encontrado neste aparelho.'
+            );
+
+            return;
+
+          }
+
+          var playerExistente =
+            c.querySelector(
+              '.player-card-audio'
+            );
+
+          if(playerExistente){
+
+            playerExistente
+              .play();
+
+            return;
+
+          }
+
+          var url =
+            URL.createObjectURL(
+              audioSalvo.blob
+            );
+
+          var player =
+            document.createElement(
+              'audio'
+            );
+
+          player.className =
+            'player-card-audio';
+
+          player.controls =
+            true;
+
+          player.src =
+            url;
+
+          player.style.width =
+            '100%';
+
+          player.style.margin =
+            '8px 0 12px';
+
+          c.insertBefore(
+            player,
+            ouvirAudio.parentNode
+          );
+
+          player.play();
+
+        })
+        .catch(function(){
+
+          alert(
+            'Não foi possível abrir o áudio.'
+          );
+
+        });
+
+      }
+    );
+
+
+  var areaAudio =
+    el(
+      'div',
+      'acoes'
+    );
+
+  areaAudio.style.marginBottom =
+    '8px';
+
+  areaAudio.appendChild(
+    ouvirAudio
+  );
+
+  c.appendChild(
+    areaAudio
+  );
+
+}
+
   if (botoes.length){
     var a = el('div', 'acoes');
     botoes.forEach(function(b){ a.appendChild(b); });
@@ -1357,6 +1471,152 @@ function fecharAudio(){
   );
 
 }
+async function salvarAudio(){
+
+  if(!blobAudio){
+
+    alert(
+      'Grave um áudio antes de salvar.'
+    );
+
+    return;
+
+  }
+
+  var tipo =
+    lerSegmento(
+      'audioTipo'
+    );
+
+  var projetoId =
+    $('audioProjeto').value || null;
+
+  var audioId =
+    'audio_' + Date.now();
+
+  var duracao =
+    $('tempoAudio').textContent;
+
+
+  try {
+
+    await pedido(
+      'readwrite',
+      function(store){
+
+        return store.put({
+
+          id: audioId,
+
+          projetoId: projetoId,
+
+          usuario: usuario.email,
+
+          nome:
+            'Áudio ' +
+            duracao,
+
+          mime:
+            blobAudio.type ||
+            'audio/mp4',
+
+          tamanho:
+            blobAudio.size,
+
+          blob:
+            blobAudio,
+
+          criadoEm:
+            agora(),
+
+          origem:
+            'audio'
+
+        });
+
+      }
+    );
+
+
+    dados.itens.unshift({
+
+      id:
+        String(Date.now()),
+
+      texto:
+        '🎙️ Áudio ' +
+        duracao,
+
+      tipo:
+        tipo,
+
+      projetoId:
+        projetoId,
+
+      origem:
+        'audio',
+
+      audioId:
+        audioId,
+
+      duracaoAudio:
+        duracao,
+
+      status:
+        'entrada',
+
+      urgente:
+        false,
+
+      importante:
+        false,
+
+      criadoEm:
+        agora()
+
+    });
+
+
+    salvarDados();
+
+    esconder(
+      'modalAudio'
+    );
+
+
+    blobAudio = null;
+    partesAudio = [];
+
+
+    if(urlAudio){
+
+      URL.revokeObjectURL(
+        urlAudio
+      );
+
+      urlAudio = null;
+
+    }
+
+
+    $('playerAudio')
+      .removeAttribute(
+        'src'
+      );
+
+
+    renderizar();
+
+
+  } catch(erro){
+
+    alert(
+      'Não foi possível salvar o áudio neste aparelho.'
+    );
+
+  }
+
+}
 
 /* EVENTOS */
 document.querySelectorAll('.segmento').forEach(function(seg){
@@ -1388,6 +1648,10 @@ $('btnPararAudio').addEventListener(
 $('btnFecharAudio').addEventListener(
   'click',
   fecharAudio
+);
+$('btnSalvarAudio').addEventListener(
+  'click',
+  salvarAudio
 );
 
 $('btnMais').addEventListener('click', function(){ abrirCaptura(); });
