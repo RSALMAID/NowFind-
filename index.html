@@ -1343,6 +1343,7 @@ function mostrarApp(usuario){
     "emailPerfil"
   ).innerText =
     usuario.email;
+carregarEntradas();
 
 }
 
@@ -1375,6 +1376,188 @@ function fecharPerfil(event){
 
 }
 
+/* CAPTURA DE TEXTO */
+
+function abrirCapturaTexto(){
+
+  document.getElementById(
+    "capturaTexto"
+  ).style.display = "flex";
+
+}
+
+
+function fecharCapturaTexto(){
+
+  document.getElementById(
+    "capturaTexto"
+  ).style.display = "none";
+
+}
+
+
+function salvarCapturaTexto(){
+
+  const texto =
+    document.getElementById(
+      "textoCaptura"
+    ).value.trim();
+
+  if(!texto){
+
+    alert("Digite alguma coisa.");
+
+    return;
+
+  }
+
+  let entradas =
+    JSON.parse(
+      localStorage.getItem(
+        "nowfind_entradas"
+      )
+    ) || [];
+
+  entradas.unshift({
+
+    id: Date.now(),
+
+    texto: texto,
+
+    criadoEm:
+      new Date().toISOString()
+
+  });
+
+  localStorage.setItem(
+    "nowfind_entradas",
+    JSON.stringify(entradas)
+  );
+
+  document.getElementById(
+    "textoCaptura"
+  ).value = "";
+
+  fecharCapturaTexto();
+
+  carregarEntradas();
+
+}
+
+
+function carregarEntradas(){
+
+  const lista =
+    document.getElementById(
+      "listaEntradas"
+    );
+
+  if(!lista){
+    return;
+  }
+
+  const entradas =
+    JSON.parse(
+      localStorage.getItem(
+        "nowfind_entradas"
+      )
+    ) || [];
+
+  lista.innerHTML = "";
+
+  entradas.forEach(function(item){
+
+    const card =
+      document.createElement("div");
+
+    card.className =
+      "entrada-card";
+
+    card.style.marginBottom =
+      "10px";
+
+    const data =
+      new Date(
+        item.criadoEm
+      ).toLocaleString(
+        "pt-BR"
+      );
+
+    const small =
+      document.createElement("small");
+
+    small.textContent = data;
+
+
+    const titulo =
+      document.createElement("h4");
+
+    titulo.textContent =
+      item.texto.length > 55
+        ? item.texto.substring(0,55) + "..."
+        : item.texto;
+
+
+    const descricao =
+      document.createElement("p");
+
+    descricao.textContent =
+      item.texto;
+
+
+    const decisao =
+      document.createElement("div");
+
+    decisao.className =
+      "decisao";
+
+
+    const fazer =
+      document.createElement("button");
+
+    fazer.className = "fazer";
+
+    fazer.textContent = "Fazer";
+
+
+    const guardar =
+      document.createElement("button");
+
+    guardar.className = "guardar";
+
+    guardar.textContent = "Guardar";
+
+
+    const arquivar =
+      document.createElement("button");
+
+    arquivar.className = "arquivar";
+
+    arquivar.textContent =
+      "Arquivar";
+
+
+    decisao.appendChild(fazer);
+
+    decisao.appendChild(guardar);
+
+    decisao.appendChild(arquivar);
+
+
+    card.appendChild(small);
+
+    card.appendChild(titulo);
+
+    card.appendChild(descricao);
+
+    card.appendChild(decisao);
+
+
+    lista.appendChild(card);
+
+  });
+
+}
 
 /* LOGOUT */
 
