@@ -1861,20 +1861,36 @@ if(
   typeof analise === 'string'
 ){
 
+  var bruto = analise;
+
+  var limpo = bruto
+    .replace(/```json/gi, '')
+    .replace(/```/g, '')
+    .trim();
+
+  var ini = limpo.indexOf('{');
+  var fim = limpo.lastIndexOf('}');
+
+  if(ini >= 0 && fim > ini){
+    limpo = limpo.substring(ini, fim + 1);
+  }
+
   try {
 
     analise =
-      JSON.parse(analise);
+      JSON.parse(limpo);
 
   } catch(erro){
 
     throw new Error(
-      'A IA respondeu, mas o formato da análise não pôde ser interpretado.'
+      'Formato não interpretado. Início da resposta: ' +
+      bruto.substring(0, 200)
     );
 
   }
 
 }
+
 
 if(
   !analise ||
