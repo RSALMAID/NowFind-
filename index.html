@@ -1846,9 +1846,51 @@ async function organizarComIA(){
 
     }
 
-    mostrarResultadoIA(
-      dadosIA.analise
+  var analise =
+  dadosIA.analise;
+
+if(
+  analise &&
+  analise.response
+){
+  analise =
+    analise.response;
+}
+
+if(
+  typeof analise === 'string'
+){
+
+  try {
+
+    analise =
+      JSON.parse(analise);
+
+  } catch(erro){
+
+    throw new Error(
+      'A IA respondeu, mas o formato da análise não pôde ser interpretado.'
     );
+
+  }
+
+}
+
+if(
+  !analise ||
+  typeof analise !== 'object'
+){
+
+  throw new Error(
+    'A IA não retornou uma análise estruturada válida.'
+  );
+
+}
+
+mostrarResultadoIA(
+  analise
+);
+
 
   }
 
