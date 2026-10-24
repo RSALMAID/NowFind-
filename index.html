@@ -1871,13 +1871,17 @@ async function organizarComIA(){
 
 }
 
-
 function mostrarResultadoIA(analise){
 
   var area =
     $('resultadoIA');
 
   area.innerHTML = '';
+
+
+  /* =====================================
+     CABEÇALHO
+     ===================================== */
 
   var titulo =
     el(
@@ -1889,29 +1893,170 @@ function mostrarResultadoIA(analise){
   area.appendChild(titulo);
 
 
-  if(analise.resumo){
+  /* =====================================
+     1. O QUE VOCÊ TROUXE
+     ===================================== */
 
-    var resumo =
-      el(
-        'p',
-        null,
-        analise.resumo
+  var temOriginal =
+    (
+      analise.fatos_relevantes &&
+      analise.fatos_relevantes.length
+    ) ||
+    (
+      analise.pessoas_citadas &&
+      analise.pessoas_citadas.length
+    ) ||
+    (
+      analise.numeros_dados &&
+      analise.numeros_dados.length
+    ) ||
+    (
+      analise.datas_prazos &&
+      analise.datas_prazos.length
+    ) ||
+    (
+      analise.condicoes &&
+      analise.condicoes.length
+    ) ||
+    (
+      analise.decisoes &&
+      analise.decisoes.length
+    ) ||
+    (
+      analise.duvidas_pendentes &&
+      analise.duvidas_pendentes.length
+    );
+
+
+  if(temOriginal){
+
+    var blocoOriginal =
+      document.createElement(
+        'div'
       );
 
-    resumo.style.marginTop =
-      '10px';
+    blocoOriginal.style.cssText =
+      'background:white;' +
+      'border-left:4px solid #FFD600;' +
+      'padding:12px;' +
+      'border-radius:10px;' +
+      'margin-top:14px;';
 
-    resumo.style.lineHeight =
-      '1.4';
 
-    area.appendChild(resumo);
+    var tituloOriginal =
+      document.createElement(
+        'b'
+      );
+
+    tituloOriginal.textContent =
+      '📌 O que você trouxe';
+
+    blocoOriginal.appendChild(
+      tituloOriginal
+    );
+
+
+    adicionarListaIA(
+      blocoOriginal,
+      'Fatos relevantes',
+      analise.fatos_relevantes
+    );
+
+
+    adicionarListaIA(
+      blocoOriginal,
+      'Pessoas citadas',
+      analise.pessoas_citadas
+    );
+
+
+    adicionarListaIA(
+      blocoOriginal,
+      'Números / dados',
+      analise.numeros_dados
+    );
+
+
+    adicionarListaIA(
+      blocoOriginal,
+      'Datas / prazos',
+      analise.datas_prazos
+    );
+
+
+    adicionarListaIA(
+      blocoOriginal,
+      'Condições',
+      analise.condicoes
+    );
+
+
+    adicionarListaIA(
+      blocoOriginal,
+      'Decisões',
+      analise.decisoes
+    );
+
+
+    adicionarListaIA(
+      blocoOriginal,
+      'Dúvidas / pendências',
+      analise.duvidas_pendentes
+    );
+
+
+    area.appendChild(
+      blocoOriginal
+    );
+
+  }
+
+
+  /* =====================================
+     2. COMO O NOWFIND ORGANIZOU
+     ===================================== */
+
+  var organizacao =
+    document.createElement(
+      'div'
+    );
+
+  organizacao.style.cssText =
+    'background:#F7F7FF;' +
+    'border-left:4px solid #333399;' +
+    'padding:12px;' +
+    'border-radius:10px;' +
+    'margin-top:14px;';
+
+
+  var tituloOrganizacao =
+    document.createElement(
+      'b'
+    );
+
+  tituloOrganizacao.textContent =
+    '✨ Como o NowFind organizou';
+
+  organizacao.appendChild(
+    tituloOrganizacao
+  );
+
+
+  if(analise.resumo){
+
+    organizacao.appendChild(
+      criarLinhaIA(
+        'Resumo',
+        analise.resumo
+      )
+    );
 
   }
 
 
   if(analise.objetivo){
 
-    area.appendChild(
+    organizacao.appendChild(
       criarLinhaIA(
         '🎯 Objetivo',
         analise.objetivo
@@ -1921,9 +2066,21 @@ function mostrarResultadoIA(analise){
   }
 
 
+  if(analise.projeto_sugerido){
+
+    organizacao.appendChild(
+      criarLinhaIA(
+        '📁 Projeto sugerido',
+        analise.projeto_sugerido
+      )
+    );
+
+  }
+
+
   if(analise.prazo){
 
-    area.appendChild(
+    organizacao.appendChild(
       criarLinhaIA(
         '📅 Prazo',
         analise.prazo
@@ -1935,7 +2092,7 @@ function mostrarResultadoIA(analise){
 
   if(analise.proxima_acao){
 
-    area.appendChild(
+    organizacao.appendChild(
       criarLinhaIA(
         '⚡ Próxima ação',
         analise.proxima_acao
@@ -1945,33 +2102,36 @@ function mostrarResultadoIA(analise){
   }
 
 
-  if(analise.projeto_sugerido){
-
-    area.appendChild(
-      criarLinhaIA(
-        '📁 Projeto sugerido',
-        analise.projeto_sugerido
-      )
-    );
-
-  }
-
+  /* =====================================
+     TAREFAS
+     ===================================== */
 
   if(
     analise.tarefas &&
     analise.tarefas.length
   ){
 
-    var bloco =
+    var blocoTarefas =
       document.createElement(
         'div'
       );
 
-    bloco.style.marginTop =
+    blocoTarefas.style.marginTop =
       '14px';
 
-    bloco.innerHTML =
-      '<b>✅ Ações identificadas</b>';
+
+    var tituloTarefas =
+      document.createElement(
+        'b'
+      );
+
+    tituloTarefas.textContent =
+      '✅ Ações identificadas';
+
+    blocoTarefas.appendChild(
+      tituloTarefas
+    );
+
 
     analise.tarefas.forEach(
       function(tarefa, indice){
@@ -1985,70 +2145,135 @@ function mostrarResultadoIA(analise){
           'background:white;' +
           'padding:10px;' +
           'border-radius:10px;' +
-          'margin-top:6px;' +
-          'font-size:13px;';
+          'margin-top:7px;' +
+          'font-size:13px;' +
+          'line-height:1.4;';
 
-        item.textContent =
+
+        var texto =
           (indice + 1) +
           '. ' +
           tarefa.titulo;
 
-        bloco.appendChild(
+
+        if(tarefa.prazo){
+
+          texto +=
+            '\n📅 ' +
+            tarefa.prazo;
+
+        }
+
+
+        if(tarefa.depende_de){
+
+          texto +=
+            '\n↳ Depende de: ' +
+            tarefa.depende_de;
+
+        }
+
+
+        if(tarefa.urgente){
+
+          texto +=
+            '\n🔴 Urgente';
+
+        }
+
+
+        if(tarefa.importante){
+
+          texto +=
+            '\n⭐ Importante';
+
+        }
+
+
+        item.textContent =
+          texto;
+
+        item.style.whiteSpace =
+          'pre-line';
+
+
+        blocoTarefas.appendChild(
           item
         );
 
       }
     );
 
-    area.appendChild(bloco);
+
+    organizacao.appendChild(
+      blocoTarefas
+    );
 
   }
 
+
+  /* =====================================
+     MARCOS
+     ===================================== */
 
   if(
     analise.marcos &&
     analise.marcos.length
   ){
 
-    area.appendChild(
-      criarListaIA(
-        '◆ Marcos',
-        analise.marcos
-      )
+    adicionarListaIA(
+      organizacao,
+      '◆ Marcos',
+      analise.marcos
     );
 
   }
 
+
+  /* =====================================
+     RISCOS
+     ===================================== */
 
   if(
     analise.riscos &&
     analise.riscos.length
   ){
 
-    area.appendChild(
-      criarListaIA(
-        '⚠️ Riscos / impedimentos',
-        analise.riscos
-      )
+    adicionarListaIA(
+      organizacao,
+      '⚠️ Riscos / impedimentos',
+      analise.riscos
     );
 
   }
 
+
+  /* =====================================
+     CONHECIMENTO
+     ===================================== */
 
   if(
     analise.conhecimento &&
     analise.conhecimento.length
   ){
 
-    area.appendChild(
-      criarListaIA(
-        '🧠 Guardar como conhecimento',
-        analise.conhecimento
-      )
+    adicionarListaIA(
+      organizacao,
+      '🧠 Guardar como conhecimento',
+      analise.conhecimento
     );
 
   }
 
+
+  area.appendChild(
+    organizacao
+  );
+
+
+  /* =====================================
+     3. SUGESTÃO DA IA
+     ===================================== */
 
   if(analise.conselho){
 
@@ -2060,15 +2285,43 @@ function mostrarResultadoIA(analise){
     conselho.style.cssText =
       'background:#FFF7CC;' +
       'border-left:4px solid #FFD600;' +
-      'padding:10px;' +
-      'border-radius:8px;' +
+      'padding:12px;' +
+      'border-radius:10px;' +
       'margin-top:14px;' +
       'font-size:13px;' +
       'line-height:1.4;';
 
-    conselho.innerHTML =
-      '<b>✦ Sugestão da IA</b><br>' +
+
+    var tituloConselho =
+      document.createElement(
+        'b'
+      );
+
+    tituloConselho.textContent =
+      '💡 Sugestão da IA';
+
+
+    conselho.appendChild(
+      tituloConselho
+    );
+
+
+    var textoConselho =
+      document.createElement(
+        'div'
+      );
+
+    textoConselho.style.marginTop =
+      '6px';
+
+    textoConselho.textContent =
       analise.conselho;
+
+
+    conselho.appendChild(
+      textoConselho
+    );
+
 
     area.appendChild(
       conselho
@@ -2076,6 +2329,10 @@ function mostrarResultadoIA(analise){
 
   }
 
+
+  /* =====================================
+     BOTÕES
+     ===================================== */
 
   var botoes =
     document.createElement(
@@ -2086,13 +2343,13 @@ function mostrarResultadoIA(analise){
     'acoes';
 
   botoes.style.marginTop =
-    '14px';
+    '16px';
 
 
   botoes.appendChild(
+
     botao(
       '✓ Criar organização',
-
       'b-azul',
       function(){
 
@@ -2102,19 +2359,23 @@ function mostrarResultadoIA(analise){
 
       }
     )
+
   );
 
 
   botoes.appendChild(
+
     botao(
-      '↻ Regerar',
+      '↻ Reanalisar',
       'b-claro',
       organizarComIA
     )
+
   );
 
 
   botoes.appendChild(
+
     botao(
       'Ignorar',
       'b-cinza',
@@ -2126,6 +2387,7 @@ function mostrarResultadoIA(analise){
 
       }
     )
+
   );
 
 
@@ -2134,7 +2396,74 @@ function mostrarResultadoIA(analise){
   );
 
 }
+function adicionarListaIA(
+  container,
+  titulo,
+  itens
+){
 
+  if(
+    !Array.isArray(itens) ||
+    itens.length === 0
+  ){
+    return;
+  }
+
+  var bloco =
+    document.createElement(
+      'div'
+    );
+
+  bloco.style.marginTop =
+    '12px';
+
+  var tituloEl =
+    document.createElement(
+      'b'
+    );
+
+  tituloEl.textContent =
+    titulo;
+
+  tituloEl.style.fontSize =
+    '13px';
+
+  bloco.appendChild(
+    tituloEl
+  );
+
+  itens.forEach(
+    function(item){
+
+      if(!item){
+        return;
+      }
+
+      var linha =
+        document.createElement(
+          'div'
+        );
+
+      linha.style.cssText =
+        'font-size:13px;' +
+        'line-height:1.4;' +
+        'margin-top:4px;';
+
+      linha.textContent =
+        '• ' + item;
+
+      bloco.appendChild(
+        linha
+      );
+
+    }
+  );
+
+  container.appendChild(
+    bloco
+  );
+
+}
 
 function criarLinhaIA(
   titulo,
