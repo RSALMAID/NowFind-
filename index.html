@@ -463,6 +463,16 @@ nav .mais{width:52px;height:52px;border-radius:50%;background:var(--amarelo);col
         Sem projeto
       </option>
     </select>
+<button
+  id="btnOrganizarAudioIA"
+  class="btn"
+  style="
+    background:#333399;
+    margin-bottom:8px;
+  "
+>
+  ✨ Organizar áudio com IA
+</button>
 
     <button
       id="btnSalvarAudio"
@@ -1639,6 +1649,141 @@ async function salvarAudio(){
   }
 
 }
+  async function organizarAudioComIA(){
+
+  if(!blobAudio){
+
+    alert(
+      'Grave um áudio antes de organizar.'
+    );
+
+    return;
+  }
+
+  var tipo =
+    lerSegmento('audioTipo');
+
+  var projetoId =
+    $('audioProjeto').value || '';
+
+  try {
+
+    $('btnOrganizarAudioIA').disabled = true;
+
+    $('btnOrganizarAudioIA').textContent =
+      '✨ Entendendo seu áudio...';
+
+
+    var respostaAudio =
+      await fetch(
+        NOWFIND_IA_URL + '/api/audio',
+        {
+          method: 'POST',
+
+          headers: {
+            'Content-Type':
+              blobAudio.type ||
+              'application/octet-stream',
+
+            'X-NowFind-Tipo':
+              tipo
+          },
+
+          body: blobAudio
+        }
+      );
+
+
+    var retornoAudio =
+      await respostaAudio.json();
+
+
+    if(
+      !respostaAudio.ok ||
+      !retornoAudio.ok
+    ){
+
+      throw new Error(
+        retornoAudio.erro ||
+        'Não foi possível entender o áudio.'
+      );
+    }
+
+
+    var transcricao =
+      (
+        retornoAudio.transcricao ||
+        ''
+      ).trim();
+
+
+    if(!transcricao){
+
+      throw new Error(
+        'O áudio não gerou uma transcrição válida.'
+      );
+    }
+
+
+    esconder('modalAudio');
+
+
+    $('txtCaptura').value =
+      transcricao;
+
+
+    definirSegmento(
+      'capTipo',
+      tipo
+    );
+
+
+    opcoesProjetos(
+      projetoId
+    );
+
+
+    mostrar('modalCaptura');
+
+
+    $('resultadoIA')
+      .classList
+      .remove('oculto');
+
+
+    $('resultadoIA').innerHTML =
+      '<b>🎙️ Transcrição original</b>' +
+      '<p style="margin-top:8px;line-height:1.4">' +
+      transcricao +
+      '</p>' +
+      '<p style="margin-top:10px;color:#737789;font-size:12px">' +
+      'Agora o NowFind está organizando o conteúdo...' +
+      '</p>';
+
+
+    await organizarComIA();
+
+  }
+
+  catch(erro){
+
+    alert(
+      'Não consegui organizar este áudio: ' +
+      erro.message
+    );
+  }
+
+  finally {
+
+    $('btnOrganizarAudioIA').disabled =
+      false;
+
+    $('btnOrganizarAudioIA').textContent =
+      '✨ Organizar áudio com IA';
+  }
+
+}
+
 const NOWFIND_IA_URL = "https://nowfind-ia.raul-almeida-siqueira.workers.dev";
 async function organizarComIA(){
 
@@ -2540,6 +2685,10 @@ $('btnFecharAudio').addEventListener(
 $('btnSalvarAudio').addEventListener(
   'click',
   salvarAudio
+);
+$('btnOrganizarAudioIA').addEventListener(
+  'click',
+  organizarAudioComIA
 );
 
 $('btnMais').addEventListener('click', function(){ abrirCaptura(); });
