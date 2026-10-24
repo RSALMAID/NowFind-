@@ -1946,7 +1946,8 @@ function mostrarResultadoIA(analise){
 
   botoes.appendChild(
     botao(
-      '✓ Aceitar',
+      '✓ Criar organização',
+
       'b-azul',
       function(){
 
@@ -2083,44 +2084,422 @@ function criarListaIA(
 }
 
 
-function aceitarAnaliseIA(
-  analise
-){
+function aceitarAnaliseIA(analise){
 
-  /*
-    Nesta primeira versão,
-    aceitar NÃO cria tudo
-    automaticamente.
+  var tipo =
+    analise.tipo === 'profissional'
+      ? 'profissional'
+      : 'pessoal';
 
-    A IA organiza.
-    O usuário continua decidindo.
-  */
+  var projetoId = null;
 
-  if(analise.proxima_acao){
 
-    $('txtCaptura').value =
-      analise.proxima_acao;
+  /* =========================
+     PROFISSIONAL
+     Cria estrutura de projeto
+     ========================= */
+
+  if(
+    tipo === 'profissional' &&
+    (
+      analise.classificacao === 'projeto' ||
+      analise.projeto_sugerido
+    )
+  ){
+
+    var nomeProjeto =
+      analise.projeto_sugerido ||
+      analise.objetivo ||
+      'Projeto profissional';
+
+
+    /* Verifica se projeto já existe */
+
+    var projetoExistente =
+      dados.projetos.find(
+        function(p){
+
+          return p.nome
+            .toLowerCase()
+            .trim() ===
+            nomeProjeto
+            .toLowerCase()
+            .trim();
+
+        }
+      );
+
+
+    if(projetoExistente){
+
+      projetoId =
+        projetoExistente.id;
+
+    } else {
+
+      projetoId =
+        'p' + Date.now();
+
+
+      dados.projetos.unshift({
+
+        id:
+          projetoId,
+
+        nome:
+          nomeProjeto,
+
+        tipo:
+          'profissional',
+
+        objetivo:
+          analise.objetivo ||
+          '',
+
+        prazo:
+          analise.prazo ||
+          null,
+
+        marcos:
+          analise.marcos ||
+          [],
+
+        riscos:
+          analise.riscos ||
+          [],
+
+        proximaAcao:
+          analise.proxima_acao ||
+          null,
+
+        criadoPorIA:
+          true,
+
+        criadoEm:
+          agora()
+
+      });
+
+    }
 
   }
 
-  if(analise.tipo){
 
-    definirSegmento(
-      'capTipo',
-      analise.tipo
+  /* =========================
+     PESSOAL
+     Projeto só se fizer sentido
+     ========================= */
+
+  if(
+    tipo === 'pessoal' &&
+    analise.classificacao === 'projeto' &&
+    analise.projeto_sugerido
+  ){
+
+    var projetoPessoalExistente =
+      dados.projetos.find(
+        function(p){
+
+          return p.nome
+            .toLowerCase()
+            .trim() ===
+            analise.projeto_sugerido
+            .toLowerCase()
+            .trim();
+
+        }
+      );
+
+
+    if(projetoPessoalExistente){
+
+      projetoId =
+        projetoPessoalExistente.id;
+
+    } else {
+
+      projetoId =
+        'p' + Date.now();
+
+
+      dados.projetos.unshift({
+
+        id:
+          projetoId,
+
+        nome:
+          analise.projeto_sugerido,
+
+        tipo:
+          'pessoal',
+
+        objetivo:
+          analise.objetivo ||
+          '',
+
+        criadoPorIA:
+          true,
+
+        criadoEm:
+          agora()
+
+      });
+
+    }
+
+  }
+
+
+  /* =========================
+     CRIA AS AÇÕES SEPARADAS
+     ========================= */
+
+  var tarefas =
+    Array.isArray(
+      analise.tarefas
+    )
+      ? analise.tarefas
+      : [];
+
+
+  tarefas.forEach(
+    function(tarefa, indice){
+
+      if(
+        !tarefa ||
+        !tarefa.titulo
+      ){
+        return;
+      }
+
+
+      dados.itens.push({
+
+        id:
+          String(
+            Date.now() +
+            indice +
+            1
+          ),
+
+        texto:
+          tarefa.titulo,
+
+        tipo:
+          tipo,
+
+        projetoId:
+          projetoId,
+
+        origem:
+          'ia',
+
+        status:
+          'afazer',
+
+        prazo:
+          tarefa.prazo ||
+          null,
+
+        urgente:
+          tarefa.urgente ===
+          true,
+
+        importante:
+          tarefa.importante ===
+          true,
+
+        dependeDe:
+          tarefa.depende_de ||
+          null,
+
+        criadoPorIA:
+          true,
+
+        criadoEm:
+          agora()
+
+      });
+
+    }
+  );
+
+
+  /* =========================
+     SE A IA NÃO IDENTIFICOU
+     TAREFAS, USA PRÓXIMA AÇÃO
+     ========================= */
+
+  if(
+    tarefas.length === 0 &&
+    analise.proxima_acao
+  ){
+
+    dados.itens.push({
+
+      id:
+        String(
+          Date.now()
+        ),
+
+      texto:
+        analise.proxima_acao,
+
+      tipo:
+        tipo,
+
+      projetoId:
+        projetoId,
+
+      origem:
+        'ia',
+
+      status:
+        'afazer',
+
+      prazo:
+        analise.prazo ||
+        null,
+
+      urgente:
+        false,
+
+      importante:
+        false,
+
+      criadoPorIA:
+        true,
+
+      criadoEm:
+        agora()
+
+    });
+
+  }
+
+
+  /* =========================
+     GUARDA CONHECIMENTOS
+     ========================= */
+
+  if(
+    Array.isArray(
+      analise.conhecimento
+    )
+  ){
+
+    analise.conhecimento.forEach(
+      function(conhecimento, indice){
+
+        if(!conhecimento){
+          return;
+        }
+
+
+        dados.itens.push({
+
+          id:
+            'k' +
+            Date.now() +
+            indice,
+
+          texto:
+            conhecimento,
+
+          tipo:
+            tipo,
+
+          projetoId:
+            projetoId,
+
+          origem:
+            'ia',
+
+          status:
+            'conhecimento',
+
+          urgente:
+            false,
+
+          importante:
+            false,
+
+          criadoPorIA:
+            true,
+
+          criadoEm:
+            agora()
+
+        });
+
+      }
     );
 
   }
+
+
+  /* =========================
+     SALVA TUDO
+     ========================= */
+
+  salvarDados();
+
+
+  $('txtCaptura').value =
+    '';
+
 
   $('resultadoIA')
     .classList
     .add('oculto');
 
+
+  esconder(
+    'modalCaptura'
+  );
+
+
+  renderizar();
+
+
+  /* =========================
+     LEVA PARA O RESULTADO
+     ========================= */
+
+  if(projetoId){
+
+    trocarTela(
+      'projetos'
+    );
+
+
+    setTimeout(
+      function(){
+
+        abrirDetalhe(
+          projetoId
+        );
+
+      },
+      150
+    );
+
+  } else {
+
+    trocarTela(
+      'projetos'
+    );
+
+  }
+
+
   alert(
-    'Sugestão aplicada. Revise e toque em Salvar quando estiver de acordo.'
+    tarefas.length +
+    ' ação(ões) criada(s) pela organização aprovada.'
   );
 
 }
+
 
 /* EVENTOS */
 document.querySelectorAll('.segmento').forEach(function(seg){
