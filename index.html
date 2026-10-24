@@ -385,6 +385,46 @@ nav .mais{width:52px;height:52px;border-radius:50%;background:var(--amarelo);col
 ></div>
 
     <button id="btnSalvarCaptura" class="btn">Salvar na Entrada</button>
+    <div
+  id="blocoAnexosTarefa"
+  class="oculto"
+  style="
+    margin-top:18px;
+  "
+>
+
+  <div class="det-secao">
+
+    <h3>
+      Arquivos da tarefa
+      (<span id="qtdArquivosTarefa">0</span>)
+    </h3>
+
+    <label
+      for="inputArquivosTarefa"
+      class="mini-btn"
+    >
+      ＋ Arquivos
+    </label>
+
+  </div>
+
+  <input
+    id="inputArquivosTarefa"
+    type="file"
+    multiple
+    class="oculto"
+  >
+
+  <p
+    id="statusArquivosTarefa"
+    class="dica"
+  ></p>
+
+  <div id="listaArquivosTarefa"></div>
+
+</div>
+
     <button id="btnExcluirItem" class="sair oculto">Excluir item</button>
   </div>
 </div>
@@ -675,6 +715,32 @@ function abrirCaptura(id, pid){
   definirSegmento('capTipo', item ? item.tipo : (proj ? proj.tipo : 'pessoal'));
   opcoesProjetos(item ? item.projetoId : (pid || ''));
   $('btnExcluirItem').classList.toggle('oculto', !item);
+  $('blocoAnexosTarefa')
+  .classList
+  .toggle(
+    'oculto',
+    !item
+  );
+
+if(item){
+
+  renderArquivosTarefa(
+    item.id
+  );
+
+} else {
+
+  $('qtdArquivosTarefa')
+    .textContent = '0';
+
+  $('listaArquivosTarefa')
+    .innerHTML = '';
+
+  $('statusArquivosTarefa')
+    .textContent = '';
+
+}
+
   mostrar('modalCaptura');
   if (!item) setTimeout(function(){ $('txtCaptura').focus(); }, 150);
 }
@@ -862,6 +928,369 @@ function abrirArquivo(a){
   link.click();
   link.remove();
   setTimeout(function(){ URL.revokeObjectURL(url); }, 60000);
+}
+/* =====================================
+   ARQUIVOS DA TAREFA
+   ===================================== */
+
+function listarArquivosTarefa(tarefaId){
+
+  return pedido(
+    'readonly',
+    function(store){
+
+      return store.getAll();
+
+    }
+  )
+  .then(function(arquivos){
+
+    return arquivos.filter(
+      function(arquivo){
+
+        return (
+          arquivo.usuario ===
+            usuario.email &&
+
+          arquivo.tarefaId ===
+            tarefaId
+        );
+
+      }
+    );
+
+  });
+
+}
+
+
+function renderArquivosTarefa(tarefaId){
+
+  var lista =
+    $('listaArquivosTarefa');
+
+
+  lista.innerHTML = '';
+
+  $('statusArquivosTarefa')
+    .textContent =
+      'Carregando arquivos...';
+
+
+  listarArquivosTarefa(
+    tarefaId
+  )
+  .then(function(arquivos){
+
+    $('statusArquivosTarefa')
+      .textContent = '';
+
+
+    $('qtdArquivosTarefa')
+      .textContent =
+        arquivos.length;
+
+
+    if(!arquivos.length){
+
+      lista.appendChild(
+        el(
+          'div',
+          'vazio',
+          'Nenhum arquivo anexado à tarefa.'
+        )
+      );
+
+      return;
+
+    }
+
+
+    arquivos.sort(
+      function(a, b){
+
+        return b.criadoEm.localeCompare(
+          a.criadoEm
+        );
+
+      }
+    );
+
+
+    arquivos.forEach(
+      function(arquivo){
+
+        var linha =
+          el(
+            'div',
+            'arq'
+          );
+
+
+        var info =
+          el(
+            'div',
+            'arq-info'
+          );
+
+
+        info.appendChild(
+          el(
+            'b',
+            null,
+            icone(
+              arquivo.nome,
+              arquivo.mime
+            ) +
+            ' ' +
+            arquivo.nome
+          )
+        );
+
+
+        info.appendChild(
+          el(
+            'small',
+            null,
+            tamanho(
+              arquivo.tamanho
+            ) +
+            ' · ' +
+            dataCurta(
+              arquivo.criadoEm
+            )
+          )
+        );
+
+
+        linha.appendChild(
+          info
+        );
+
+
+        linha.appendChild(
+          botao(
+            'Abrir',
+            'b-claro',
+            function(){
+
+              abrirArquivo(
+                arquivo
+              );
+
+            }
+          )
+        );
+
+
+        linha.appendChild(
+          botao(
+            '✕',
+            'b-cinza',
+            function(){
+
+              excluirArquivoTarefa(
+                arquivo.id,
+                tarefaId,
+                arquivo.nome
+              );
+
+            }
+          )
+        );
+
+
+        lista.appendChild(
+          linha
+        );
+
+      }
+    );
+
+  })
+  .catch(function(){
+
+    $('statusArquivosTarefa')
+      .textContent = '';
+
+
+    lista.innerHTML = '';
+
+
+    lista.appendChild(
+      el(
+        'div',
+        'vazio',
+        'Não foi possível carregar os arquivos.'
+      )
+    );
+
+  });
+
+}
+
+
+function adicionarArquivosTarefa(arquivosSelecionados){
+
+  if(!editandoId){
+
+    alert(
+      'Salve a tarefa antes de anexar arquivos.'
+    );
+
+    return;
+
+  }
+
+
+  var arquivos =
+    Array.prototype.slice.call(
+      arquivosSelecionados || []
+    );
+
+
+  if(!arquivos.length){
+    return;
+  }
+
+
+  $('statusArquivosTarefa')
+    .textContent =
+      'Salvando ' +
+      arquivos.length +
+      ' arquivo(s)...';
+
+
+  Promise.all(
+
+    arquivos.map(
+      function(arquivo, indice){
+
+        return pedido(
+          'readwrite',
+          function(store){
+
+            return store.put({
+
+              id:
+                'tarefa_' +
+                Date.now() +
+                '_' +
+                indice,
+
+              tarefaId:
+                editandoId,
+
+              projetoId:
+                null,
+
+              usuario:
+                usuario.email,
+
+              nome:
+                arquivo.name,
+
+              mime:
+                arquivo.type ||
+                'application/octet-stream',
+
+              tamanho:
+                arquivo.size,
+
+              blob:
+                arquivo,
+
+              origem:
+                'tarefa',
+
+              criadoEm:
+                agora()
+
+            });
+
+          }
+        );
+
+      }
+    )
+
+  )
+  .then(function(){
+
+    $('inputArquivosTarefa')
+      .value = '';
+
+
+    $('statusArquivosTarefa')
+      .textContent = '';
+
+
+    renderArquivosTarefa(
+      editandoId
+    );
+
+  })
+  .catch(function(){
+
+    $('inputArquivosTarefa')
+      .value = '';
+
+
+    $('statusArquivosTarefa')
+      .textContent = '';
+
+
+    alert(
+      'Não foi possível salvar os arquivos. O espaço disponível neste aparelho pode ter acabado.'
+    );
+
+  });
+
+}
+
+
+function excluirArquivoTarefa(
+  arquivoId,
+  tarefaId,
+  nome
+){
+
+  if(
+    !confirm(
+      'Apagar o arquivo "' +
+      nome +
+      '" desta tarefa?'
+    )
+  ){
+    return;
+  }
+
+
+  pedido(
+    'readwrite',
+    function(store){
+
+      return store.delete(
+        arquivoId
+      );
+
+    }
+  )
+  .then(function(){
+
+    renderArquivosTarefa(
+      tarefaId
+    );
+
+  })
+  .catch(function(){
+
+    alert(
+      'Não foi possível excluir o arquivo.'
+    );
+
+  });
+
 }
 
 /* REVISÃO SEMANAL */
@@ -3115,6 +3544,16 @@ $('btnNovaTarefa').addEventListener('click', function(){ abrirCaptura(null, proj
 $('btnEditarProjeto').addEventListener('click', function(){ abrirFormProjeto(projetoAberto); });
 $('btnExcluirProjeto').addEventListener('click', function(){ excluirProjeto(projetoAberto); });
 $('arqInput').addEventListener('change', function(){ adicionarArquivos(this.files); });
+$('inputArquivosTarefa').addEventListener(
+  'change',
+  function(){
+
+    adicionarArquivosTarefa(
+      this.files
+    );
+
+  }
+);
 
 $('btnAvatar').addEventListener('click', function(){ mostrar('modalPerfil'); });
 $('btnFecharPerfil').addEventListener('click', function(){ esconder('modalPerfil'); });
