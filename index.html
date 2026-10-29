@@ -239,8 +239,46 @@ nav .mais{width:52px;height:52px;border-radius:50%;background:var(--amarelo);col
         <div><b>📋 Revisão semanal</b><small id="txtRevisao">Você ainda não fez nenhuma revisão.</small></div>
         <button id="btnRevisar">Revisar agora</button>
       </div>
-      <div class="secao"><h3>Caixa de entrada</h3><div id="contEntrada" class="badge">0</div></div>
-      <div id="listaHoje" class="lista"></div>
+    <div
+  id="blocoParaDecidir"
+  style="
+    margin-top:18px;
+  "
+>
+
+  <div class="secao">
+
+    <div>
+      <h3>📥 Para decidir</h3>
+
+      <p
+        id="textoParaDecidir"
+        style="
+          color:#737789;
+          font-size:12px;
+          margin-top:3px;
+        "
+      >
+        Capturas que ainda precisam de uma decisão.
+      </p>
+    </div>
+
+    <div
+      id="contEntrada"
+      class="badge"
+    >
+      0
+    </div>
+
+  </div>
+
+  <div
+    id="listaHoje"
+    class="lista"
+  ></div>
+
+</div>
+
     </div>
 
     <!-- ENTRADA -->
@@ -289,13 +327,46 @@ nav .mais{width:52px;height:52px;border-radius:50%;background:var(--amarelo);col
     </div>
   </main>
 
-  <nav>
-    <button data-view="hoje" class="ativo">◉<span>Hoje</span></button>
-    <button data-view="entrada">↓<span>Entrada</span></button>
-    <button id="btnMais" class="mais">+</button>
-    <button data-view="projetos">▦<span>Projetos</span></button>
-    <button data-view="ia">✦<span>IA</span></button>
-  </nav>
+<nav>
+
+  <button
+    data-view="hoje"
+    class="ativo"
+  >
+    ◉
+    <span>Hoje</span>
+  </button>
+
+  <button
+    data-view="projetos"
+  >
+    ▦
+    <span>Projetos</span>
+  </button>
+
+  <button
+    id="btnMais"
+    class="mais"
+  >
+    +
+  </button>
+
+  <button
+    data-view="revisao"
+  >
+    ◫
+    <span>Planejar</span>
+  </button>
+
+  <button
+    data-view="ia"
+  >
+    ✦
+    <span>IA</span>
+  </button>
+
+</nav>
+
 </div>
 
 <!-- JANELA DE PERFIL -->
@@ -1629,7 +1700,15 @@ function carregarSortable(){
 function renderizar(){
   var entrada = dados.itens.filter(function(i){ return i.status === 'entrada'; });
   $('contEntrada').textContent = entrada.length;
-  preencher('listaHoje', entrada, cartaoEntrada, 'Nada na entrada. Capture algo acima.');
+  preencher('listaHoje', entrada, cartaoEntrada, '✓ Tudo processado. Nenhuma captura aguardando decisão.');
+
+$('textoParaDecidir').textContent =
+  entrada.length === 0
+    ? 'Nada pendente de decisão.'
+    : entrada.length === 1
+      ? '1 captura aguarda sua decisão.'
+      : entrada.length + ' capturas aguardam sua decisão.';
+
   preencher('listaEntrada', entrada, cartaoEntrada, 'Caixa de entrada vazia.');
 
   var conhecimento = dados.itens.filter(function(i){ return i.status === 'conhecimento'; });
