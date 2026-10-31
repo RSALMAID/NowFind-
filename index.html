@@ -779,6 +779,9 @@ function opcoesProjetos(valor){
 }
 
 function abrirCaptura(id, pid){
+  $('resultadoIA').classList.add('oculto');
+$('resultadoIA').innerHTML = '';
+
   var item = id ? acharItem(id) : null;
   editandoId = item ? id : null;
   capturaDireta = !item && !!pid;
@@ -1788,6 +1791,12 @@ function preencherProjetosAudio(){
 
 
 function abrirAudio(){
+editandoId = null;
+capturaDireta = false;
+$('capTitulo').textContent = 'O que está na sua cabeça?';
+$('btnSalvarCaptura').textContent = 'Salvar na Entrada';
+$('btnExcluirItem').classList.add('oculto');
+$('blocoAnexosTarefa').classList.add('oculto');
 
   preencherProjetosAudio();
 
