@@ -227,12 +227,15 @@ nav .mais{width:52px;height:52px;border-radius:50%;background:var(--amarelo);col
       <section class="captura">
         <h3>O que está na sua cabeça?</h3>
         <p>Registre agora. Organize depois.</p>
-        <div class="opcoes">
+        <div class="opcoes" style="grid-template-columns:repeat(3,1fr)">
+
           <button id="capTexto">✏️<span>Texto</span></button>
           <button id="capAudio">🎙️<span>Áudio</span></button>
 
-          <button class="em-breve">📷<span>Imagem</span></button>
-          <button class="em-breve">📎<span>Arquivo</span></button>
+          <button id="capArquivo">📎<span>Arquivo</span></button>
+
+          <input id="capArquivoInput" type="file" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv" class="oculto">
+
         </div>
       </section>
       <div id="cardRevisao" class="rev-card">
@@ -3540,7 +3543,88 @@ function aceitarAnaliseIA(analise){
 
 }
 
+async function organizarArquivoComIA(arquivo){
 
+  if(!arquivo){
+    return;
+  }
+
+  if(arquivo.size > 10 * 1024 * 1024){
+    alert('Este arquivo tem mais de 10 MB. Para a IA ler, use um arquivo menor.');
+    return;
+  }
+
+  var botaoArq = $('capArquivo');
+  var rotulo = botaoArq.querySelector('span');
+
+  botaoArq.disabled = true;
+  rotulo.textContent = 'Lendo...';
+
+  try {
+
+    var resposta =
+      await fetch(
+        NOWFIND_IA_URL + '/api/arquivo',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type':
+              arquivo.type || 'application/octet-stream',
+            'X-NowFind-Nome':
+              encodeURIComponent(arquivo.name)
+          },
+          body: arquivo
+        }
+      );
+
+    var retorno = await resposta.json();
+
+    if(!resposta.ok || !retorno.ok){
+      throw new Error(
+        retorno.erro || 'Não foi possível ler o arquivo.'
+      );
+    }
+
+    abrirCaptura();
+
+    $('txtCaptura').value = retorno.texto;
+
+    var area = $('resultadoIA');
+
+    area.classList.remove('oculto');
+    area.innerHTML = '';
+
+    area.appendChild(
+      el('b', null, '📎 ' + arquivo.name + ' lido pela IA')
+    );
+
+    var aviso =
+      el(
+        'p',
+        null,
+        'Escolha Pessoal ou Profissional e toque em ✨ Organizar com IA.'
+      );
+
+    aviso.style.marginTop = '8px';
+    aviso.style.color = '#737789';
+    aviso.style.fontSize = '12px';
+
+    area.appendChild(aviso);
+
+  } catch(erro){
+
+    alert('Não consegui ler este arquivo: ' + erro.message);
+
+  } finally {
+
+    botaoArq.disabled = false;
+    rotulo.textContent = 'Arquivo';
+
+  }
+
+}
+
+  
 /* EVENTOS */
 document.querySelectorAll('.segmento').forEach(function(seg){
   seg.querySelectorAll('button').forEach(function(b){
@@ -3561,6 +3645,20 @@ $('capTexto').addEventListener('click', function(){ abrirCaptura(); });
   $('capAudio').addEventListener(
   'click',
   abrirAudio
+);
+$('capArquivo').addEventListener(
+  'click',
+  function(){
+    $('capArquivoInput').click();
+  }
+);
+
+$('capArquivoInput').addEventListener(
+  'change',
+  function(){
+    organizarArquivoComIA(this.files[0]);
+    this.value = '';
+  }
 );
 
 $('btnGravarAudio').addEventListener(
