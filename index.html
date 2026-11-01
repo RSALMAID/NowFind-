@@ -175,6 +175,54 @@ nav .mais{width:52px;height:52px;border-radius:50%;background:var(--amarelo);col
 .arq-info small{color:var(--texto);font-size:11px;font-weight:normal}
 .arq button{border:none;border-radius:8px;padding:8px 10px;font-weight:bold;font-size:12px}
 .sair{width:100%;border:1px solid #ddd;background:#fff;color:#C62828;border-radius:12px;padding:13px;font-weight:bold;margin-top:12px}
+/* CONFIGURAÇÕES VISUAIS */
+.seg-cfg{display:flex;flex-wrap:wrap;gap:6px}
+.seg-cfg button{flex:1 1 calc(50% - 6px);border:1px solid #DDDDE8;background:#fff;border-radius:10px;padding:11px;font-weight:bold;font-size:13px;color:#444}
+.seg-cfg button.sel{background:var(--azul);color:#fff;border-color:var(--azul)}
+
+/* identidade fixa */
+.logo,.logo-grande{background:#0000FF}
+.t-pro{background:#E3E3FF;color:#333399}
+
+/* fundos claros */
+body.tema-cinza{background:#EEF0F5}
+body.tema-cinza .lista,body.tema-cinza .coluna{background:#E3E6EE}
+body.tema-azul{background:#EAF0FF}
+body.tema-azul .lista,body.tema-azul .coluna{background:#DCE5FF}
+
+/* fundo escuro */
+body.tema-escuro{background:#0F1220;color:#E8EAF2}
+body.tema-escuro header,body.tema-escuro nav{background:#161A2B;border-color:#2A2F45}
+body.tema-escuro nav button{color:#9AA0B8}
+body.tema-escuro nav button.ativo{color:#FFD600}
+body.tema-escuro .card,body.tema-escuro .proj,body.tema-escuro .mini,body.tema-escuro .arq,
+body.tema-escuro .linha-tarefa,body.tema-escuro .stats div,body.tema-escuro .rev-card,
+body.tema-escuro .folha{background:#1C2136;color:#E8EAF2}
+body.tema-escuro .rev-card.alerta{background:#2A2610}
+body.tema-escuro .lista,body.tema-escuro .coluna{background:#161A2B}
+body.tema-escuro input,body.tema-escuro textarea,body.tema-escuro select{background:#1C2136;color:#E8EAF2;border-color:#2A2F45}
+body.tema-escuro .filtros button,body.tema-escuro .segmento button,body.tema-escuro .seg-cfg button,
+body.tema-escuro .mini-acoes button{background:#1C2136;color:#E8EAF2;border-color:#2A2F45}
+body.tema-escuro .filtros button.sel,body.tema-escuro .segmento button.sel,
+body.tema-escuro .seg-cfg button.sel,body.tema-escuro .mini-acoes button.on{background:var(--azul);color:#fff;border-color:var(--azul)}
+body.tema-escuro .q1{background:#3A1F28}
+body.tema-escuro .q2{background:#1F2447}
+body.tema-escuro .q4{background:#23262F}
+body.tema-escuro .b-claro,body.tema-escuro .mini-btn{background:#2A2F55;color:#C9CCFF}
+body.tema-escuro .b-cinza,body.tema-escuro .fechar,body.tema-escuro .t-proj{background:#2A2F45;color:#D0D3E0}
+body.tema-escuro .barra{background:#2A2F45}
+body.tema-escuro .pdca b{background:#2A2F45;color:#8A8FA8}
+body.tema-escuro #resultadoIA{color:#111}
+
+/* estilo lista */
+body.estilo-lista .card{border-radius:8px;padding:9px 12px;box-shadow:0 0 0 1px rgba(128,128,150,.25);margin-bottom:6px}
+body.estilo-lista .card p{margin:2px 0 8px;font-size:13px}
+body.estilo-lista .card small{display:none}
+body.estilo-lista .acoes button{padding:6px 4px;font-size:11px}
+body.estilo-lista .proj{border-radius:8px;padding:10px 12px}
+body.estilo-lista .kanban{flex-direction:column;overflow:visible;scroll-snap-type:none}
+body.estilo-lista .coluna{min-width:100%}
+
 </style>
 </head>
 <body>
@@ -213,7 +261,11 @@ nav .mais{width:52px;height:52px;border-radius:50%;background:var(--amarelo);col
       <div class="logo">N</div>
       <div><h1>NowFind</h1><small>Organize. Execute. Aprenda.</small></div>
     </div>
-    <button id="btnAvatar" class="avatar">U</button>
+    <div style="display:flex;gap:8px;align-items:center">
+  <button id="btnConfig" class="avatar" style="background:#F2F2F5;color:#111;font-size:18px">⚙️</button>
+  <button id="btnAvatar" class="avatar">U</button>
+</div>
+
   </header>
 
   <main>
@@ -606,6 +658,41 @@ nav .mais{width:52px;height:52px;border-radius:50%;background:var(--amarelo);col
       quando conectarmos o NowFind ao backend.
     </p>
 
+  </div>
+</div>
+<!-- JANELA DE CONFIGURAÇÕES -->
+<div id="modalConfig" class="modal oculto">
+  <div class="folha">
+    <div class="folha-topo">
+      <div><small>PERSONALIZAR</small><h2>⚙️ Configurações</h2></div>
+      <button id="btnFecharConfig" class="fechar">×</button>
+    </div>
+
+    <label>Cor principal</label>
+    <div id="cfgAcento" class="seg-cfg">
+      <button data-v="azul">Azul</button>
+      <button data-v="roxo">Roxo</button>
+      <button data-v="verde">Verde</button>
+      <button data-v="grafite">Grafite</button>
+    </div>
+
+    <label>Fundo</label>
+    <div id="cfgTema" class="seg-cfg">
+      <button data-v="branco">Branco</button>
+      <button data-v="cinza">Cinza</button>
+      <button data-v="azul">Azul claro</button>
+      <button data-v="escuro">Escuro</button>
+    </div>
+
+    <label>Estilo dos itens</label>
+    <div id="cfgEstilo" class="seg-cfg">
+      <button data-v="cartao">▭ Cartão</button>
+      <button data-v="lista">☰ Lista</button>
+    </div>
+
+    <p class="dica" style="margin-top:14px">Pessoal (amarelo), Profissional (azul escuro), Urgente (vermelho) e Validado (verde) mantêm sempre as mesmas cores.</p>
+
+    <button id="btnRestaurarConfig" class="sair" style="color:#555">Restaurar padrão</button>
   </div>
 </div>
 
@@ -1723,6 +1810,8 @@ function carregarSortable(){
 }
 
 function renderizar(){
+  aplicarConfig();
+
   var entrada = dados.itens.filter(function(i){ return i.status === 'entrada'; });
   $('contEntrada').textContent = entrada.length;
   preencher('listaHoje', entrada, cartaoEntrada, '✓ Tudo processado. Nenhuma captura aguardando decisão.');
@@ -3653,6 +3742,74 @@ async function organizarArquivoComIA(arquivo){
 
 }
 
+/* CONFIGURAÇÕES VISUAIS */
+
+var ACENTOS = {
+  azul:    { a:'#0000ff', b:'#333399' },
+  roxo:    { a:'#6a1b9a', b:'#4a148c' },
+  verde:   { a:'#00796b', b:'#004d40' },
+  grafite: { a:'#37474f', b:'#263238' }
+};
+
+function configPadrao(){
+  return { acento:'azul', tema:'branco', estilo:'cartao' };
+}
+
+function lerConfig(){
+  var padrao = configPadrao();
+  dados.config = dados.config || {};
+  Object.keys(padrao).forEach(function(k){
+    if(!dados.config[k]) dados.config[k] = padrao[k];
+  });
+  return dados.config;
+}
+
+function aplicarConfig(){
+
+  var c = lerConfig();
+  var cor = ACENTOS[c.acento] || ACENTOS.azul;
+  var raiz = document.documentElement.style;
+
+  raiz.setProperty('--azul', cor.a);
+  raiz.setProperty('--azul2', cor.b);
+
+  document.body.className = 'tema-' + c.tema + ' estilo-' + c.estilo;
+
+  var meta = document.querySelector('meta[name="theme-color"]');
+  if(meta) meta.setAttribute('content', c.tema === 'escuro' ? '#161A2B' : cor.a);
+
+  [['cfgAcento','acento'],['cfgTema','tema'],['cfgEstilo','estilo']].forEach(function(par){
+    $(par[0]).querySelectorAll('button').forEach(function(b){
+      b.classList.toggle('sel', b.getAttribute('data-v') === c[par[1]]);
+    });
+  });
+
+}
+
+[['cfgAcento','acento'],['cfgTema','tema'],['cfgEstilo','estilo']].forEach(function(par){
+  $(par[0]).querySelectorAll('button').forEach(function(b){
+    b.addEventListener('click', function(){
+      lerConfig()[par[1]] = b.getAttribute('data-v');
+      salvarDados();
+      aplicarConfig();
+    });
+  });
+});
+
+$('btnConfig').addEventListener('click', function(){
+  aplicarConfig();
+  mostrar('modalConfig');
+});
+
+$('btnFecharConfig').addEventListener('click', function(){
+  esconder('modalConfig');
+});
+
+$('btnRestaurarConfig').addEventListener('click', function(){
+  dados.config = configPadrao();
+  salvarDados();
+  aplicarConfig();
+});
   
 /* EVENTOS */
 document.querySelectorAll('.segmento').forEach(function(seg){
