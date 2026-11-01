@@ -616,6 +616,8 @@ var modoCadastro = false, usuario = null;
 var dados = { itens: [], projetos: [], ultimaRevisao: null };
 var filtroTipo = 'todos', editandoId = null, capturaDireta = false;
 var editandoProjeto = null, projetoAberto = null, db = null;
+var ultimaAnaliseIA = null;
+  
 var ATIVOS = ['afazer','andamento','aguardando'];
 var KANBAN = ['afazer','andamento','aguardando','realizado','validado'];
 var NOMES = { entrada:'Entrada', afazer:'A fazer', andamento:'Em andamento', aguardando:'Aguardando', realizado:'Realizado', validado:'Validado', conhecimento:'Conhecimento' };
@@ -817,6 +819,12 @@ if(item){
     .textContent = '';
 
 }
+ultimaAnaliseIA = null;
+
+if(item && item.analiseIA){
+  mostrarResultadoIA(item.analiseIA);
+  $('resultadoIA').classList.remove('oculto');
+}
 
   mostrar('modalCaptura');
   if (!item) setTimeout(function(){ $('txtCaptura').focus(); }, 150);
@@ -827,20 +835,31 @@ function salvarCaptura(){
   if (!texto){ alert('Escreva alguma coisa.'); return; }
   var tipo = lerSegmento('capTipo');
   var pid = $('capProjeto').value || null;
+
+  var analiseVisivel = !$('resultadoIA').classList.contains('oculto');
+  var analiseParaSalvar = analiseVisivel ? ultimaAnaliseIA : null;
+
   if (editandoId){
     var it = acharItem(editandoId);
     it.texto = texto; it.tipo = tipo; it.projetoId = pid; it.atualizadoEm = agora();
+    if (analiseParaSalvar) it.analiseIA = analiseParaSalvar;
   } else {
     dados.itens.unshift({
       id: String(Date.now()), texto: texto, tipo: tipo, projetoId: pid, origem: 'texto',
-      status: capturaDireta ? 'afazer' : 'entrada', urgente: false, importante: false, criadoEm: agora()
+      status: capturaDireta ? 'afazer' : 'entrada', urgente: false, importante: false,
+      analiseIA: analiseParaSalvar, criadoEm: agora()
     });
   }
+
+  ultimaAnaliseIA = null;
   salvarDados();
+  $('resultadoIA').classList.add('oculto');
+  $('resultadoIA').innerHTML = '';
   esconder('modalCaptura');
   renderizar();
   if (projetoAberto) abrirDetalhe(projetoAberto);
 }
+
 
 function excluirItem(){
   if (!editandoId || !confirm('Excluir este item?')) return;
@@ -2422,6 +2441,7 @@ if(
   );
 
 }
+ultimaAnaliseIA = analise;
 
 mostrarResultadoIA(
   analise
