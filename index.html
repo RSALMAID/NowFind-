@@ -67,11 +67,6 @@ main{padding:20px 16px}
 .tag{display:inline-block;border:none;font-size:10px;font-weight:bold;padding:4px 8px;border-radius:10px}
 .t-pes{background:#FFF1A8;color:#5E4D00}
 .t-pro{background:#E3E3FF;color:var(--azul2)}.card-pessoal{
-  .t-prazo{background:#E8F5E9;color:#1B5E20}
-.t-prazo.atraso{background:#FFE1E1;color:#B00020}
-
-.card-pessoal{
-
   border-left-color:#FFD600;
 }
 
@@ -493,9 +488,6 @@ body.estilo-lista .coluna{min-width:100%}
     <div id="capTipo" class="segmento"><button data-v="pessoal">🏠 Pessoal</button><button data-v="profissional">💼 Profissional</button></div>
     <label>Projeto</label>
     <select id="capProjeto"></select>
-    <label>Prazo</label>
-<input id="capPrazo" type="date">
-
     <button
   id="btnOrganizarIA"
   class="btn"
@@ -914,9 +906,7 @@ if(item){
     .textContent = '';
 
 }
-$('capPrazo').value = (item && prazoEhData(item.prazo)) ? item.prazo : '';
-
-  ultimaAnaliseIA = null;
+ultimaAnaliseIA = null;
 
 if(item && item.analiseIA){
   mostrarResultadoIA(item.analiseIA);
@@ -932,7 +922,6 @@ function salvarCaptura(){
   if (!texto){ alert('Escreva alguma coisa.'); return; }
   var tipo = lerSegmento('capTipo');
   var pid = $('capProjeto').value || null;
-  var pz = $('capPrazo').value || null;
 
   var analiseVisivel = !$('resultadoIA').classList.contains('oculto');
   var analiseParaSalvar = analiseVisivel ? ultimaAnaliseIA : null;
@@ -940,17 +929,12 @@ function salvarCaptura(){
   if (editandoId){
     var it = acharItem(editandoId);
     it.texto = texto; it.tipo = tipo; it.projetoId = pid; it.atualizadoEm = agora();
-    if (pz){
-      it.prazo = pz;
-    } else if (prazoEhData(it.prazo)){
-      it.prazo = null;
-    }
     if (analiseParaSalvar) it.analiseIA = analiseParaSalvar;
   } else {
     dados.itens.unshift({
       id: String(Date.now()), texto: texto, tipo: tipo, projetoId: pid, origem: 'texto',
       status: capturaDireta ? 'afazer' : 'entrada', urgente: false, importante: false,
-      prazo: pz, analiseIA: analiseParaSalvar, criadoEm: agora()
+      analiseIA: analiseParaSalvar, criadoEm: agora()
     });
   }
 
@@ -962,7 +946,6 @@ function salvarCaptura(){
   renderizar();
   if (projetoAberto) abrirDetalhe(projetoAberto);
 }
-
 
 
 function excluirItem(){
@@ -1060,8 +1043,7 @@ function abrirDetalhe(id){
   its.forEach(function(i){
     var r = el('div', 'linha-tarefa');
     r.appendChild(el('span', null, i.texto));
-    r.appendChild(el('small', null, (NOMES[i.status] || i.status) + (i.prazo ? ' · 📅 ' + rotuloPrazo(i.prazo) : '')));
-
+    r.appendChild(el('small', null, NOMES[i.status] || i.status));
     r.addEventListener('click', function(){ abrirCaptura(i.id); });
     lista.appendChild(r);
   });
@@ -1560,24 +1542,6 @@ function botao(texto, classe, acao){
   b.addEventListener('click', function(e){ e.stopPropagation(); acao(); });
   return b;
 }
-function prazoEhData(p){
-  return /^\d{4}-\d{2}-\d{2}$/.test(p || '');
-}
-
-function rotuloPrazo(p){
-  if (!p) return '';
-  if (prazoEhData(p)){
-    var d = p.split('-');
-    return d[2] + '/' + d[1] + '/' + d[0];
-  }
-  return String(p);
-}
-
-function prazoAtrasado(item){
-  if (!prazoEhData(item.prazo)) return false;
-  if (item.status === 'validado' || item.status === 'arquivado') return false;
-  return new Date(item.prazo + 'T23:59:59') < new Date();
-}
 
 function linhaTags(item){
   var d = el('div', 'tags');
@@ -1592,14 +1556,6 @@ function linhaTags(item){
   var p = item.projetoId ? acharProjeto(item.projetoId) : null;
   if (p) d.appendChild(el('span', 'tag t-proj', '📁 ' + p.nome));
   if (item.urgente) d.appendChild(el('span', 'tag t-urg', '🔴 Fazer agora'));
-  if (item.prazo){
-  var atrasada = prazoAtrasado(item);
-  d.appendChild(
-    el('span', 'tag t-prazo' + (atrasada ? ' atraso' : ''),
-      '📅 ' + rotuloPrazo(item.prazo) + (atrasada ? ' · atrasada' : ''))
-  );
-}
-
   return d;
 }
 
