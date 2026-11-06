@@ -3016,7 +3016,48 @@ function mostrarResultadoIA(analise){
 
   }
 
+/* =====================================
+   CRIAR COMO: TAREFAS OU PROJETO
+   ===================================== */
 
+var rotuloCriar = el('label', null, 'Criar como');
+rotuloCriar.style.marginTop = '16px';
+area.appendChild(rotuloCriar);
+
+var escolhaCriar = el('div', 'segmento');
+
+var btnTarefas = el('button', null, '✅ Tarefas');
+btnTarefas.type = 'button';
+
+var btnProjeto = el('button', null, '📁 Projeto');
+btnProjeto.type = 'button';
+
+function aplicarEscolhaCriar(valor){
+
+  if(valor === 'projeto'){
+    analise.classificacao = 'projeto';
+    if(!analise.projeto_sugerido){
+      analise.projeto_sugerido = analise.objetivo || 'Novo projeto';
+    }
+  } else {
+    analise.classificacao = 'acao';
+  }
+
+  btnTarefas.classList.toggle('sel', valor === 'tarefas');
+  btnProjeto.classList.toggle('sel', valor === 'projeto');
+
+}
+
+btnTarefas.addEventListener('click', function(){ aplicarEscolhaCriar('tarefas'); });
+btnProjeto.addEventListener('click', function(){ aplicarEscolhaCriar('projeto'); });
+
+escolhaCriar.appendChild(btnTarefas);
+escolhaCriar.appendChild(btnProjeto);
+area.appendChild(escolhaCriar);
+
+aplicarEscolhaCriar(
+  analise.classificacao === 'projeto' ? 'projeto' : 'tarefas'
+);
   /* =====================================
      BOTÕES
      ===================================== */
@@ -3260,13 +3301,10 @@ function aceitarAnaliseIA(analise){
      Cria estrutura de projeto
      ========================= */
 
-  if(
-    tipo === 'profissional' &&
-    (
-      analise.classificacao === 'projeto' ||
-      analise.projeto_sugerido
-    )
-  ){
+ if(
+  tipo === 'profissional' &&
+  analise.classificacao === 'projeto'
+){
 
     var nomeProjeto =
       analise.projeto_sugerido ||
