@@ -222,7 +222,40 @@ body.estilo-lista .acoes button{padding:6px 4px;font-size:11px}
 body.estilo-lista .proj{border-radius:8px;padding:10px 12px}
 body.estilo-lista .kanban{flex-direction:column;overflow:visible;scroll-snap-type:none}
 body.estilo-lista .coluna{min-width:100%}
+/* LAYOUT PARA COMPUTADOR */
+@media (min-width: 900px){
 
+  .app{max-width:none;margin:0;padding:0 0 0 230px}
+  header{padding:18px 32px}
+  main{padding:28px 32px;max-width:1400px}
+
+  nav{
+    left:0;top:0;bottom:0;transform:none;
+    width:230px;max-width:none;height:100vh;
+    display:flex;flex-direction:column;gap:6px;
+    padding:96px 14px 20px;
+    border-top:none;border-right:1px solid var(--linha)
+  }
+  nav button{
+    display:flex;align-items:center;gap:12px;
+    font-size:18px;padding:12px 14px;border-radius:12px;text-align:left
+  }
+  nav button span{display:inline;font-size:14px;margin:0}
+  nav button.ativo{background:#EEF0FF}
+  nav .mais{
+    order:-1;width:100%;height:auto;margin:0 0 12px;
+    border-radius:12px;justify-content:center;font-size:18px;font-weight:bold
+  }
+  nav .mais::after{content:" Capturar";font-size:14px}
+
+  .kanban{overflow:visible}
+  .coluna{min-width:0;flex:1}
+
+  .modal{align-items:center}
+  .folha{max-width:640px;border-radius:24px}
+
+  body.tema-escuro nav button.ativo{background:#1F2447}
+}
 </style>
 </head>
 <body>
