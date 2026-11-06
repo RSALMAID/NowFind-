@@ -256,6 +256,32 @@ body.estilo-lista .coluna{min-width:100%}
 
   body.tema-escuro nav button.ativo{background:#1F2447}
 }
+/* PAINEL HOJE */
+.grade-hoje{display:grid;grid-template-columns:1fr;gap:16px;margin:18px 0 22px}
+.bloco-hoje{background:var(--cinza);border-radius:18px;padding:14px}
+.linha-hoje{background:#fff;border-radius:12px;padding:11px 12px;margin-bottom:8px;border-left:4px solid #FFD600;cursor:pointer}
+.linha-hoje.pro{border-left-color:#333399}
+.linha-hoje b{display:block;font-size:14px;line-height:1.35}
+.linha-hoje small{color:var(--texto);font-size:11px}
+.linha-hoje .barra{margin-top:8px}
+body.tema-escuro .bloco-hoje{background:#161A2B}
+body.tema-escuro .linha-hoje{background:#1C2136;color:#E8EAF2}
+@media (min-width:900px){
+  .grade-hoje{grid-template-columns:1.4fr 1fr}
+}
+/* PAINEL HOJE */
+.grade-hoje{display:grid;grid-template-columns:1fr;gap:16px;margin:18px 0 22px}
+.bloco-hoje{background:var(--cinza);border-radius:18px;padding:14px}
+.linha-hoje{background:#fff;border-radius:12px;padding:11px 12px;margin-bottom:8px;border-left:4px solid #FFD600;cursor:pointer}
+.linha-hoje.pro{border-left-color:#333399}
+.linha-hoje b{display:block;font-size:14px;line-height:1.35}
+.linha-hoje small{color:var(--texto);font-size:11px}
+.linha-hoje .barra{margin-top:8px}
+body.tema-escuro .bloco-hoje{background:#161A2B}
+body.tema-escuro .linha-hoje{background:#1C2136;color:#E8EAF2}
+@media (min-width:900px){
+  .grade-hoje{grid-template-columns:1.4fr 1fr}
+}
 </style>
 </head>
 <body>
@@ -327,7 +353,34 @@ body.estilo-lista .coluna{min-width:100%}
         <div><b>📋 Revisão semanal</b><small id="txtRevisao">Você ainda não fez nenhuma revisão.</small></div>
         <button id="btnRevisar">Revisar agora</button>
       </div>
-    <div
+   <div id="painelHoje">
+
+  <div class="stats">
+    <div><strong id="hjAfazer">0</strong><span>A fazer</span></div>
+    <div><strong id="hjAndamento">0</strong><span>Em andamento</span></div>
+    <div><strong id="hjAguardando">0</strong><span>Aguardando</span></div>
+    <div><strong id="hjValidados">0</strong><span>Validados 7 dias</span></div>
+  </div>
+
+  <div class="grade-hoje">
+
+    <section class="bloco-hoje">
+      <div class="secao"><h3>⚡ Foco agora</h3></div>
+      <div id="listaFoco"></div>
+    </section>
+
+    <section class="bloco-hoje">
+      <div class="secao"><h3>⏳ Aguardando retorno</h3></div>
+      <div id="listaAguardandoHoje"></div>
+
+      <div class="secao" style="margin-top:16px"><h3>📁 Projetos ativos</h3></div>
+      <div id="listaProjetosHoje"></div>
+    </section>
+
+  </div>
+
+</div>
+      <div
   id="blocoParaDecidir"
   style="
     margin-top:18px;
@@ -1841,10 +1894,99 @@ function carregarSortable(){
   s.onload = function(){ if (usuario) renderizar(); };
   document.head.appendChild(s);
 }
+/* PAINEL HOJE */
 
+function linhaHoje(titulo, detalhe, tipo, aoClicar){
+  var l = el('div', 'linha-hoje' + (tipo === 'profissional' ? ' pro' : ''));
+  l.appendChild(el('b', null, titulo));
+  if (detalhe) l.appendChild(el('small', null, detalhe));
+  l.addEventListener('click', aoClicar);
+  return l;
+}
+
+function vazioHoje(box, msg){
+  box.appendChild(el('div', 'vazio', msg));
+}
+
+function renderPainelHoje(){
+
+  function contar(st){
+    return dados.itens.filter(function(i){ return i.status === st; }).length;
+  }
+
+  $('hjAfazer').textContent = contar('afazer');
+  $('hjAndamento').textContent = contar('andamento');
+  $('hjAguardando').textContent = contar('aguardando');
+
+  var limite = Date.now() - 7 * 86400000;
+  $('hjValidados').textContent = dados.itens.filter(function(i){
+    return i.status === 'validado' &&
+      new Date(i.atualizadoEm || i.criadoEm).getTime() >= limite;
+  }).length;
+
+  function nomeProjeto(i){
+    var p = i.projetoId ? acharProjeto(i.projetoId) : null;
+    return p ? ' · 📁 ' + p.nome : '';
+  }
+
+  /* FOCO AGORA */
+  var peso = function(i){
+    return (i.urgente ? 4 : 0) + (i.importante ? 2 : 0) + (i.status === 'andamento' ? 1 : 0);
+  };
+
+  var foco = dados.itens
+    .filter(function(i){ return i.status === 'afazer' || i.status === 'andamento'; })
+    .sort(function(a, b){ return peso(b) - peso(a); })
+    .slice(0, 5);
+
+  var boxFoco = $('listaFoco');
+  boxFoco.innerHTML = '';
+  if (!foco.length) vazioHoje(boxFoco, 'Nenhuma ação ativa. Capture algo ou mova um cartão para A fazer.');
+  foco.forEach(function(i){
+    var marca = (i.urgente ? '🔴 ' : '') + (i.importante ? '⭐ ' : '');
+    boxFoco.appendChild(
+      linhaHoje(marca + i.texto, (NOMES[i.status] || i.status) + nomeProjeto(i), i.tipo,
+        function(){ abrirCaptura(i.id); })
+    );
+  });
+
+  /* AGUARDANDO */
+  var aguardando = dados.itens.filter(function(i){ return i.status === 'aguardando'; });
+  var boxAg = $('listaAguardandoHoje');
+  boxAg.innerHTML = '';
+  if (!aguardando.length) vazioHoje(boxAg, 'Nada aguardando retorno.');
+  aguardando.slice(0, 5).forEach(function(i){
+    var dias = Math.floor((Date.now() - new Date(i.atualizadoEm || i.criadoEm).getTime()) / 86400000);
+    boxAg.appendChild(
+      linhaHoje(i.texto, 'Parado há ' + dias + ' dia(s)' + nomeProjeto(i), i.tipo,
+        function(){ abrirCaptura(i.id); })
+    );
+  });
+
+  /* PROJETOS ATIVOS */
+  var boxPr = $('listaProjetosHoje');
+  boxPr.innerHTML = '';
+  var ativos = dados.projetos.filter(function(p){
+    var pr = progresso(p.id);
+    return pr.total === 0 || pr.pct < 100;
+  });
+  if (!ativos.length) vazioHoje(boxPr, 'Nenhum projeto ativo.');
+  ativos.slice(0, 5).forEach(function(p){
+    var pr = progresso(p.id);
+    var l = linhaHoje(p.nome, pr.feitos + ' de ' + pr.total + ' validadas · ' + pr.pct + '%', p.tipo,
+      function(){ trocarTela('projetos'); abrirDetalhe(p.id); });
+    var barra = el('div', 'barra');
+    var prog = el('div', 'prog');
+    prog.style.width = pr.pct + '%';
+    barra.appendChild(prog);
+    l.appendChild(barra);
+    boxPr.appendChild(l);
+  });
+
+}
 function renderizar(){
   aplicarConfig();
-
+renderPainelHoje();
   var entrada = dados.itens.filter(function(i){ return i.status === 'entrada'; });
   $('contEntrada').textContent = entrada.length;
   preencher('listaHoje', entrada, cartaoEntrada, '✓ Tudo processado. Nenhuma captura aguardando decisão.');
