@@ -802,46 +802,120 @@ body.fonte-montserrat{font-family:"Montserrat",ui-sans-serif,sans-serif}
   body[class] nav .amb-lateral button{justify-content:flex-start;text-align:left;padding:10px 12px}
 }
 /* ===== AJUSTES 11 - FIM ===== */
-  /* ===== AJUSTES 12 - PROJETOS DO ESPAÇO ===== */
+ /* ===== AJUSTES 12 - PROJETOS DO ESPAÇO ===== */
 
-/* topo */
-.esp-topo{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
-.esp-titulo small{display:block;color:var(--azul2);font-weight:700;font-size:11px;letter-spacing:1px}
-.esp-titulo select{width:auto;max-width:100%;border:none;background:transparent;padding:2px 24px 2px 0;font-size:22px;font-weight:700;color:var(--tx,#14172B);box-shadow:none}
-.esp-acoes{display:flex;flex-wrap:wrap;gap:8px}
+/* ---- barra do topo ---- */
+.esp-barra{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px 16px;margin-bottom:6px}
+.esp-direita{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.esp-troca{display:flex;align-items:center;gap:12px;border:none;background:transparent;color:var(--tx,#14172B);padding:6px 10px 6px 6px;border-radius:16px;cursor:pointer;text-align:left}
+.esp-troca:hover{background:color-mix(in srgb,var(--tx,#14172B) 8%,transparent)}
+.esp-troca-txt small{display:block;font-size:10px;font-weight:700;letter-spacing:.12em;color:var(--texto,#6B7090)}
+.esp-troca-txt b{display:block;font-size:20px;font-weight:700;line-height:1.15;letter-spacing:-.01em}
+.esp-seta{opacity:.6;font-size:14px}
+
+/* avatares */
+.avatar-esp{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;color:#fff;font-weight:700;font-size:17px;flex:none}
+.avatar-esp.g{background:linear-gradient(135deg,var(--azul),var(--azul2))}
+.pilha{display:inline-flex;align-items:center}
+.av{width:26px;height:26px;border-radius:50%;display:inline-grid;place-items:center;color:#fff;font-size:11px;font-weight:700;border:2px solid var(--card,#fff);margin-left:-8px;flex:none}
+.pilha .av:first-child{margin-left:0}
+.av.mais{background:var(--borda,#E6E9F2);color:var(--tx,#14172B)}
+.av.sem{background:transparent;border:1.5px dashed var(--texto,#8E96B5);color:var(--texto,#8E96B5);font-weight:500}
+.esp-pessoas{display:flex;align-items:center;gap:10px;border:1px solid var(--borda,#E6E9F2);background:var(--card,#fff);color:var(--tx,#14172B);border-radius:12px;padding:6px 12px 6px 10px;cursor:pointer;font-size:13px;font-weight:600}
+.esp-pessoas .av{border-color:var(--card,#fff)}
+.esp-pessoas:hover{border-color:var(--azul)}
+
+/* chips e botões da barra */
+.chip-filtro{border:1px solid var(--borda,#E6E9F2);background:var(--card,#fff);color:var(--tx,#14172B);border-radius:999px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer}
+.chip-filtro.sel{background:var(--azul);border-color:var(--azul);color:var(--on-acento,#fff)}
+.seg-vis{display:inline-flex;background:var(--coluna,#F4F6FB);border-radius:12px;padding:3px;gap:2px}
+.seg-vis button{border:none;background:transparent;color:var(--texto,#6B7090);width:36px;height:32px;border-radius:9px;display:grid;place-items:center;cursor:pointer}
+.seg-vis button.sel{background:var(--card,#fff);color:var(--tx,#14172B);box-shadow:0 1px 3px rgba(0,0,0,.18)}
+.btn-prim{border:none;border-radius:12px;padding:10px 16px;font-weight:700;font-size:13px;color:var(--on-acento,#fff);background:var(--grad-acento,linear-gradient(135deg,var(--azul),var(--azul2)));box-shadow:0 6px 16px color-mix(in srgb,var(--azul) 35%,transparent);cursor:pointer}
+.btn-prim:active{transform:scale(.97)}
+.status-esp{min-height:16px;margin:2px 0 10px}
+
+/* estado vazio */
+.vazio-esp{max-width:520px;margin:40px auto;text-align:center;background:var(--card,#fff);border:1px solid var(--borda,#E6E9F2);border-radius:24px;padding:32px 24px}
+.vazio-icone{font-size:40px;margin-bottom:6px}
+.vazio-esp h3{font-size:20px;font-weight:700;margin-bottom:6px}
+.vazio-esp p{color:var(--texto,#6B7090);font-size:14px;line-height:1.5;margin-bottom:18px}
 .esp-form{display:flex;flex-wrap:wrap;gap:8px}
 .esp-form input{flex:1;min-width:180px}
 
-/* colunas = projetos */
-.quadro-esp{display:flex;gap:14px;overflow-x:auto;align-items:flex-start;padding-bottom:12px;-webkit-overflow-scrolling:touch}
-.col-esp{flex:0 0 290px;background:var(--coluna,#F4F6FB);border-radius:18px;padding:12px;border-top:4px solid var(--azul)}
-.col-esp.avulsas,.sec-esp.avulsas{border-top-color:#8E96B5}
-.col-topo{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
-.col-topo b{cursor:pointer;font-size:14px;font-weight:600;word-break:break-word}
-.col-topo b:hover{text-decoration:underline}
+/* ---- quadro: um projeto por coluna ---- */
+.quadro-esp{display:flex;gap:14px;overflow-x:auto;align-items:flex-start;padding:2px 2px 16px;-webkit-overflow-scrolling:touch}
+.col-esp{flex:0 0 304px;background:var(--coluna,#F4F6FB);border-radius:18px;padding:10px 10px 12px}
+.col-topo{display:flex;align-items:center;gap:8px;padding:4px 4px 10px}
+.col-pt{width:10px;height:10px;border-radius:50%;background:var(--azul);flex:none}
+.avulsas .col-pt{background:#8E96B5}
+.col-nome{flex:1;min-width:0;border:none;background:transparent;color:var(--tx,#14172B);font-size:14px;font-weight:600;text-align:left;padding:0;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.col-nome:hover{text-decoration:underline}
+.col-n{font-size:12px;font-weight:600;color:var(--texto,#6B7090);background:color-mix(in srgb,var(--tx,#14172B) 9%,transparent);border-radius:999px;padding:2px 9px}
+.col-mais{border:none;background:transparent;color:var(--texto,#6B7090);width:30px;height:30px;border-radius:9px;font-size:18px;line-height:1;cursor:pointer}
+.col-mais:hover{background:color-mix(in srgb,var(--tx,#14172B) 10%,transparent);color:var(--tx,#14172B)}
+.col-vazia{font-size:12px;color:var(--texto,#6B7090);padding:6px 6px 10px;text-align:center}
 
-/* lista = projetos empilhados */
-.lista-esp .sec-esp{background:var(--coluna,#F4F6FB);border-radius:18px;padding:12px;border-top:4px solid var(--azul);margin-bottom:14px}
-.lista-esp .card-esp{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px}
-.lista-esp .ce-titulo{flex:1 1 220px;margin:0}
+/* coluna fantasma: novo projeto */
+.col-nova{flex:0 0 304px;min-height:72px;border:2px dashed var(--borda,#C9CEE0);background:transparent;color:var(--texto,#6B7090);border-radius:18px;font-size:14px;font-weight:600;cursor:pointer}
+.col-nova:hover{border-color:var(--azul);color:var(--tx,#14172B);background:color-mix(in srgb,var(--azul) 8%,transparent)}
 
-/* cartões de tarefa */
-.card-esp{background:var(--card,#fff);color:var(--tx,#14172B);border:1px solid var(--borda,#E6E9F2);border-left:6px solid #8E96B5;border-radius:14px;padding:11px 12px;margin-bottom:8px;cursor:pointer;box-shadow:0 1px 2px rgba(20,24,60,.06);transition:transform .12s}
-.card-esp:hover{transform:translateY(-1px)}
-.card-esp.st-andamento{border-left-color:#FFD600}
-.card-esp.st-aguardando{border-left-color:#FF8A1F}
-.card-esp.st-realizado{border-left-color:#22B573}
-.card-esp.st-validado{border-left-color:#2F5BFF}
+/* ---- cartão de tarefa ---- */
+.card-esp{background:var(--card,#fff);color:var(--tx,#14172B);border:1px solid var(--borda,#E6E9F2);border-left:3px solid var(--st,#8E96B5);border-radius:14px;padding:11px 12px 10px;margin-bottom:8px;cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,.10);transition:transform .12s,box-shadow .12s}
+.card-esp:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(0,0,0,.18)}
 .card-esp.atrasada{border-left-color:#E5202E}
-.ce-titulo{font-weight:600;font-size:14px;margin-bottom:6px;word-break:break-word;white-space:pre-wrap}
-.meta-esp{display:flex;flex-wrap:wrap;gap:4px;align-items:center}
-.chip-status{display:inline-block;color:#fff;border-radius:999px;padding:3px 9px;font-size:10px;font-weight:700}
-.chip-resp{display:inline-block;background:color-mix(in srgb,var(--azul) 18%,transparent);color:var(--tx,#14172B);border-radius:999px;padding:3px 10px;font-size:11px;font-weight:600}
-.chip-resp.eu{background:var(--azul);color:var(--on-acento,#fff)}
-.chip-resp.sem{background:transparent;border:1px dashed var(--borda,#C9CEE0);font-weight:400}
-.add-rapido{width:100%;border:1px dashed var(--borda,#C9CEE0);background:transparent;border-radius:12px;padding:10px 12px;font-size:13px;color:var(--tx,#14172B);margin-top:2px}
+.ce-topo{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
+.chip-status{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;color:var(--texto,#6B7090)}
+.chip-status .pt{width:8px;height:8px;border-radius:50%;display:inline-block}
+.ce-prio{font-size:12px}
+.ce-titulo{font-size:14px;font-weight:600;line-height:1.35;margin-bottom:10px;word-break:break-word}
+.ce-rodape{display:flex;align-items:center;gap:6px}
+.ce-rodape .pilha{margin-left:auto}
+.chip-prazo{font-size:11px;font-weight:600;color:var(--texto,#6B7090);background:color-mix(in srgb,var(--tx,#14172B) 8%,transparent);border-radius:8px;padding:3px 8px}
+.chip-prazo.atraso{background:#E5202E;color:#fff}
+.chip-nota{font-size:12px;opacity:.7}
 
-/* janela do projeto com navegação */
+/* celular: coluna quase da largura da tela e encaixa ao deslizar */
+@media (max-width:700px){
+  .quadro-esp{scroll-snap-type:x mandatory;gap:10px}
+  .col-esp,.col-nova{flex-basis:86vw;scroll-snap-align:center}
+  .col-mais{width:38px;height:38px}
+}
+
+/* ---- adicionar tarefa ---- */
+.add-ghost{width:100%;border:none;background:transparent;color:var(--texto,#6B7090);text-align:left;font-size:13px;font-weight:600;padding:9px 10px;border-radius:10px;cursor:pointer}
+.add-ghost:hover{background:color-mix(in srgb,var(--tx,#14172B) 8%,transparent);color:var(--tx,#14172B)}
+.add-form{background:var(--card,#fff);border:1px solid var(--azul);border-radius:14px;padding:8px}
+.add-form .add-input{width:100%;border:none;background:transparent;padding:6px 6px 10px;font-size:14px;outline:none;box-shadow:none;border-radius:0;color:var(--tx,#14172B)}
+.add-acoes{display:flex;gap:6px}
+.add-ok{border:none;border-radius:9px;padding:8px 14px;font-size:13px;font-weight:700;color:var(--on-acento,#fff);background:var(--azul);cursor:pointer}
+.add-x{border:none;border-radius:9px;padding:8px 12px;font-size:13px;background:transparent;color:var(--texto,#6B7090);cursor:pointer}
+.add-x:hover{background:color-mix(in srgb,var(--tx,#14172B) 8%,transparent)}
+
+/* ---- visualização em lista ---- */
+.lista-esp .sec-esp{background:var(--coluna,#F4F6FB);border-radius:18px;padding:10px 10px 8px;margin-bottom:14px}
+.lista-esp .card-esp{display:flex;align-items:center;gap:14px;padding:10px 12px;margin-bottom:6px;border-radius:12px}
+.lista-esp .ce-topo{margin:0;min-width:130px}
+.lista-esp .ce-titulo{flex:1;margin:0}
+.lista-esp .ce-rodape{flex:none}
+.lista-esp .ce-rodape .pilha{margin-left:8px}
+@media (max-width:700px){
+  .lista-esp .card-esp{flex-wrap:wrap;gap:6px 12px}
+  .lista-esp .ce-titulo{flex:1 1 100%;order:-1}
+}
+
+/* ---- menus e avisos flutuantes ---- */
+.pop{position:absolute;z-index:90;min-width:230px;max-width:320px;background:var(--card,#fff);color:var(--tx,#14172B);border:1px solid var(--borda,#E6E9F2);border-radius:16px;padding:6px;box-shadow:0 18px 44px rgba(0,0,0,.34)}
+.pop button{display:flex;align-items:center;gap:10px;width:100%;border:none;background:transparent;color:inherit;text-align:left;padding:10px 12px;border-radius:10px;font-size:14px;font-weight:500;cursor:pointer}
+.pop button:hover{background:color-mix(in srgb,var(--tx,#14172B) 9%,transparent)}
+.pop button.perigo{color:#E5202E}
+.pop .pop-av{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;color:#fff;font-size:12px;font-weight:700;flex:none}
+.pop .pop-ok{margin-left:auto;color:var(--azul)}
+.pop hr{border:none;border-top:1px solid var(--borda,#E6E9F2);margin:6px 4px}
+.toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);z-index:120;max-width:92vw;background:#14172B;color:#fff;border-radius:14px;padding:12px 18px;font-size:14px;font-weight:600;box-shadow:0 12px 30px rgba(0,0,0,.4);border-left:5px solid #22B573}
+.toast.erro{border-left-color:#E5202E}
+
+/* ---- janela do projeto com navegação ---- */
 .folha.larga{max-width:940px}
 .proj-layout{display:flex;gap:18px;align-items:flex-start}
 .proj-nav{display:flex;flex-direction:column;gap:6px;flex:0 0 190px}
@@ -856,13 +930,13 @@ body.fonte-montserrat{font-family:"Montserrat",ui-sans-serif,sans-serif}
   .proj-nav button{white-space:nowrap}
 }
 
-/* painel */
+/* ---- painel ---- */
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px}
-.kpi{background:var(--card,#fff);border:1px solid var(--borda,#E6E9F2);border-radius:14px;padding:12px;text-align:center}
-.kpi strong{display:block;font-size:26px;font-weight:700}
+.kpi{background:var(--card,#fff);border:1px solid var(--borda,#E6E9F2);border-radius:16px;padding:14px 12px;text-align:center}
+.kpi strong{display:block;font-size:28px;font-weight:700}
 .kpi span{font-size:11px;color:var(--texto,#6B7090)}
 .painel-grade{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px;margin-top:12px}
-.painel-bloco{background:var(--card,#fff);border:1px solid var(--borda,#E6E9F2);border-radius:16px;padding:14px;margin-top:12px}
+.painel-bloco{background:var(--card,#fff);border:1px solid var(--borda,#E6E9F2);border-radius:18px;padding:14px;margin-top:12px}
 .painel-grade .painel-bloco{margin-top:0}
 .painel-bloco h4{font-size:13px;font-weight:600;margin-bottom:8px}
 .donut{--p:0;width:120px;height:120px;border-radius:50%;background:conic-gradient(var(--azul) calc(var(--p) * 1%),var(--borda,#E6E9F2) 0);display:grid;place-items:center;margin:6px auto}
@@ -877,14 +951,13 @@ body.fonte-montserrat{font-family:"Montserrat",ui-sans-serif,sans-serif}
 .prazo-linha b{flex:0 0 52px;font-size:12px}
 .prazo-linha.atraso b{color:#E5202E}
 
-/* tarefa: grade de campos */
+/* ---- tarefa: campos ---- */
 .te-grade{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}
 @media (max-width:520px){.te-grade{grid-template-columns:1fr}}
 label.resp-opcao{display:flex;align-items:center;gap:10px;padding:8px 4px;margin:0;font-size:14px;font-weight:500}
 label.resp-opcao input{width:auto;padding:0;margin:0;border-radius:4px}
-#btnSoMinhas.sel{background:var(--azul);color:var(--on-acento,#fff)}
 
-/* editor de texto rico */
+/* ---- editor de texto formatado ---- */
 .rico{border:1px solid var(--borda,#DDDDE8);border-radius:14px;overflow:hidden;background:var(--card,#fff)}
 .rico-barra{display:flex;flex-wrap:wrap;gap:4px;padding:6px;border-bottom:1px solid var(--borda,#E6E9F2);background:var(--coluna,#F4F6FB)}
 .rico-btn{min-width:36px;height:36px;border:none;border-radius:9px;background:transparent;color:var(--tx,#14172B);font-weight:700;font-size:14px;cursor:pointer}
@@ -1130,36 +1203,50 @@ label.resp-opcao input{width:auto;padding:0;margin:0;border-radius:4px}
   <!-- ESPAÇO COMPARTILHADO -->
 <div id="view-espaco" class="oculto">
 
-  <div id="espMsg" class="aviso oculto"></div>
-
   <div id="espVazio" class="oculto">
-    <div class="secao"><h3>👥 Seu espaço compartilhado</h3></div>
-    <p class="dica">Trabalhe com outras pessoas: crie projetos, distribua tarefas e acompanhe tudo em um só lugar. Só quem você convidar entra.</p>
-    <div class="esp-form">
-      <input id="inEspacoVazio" type="text" placeholder="Nome do espaço. Ex.: EHS Manutenção Central">
-      <button id="btnCriarEspacoVazio" class="btn" type="button">Criar espaço</button>
+    <div class="vazio-esp">
+      <div class="vazio-icone">👥</div>
+      <h3>Seu espaço compartilhado</h3>
+      <p>Trabalhe com outras pessoas: crie projetos, distribua tarefas e acompanhe tudo em um só lugar. Só quem você convidar entra.</p>
+      <div class="esp-form">
+        <input id="inEspacoVazio" type="text" placeholder="Nome do espaço. Ex.: EHS Manutenção Central">
+        <button id="btnCriarEspacoVazio" class="btn" type="button">Criar espaço</button>
+      </div>
     </div>
   </div>
 
   <div id="espPainel" class="oculto">
-    <div class="esp-topo">
-      <div class="esp-titulo">
-        <small>COMPARTILHADO</small>
-        <select id="selEspaco"></select>
-      </div>
-      <div class="esp-acoes">
-        <button id="btnNovoProjEsp" class="mini-btn" type="button">＋ Criar projeto</button>
-        <button id="btnMembros" class="mini-btn" type="button">👥 Convidar · <span id="qtdMembros">0</span></button>
-        <button id="btnSoMinhas" class="mini-btn" type="button">Só as minhas</button>
-        <button id="btnModoEsp" class="mini-btn" type="button">☰ Lista</button>
+
+    <div class="esp-barra">
+      <button id="btnTrocaEspaco" class="esp-troca" type="button">
+        <span id="espAvatar" class="avatar-esp g">E</span>
+        <span class="esp-troca-txt"><small>ESPAÇO</small><b id="espNomeAtual">Espaço</b></span>
+        <span class="esp-seta">▾</span>
+      </button>
+
+      <div class="esp-direita">
+        <button id="btnMembros" class="esp-pessoas" type="button" title="Participantes e convites">
+          <span id="espPilha" class="pilha"></span>
+          <span class="pilha-txt"><span id="qtdMembros">0</span> · Convidar</span>
+        </button>
+        <button id="btnSoMinhas" class="chip-filtro" type="button">Só as minhas</button>
+        <div class="seg-vis" role="group" aria-label="Visualização">
+          <button id="btnVisCol" type="button" title="Colunas" class="sel">
+            <svg viewBox="0 0 20 20" width="16" height="16" fill="currentColor"><rect x="2" y="3" width="4.5" height="14" rx="1.2"/><rect x="7.75" y="3" width="4.5" height="9" rx="1.2"/><rect x="13.5" y="3" width="4.5" height="12" rx="1.2"/></svg>
+          </button>
+          <button id="btnVisLista" type="button" title="Lista">
+            <svg viewBox="0 0 20 20" width="16" height="16" fill="currentColor"><rect x="2" y="4" width="16" height="3" rx="1.2"/><rect x="2" y="8.5" width="16" height="3" rx="1.2"/><rect x="2" y="13" width="16" height="3" rx="1.2"/></svg>
+          </button>
+        </div>
+        <button id="btnNovoProjEsp" class="btn-prim" type="button">＋ Projeto</button>
       </div>
     </div>
-    <p id="statusEsp" class="dica"></p>
+
+    <p id="statusEsp" class="dica status-esp"></p>
     <div id="quadroEsp"></div>
   </div>
 
 </div>
-
   </main>
 
 <nav>
@@ -5257,6 +5344,9 @@ var criandoAvulsas = false;
 var cbNome = null;
 var edDesc = null;
 var edObj = null;
+var compAberto = null;
+var rascunhoAdd = { pid: null, valor: '' };
+var menuAberto = null;
 
 var STATUS_ESP = [
   ['afazer', 'A fazer', '#8E96B5'],
@@ -5265,6 +5355,8 @@ var STATUS_ESP = [
   ['realizado', 'Realizado', '#22B573'],
   ['validado', 'Validado', '#2F5BFF']
 ];
+
+var CORES_AV = ['#4F46E5', '#DB2777', '#D97706', '#059669', '#0891B2', '#DC2626', '#7C3AED', '#65A30D'];
 
 /* ---------- utilidades ---------- */
 
@@ -5277,18 +5369,32 @@ function statusEsp(txt){
   if (s) s.textContent = txt || '';
 }
 
-function msgEspaco(texto, erro){
-  var emMembros = !$('modalMembros').classList.contains('oculto');
-  var m = $(emMembros ? 'msgMembros' : 'espMsg');
-  if (!m) return;
-  m.textContent = texto || '';
-  m.classList.toggle('oculto', !texto);
-  m.style.borderLeftColor = erro ? '#E5202E' : '#22B573';
-  if (texto && !erro){
-    setTimeout(function(){
-      if (m.textContent === texto) m.classList.add('oculto');
-    }, 5000);
+var toastTimer = null;
+function toast(texto, erro){
+  var t = document.getElementById('toastEsp');
+  if (!t){
+    t = document.createElement('div');
+    t.id = 'toastEsp';
+    document.body.appendChild(t);
   }
+  t.className = 'toast' + (erro ? ' erro' : '');
+  t.textContent = texto;
+  t.style.display = 'block';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function(){ t.style.display = 'none'; }, erro ? 6000 : 3500);
+}
+
+function msgEspaco(texto, erro){
+  if (!texto) return;
+  var m = $('msgMembros');
+  var emMembros = !$('modalMembros').classList.contains('oculto');
+  if (emMembros && m){
+    m.textContent = texto;
+    m.classList.remove('oculto');
+    m.style.borderLeftColor = erro ? '#E5202E' : '#22B573';
+    return;
+  }
+  toast(texto, erro);
 }
 
 async function apiBruta(caminho, metodo, corpo){
@@ -5351,12 +5457,53 @@ function nomeProj(id, d){
   return id === 'avulsas' ? 'Sem projeto' : (d.nome || 'Projeto');
 }
 
+function membroPorId(id){
+  for (var i = 0; i < espMembros.length; i++){
+    if (espMembros[i].id === id) return espMembros[i];
+  }
+  return null;
+}
+
 function nomeCurto(id){
   if (id === meuId()) return 'Eu';
-  for (var i = 0; i < espMembros.length; i++){
-    if (espMembros[i].id === id) return espMembros[i].nome.trim().split(' ')[0];
+  var m = membroPorId(id);
+  return m ? m.nome.trim().split(' ')[0] : 'ex-membro';
+}
+
+function inicial(nome){
+  var n = String(nome || '?').trim();
+  return n ? n.charAt(0).toUpperCase() : '?';
+}
+
+function corDe(id){
+  var h = 0, s = String(id || '');
+  for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 997;
+  return CORES_AV[h % CORES_AV.length];
+}
+
+function avatar(id){
+  var m = membroPorId(id);
+  var a = el('span', 'av', m ? inicial(m.nome) : '–');
+  a.style.background = m ? corDe(id) : '#8E96B5';
+  a.title = m ? m.nome + (id === meuId() ? ' (eu)' : '') : 'Ex-participante';
+  return a;
+}
+
+function pilhaAvatares(ids, max){
+  var p = el('span', 'pilha');
+  if (!ids.length){
+    var v = el('span', 'av sem', '+');
+    v.title = 'Sem responsável';
+    p.appendChild(v);
+    return p;
   }
-  return 'ex-membro';
+  ids.slice(0, max).forEach(function(id){ p.appendChild(avatar(id)); });
+  if (ids.length > max){
+    var mais = el('span', 'av mais', '+' + (ids.length - max));
+    mais.title = ids.slice(max).map(nomeCurto).join(', ');
+    p.appendChild(mais);
+  }
+  return p;
 }
 
 function espacoSelecionado(){
@@ -5364,6 +5511,11 @@ function espacoSelecionado(){
     if (espacos[i].id === espacoAtual) return espacos[i];
   }
   return null;
+}
+
+function souDono(){
+  var e = espacoSelecionado();
+  return !!(e && e.papel === 'dono');
 }
 
 function idsOrdenados(){
@@ -5382,6 +5534,66 @@ function listaOrdenada(d){
       String(a.criadoEm || '').localeCompare(String(b.criadoEm || ''));
   });
 }
+
+/* ---------- menus flutuantes ---------- */
+
+function fecharMenu(){
+  if (menuAberto){
+    menuAberto.remove();
+    menuAberto = null;
+  }
+}
+
+function abrirMenu(ancora, itens){
+  fecharMenu();
+  var m = document.createElement('div');
+  m.className = 'pop';
+  itens.forEach(function(it){
+    if (it.sep){ m.appendChild(document.createElement('hr')); return; }
+    var b = document.createElement('button');
+    b.type = 'button';
+    if (it.perigo) b.className = 'perigo';
+    if (it.cor){
+      var av = document.createElement('span');
+      av.className = 'pop-av';
+      av.style.background = it.cor;
+      av.textContent = it.inicial || '';
+      b.appendChild(av);
+    }
+    var t = document.createElement('span');
+    t.textContent = it.rot;
+    b.appendChild(t);
+    if (it.marcado){
+      var ok = document.createElement('span');
+      ok.className = 'pop-ok';
+      ok.textContent = '✓';
+      b.appendChild(ok);
+    }
+    b.addEventListener('click', function(e){
+      e.stopPropagation();
+      fecharMenu();
+      it.aoClicar();
+    });
+    m.appendChild(b);
+  });
+  document.body.appendChild(m);
+
+  var r = ancora.getBoundingClientRect();
+  var topo = r.bottom + window.scrollY + 6;
+  var esq = r.left + window.scrollX;
+  var larg = m.offsetWidth || 240;
+  var maxEsq = window.scrollX + document.documentElement.clientWidth - larg - 10;
+  m.style.top = topo + 'px';
+  m.style.left = Math.max(10, Math.min(esq, maxEsq)) + 'px';
+  menuAberto = m;
+}
+
+document.addEventListener('click', function(e){
+  if (menuAberto && !menuAberto.contains(e.target)) fecharMenu();
+});
+document.addEventListener('keydown', function(e){
+  if (e.key === 'Escape') fecharMenu();
+});
 
 /* ---------- texto formatado (negrito, itálico, listas...) ---------- */
 
@@ -5503,7 +5715,7 @@ function criarEditorRico(host, ph){
 /* ---------- espaços ---------- */
 
 async function carregarEspacos(){
-  if (!$('selEspaco')) return;
+  if (!$('espPainel')) return;
   try {
     var r = await apiBruta('');
     if (!r.j.ok) throw new Error(r.j.erro || 'Não foi possível carregar os espaços.');
@@ -5524,17 +5736,42 @@ function renderEspacos(){
   var tem = espacos.length > 0;
   $('espVazio').classList.toggle('oculto', tem);
   $('espPainel').classList.toggle('oculto', !tem);
-  var sel = $('selEspaco');
-  sel.innerHTML = '';
-  espacos.forEach(function(e){
-    var o = el('option', null, e.nome);
-    o.value = e.id;
-    sel.appendChild(o);
+  var esp = espacoSelecionado();
+  if (esp){
+    $('espNomeAtual').textContent = esp.nome;
+    $('espAvatar').textContent = inicial(esp.nome);
+  }
+}
+
+function menuEspacos(){
+  var itens = espacos.map(function(e){
+    return {
+      rot: e.nome + (e.papel === 'dono' ? '' : ' · convidado'),
+      cor: corDe(e.id),
+      inicial: inicial(e.nome),
+      marcado: e.id === espacoAtual,
+      aoClicar: function(){
+        if (e.id === espacoAtual) return;
+        espacoAtual = e.id;
+        localStorage.setItem('nowfind_espaco', e.id);
+        renderEspacos();
+        abrirEspaco();
+      }
+    };
   });
-  var novo = el('option', null, '＋ Novo espaço...');
-  novo.value = '__novo';
-  sel.appendChild(novo);
-  sel.value = espacoAtual || '';
+  itens.push({ sep: true });
+  itens.push({
+    rot: '＋ Novo espaço',
+    aoClicar: function(){
+      pedirNome('NOVO ESPAÇO', 'Dê um nome ao espaço', 'Ex.: EHS Manutenção Central', 'Criar espaço', criarEspaco);
+    }
+  });
+  if (souDono()){
+    itens.push({ rot: '🗑 Excluir este espaço', perigo: true, aoClicar: excluirEspaco });
+  } else if (espacoSelecionado()){
+    itens.push({ rot: 'Sair deste espaço', perigo: true, aoClicar: sairDoEspaco });
+  }
+  return itens;
 }
 
 async function abrirEspaco(){
@@ -5556,14 +5793,44 @@ async function criarEspaco(nome){
     $('inEspacoVazio').value = '';
     espacoAtual = r.j.espaco.id;
     localStorage.setItem('nowfind_espaco', espacoAtual);
-    msgEspaco('Espaço criado.', false);
+    toast('Espaço criado.', false);
     await carregarEspacos();
   } catch(e){
     msgEspaco(e.message, true);
   }
 }
 
-/* ---------- membros ---------- */
+async function excluirEspaco(){
+  var esp = espacoSelecionado();
+  if (!esp || esp.papel !== 'dono') return;
+  var digitado = prompt(
+    'Isto apaga o espaço "' + esp.nome + '", todos os projetos e todas as tarefas, para TODOS os participantes.\n\n' +
+    'Para confirmar, digite o nome do espaço:'
+  );
+  if (digitado === null) return;
+  if (digitado.trim() !== esp.nome.trim()){
+    toast('O nome não confere. Nada foi excluído.', true);
+    return;
+  }
+  try {
+    var r = await apiBruta('/excluir', 'POST', { espaco_id: esp.id });
+    if (!r.j.ok) throw new Error(r.j.erro || 'Não foi possível excluir o espaço.');
+    esconder('modalMembros');
+    esconder('modalProjEsp');
+    esconder('modalTarefaEsp');
+    projEspAberto = null;
+    espacoAtual = null;
+    localStorage.removeItem('nowfind_espaco');
+    projEsp = {};
+    espMembros = [];
+    toast('Espaço "' + esp.nome + '" excluído.', false);
+    await carregarEspacos();
+  } catch(e){
+    msgEspaco(e.message, true);
+  }
+}
+
+/* ---------- participantes ---------- */
 
 async function carregarMembros(){
   var esp = espacoSelecionado();
@@ -5576,14 +5843,23 @@ async function carregarMembros(){
     if (!r.j.ok) throw new Error(r.j.erro || 'Não foi possível carregar os participantes.');
     espMembros = r.j.membros || [];
     $('qtdMembros').textContent = espMembros.length;
+    renderPilhaTopo();
     renderMembros();
+    renderQuadroEsp();
   } catch(e){
     msgEspaco(e.message, true);
   }
 }
 
+function renderPilhaTopo(){
+  var p = $('espPilha');
+  p.innerHTML = '';
+  var ids = espMembros.map(function(m){ return m.id; });
+  ids.slice(0, 4).forEach(function(id){ p.appendChild(avatar(id)); });
+  if (ids.length > 4) p.appendChild(el('span', 'av mais', '+' + (ids.length - 4)));
+}
+
 function renderMembros(){
-  var esp = espacoSelecionado();
   var lista = $('listaMembros');
   lista.innerHTML = '';
   espMembros.forEach(function(m){
@@ -5592,7 +5868,7 @@ function renderMembros(){
     info.appendChild(el('b', null, m.nome + (m.papel === 'dono' ? ' · dono' : '')));
     info.appendChild(el('small', null, m.email));
     linha.appendChild(info);
-    if (esp && esp.papel === 'dono' && m.papel !== 'dono'){
+    if (souDono() && m.papel !== 'dono'){
       linha.appendChild(botao('Remover', 'b-cinza', function(){ removerMembro(m); }));
     }
     lista.appendChild(linha);
@@ -5758,42 +6034,135 @@ function gravarProjEsp(id){
 
 /* ---------- quadro: um projeto por coluna, tarefas em cartões ---------- */
 
-function metaTarefa(t){
-  var meta = el('div', 'meta-esp');
-  var si = infoStatus(t.status);
-  var st = el('span', 'chip-status', si[1]);
-  st.style.background = si[2];
-  if (si[0] === 'andamento') st.style.color = '#1A1400';
-  meta.appendChild(st);
-
-  if (t.responsaveis.length){
-    t.responsaveis.forEach(function(rid){
-      meta.appendChild(el('span', 'chip-resp' + (rid === meuId() ? ' eu' : ''), nomeCurto(rid)));
-    });
-  } else {
-    meta.appendChild(el('span', 'chip-resp sem', 'Sem responsável'));
-  }
-  if (t.prioridade === 'urgente') meta.appendChild(el('span', 'tag t-urg', '🔴 Urgente'));
-  if (t.prioridade === 'importante') meta.appendChild(el('span', 'tag t-proj', '⭐ Importante'));
-  if (prazoEsp(t.prazo)) meta.appendChild(el('span', 'tag t-prazo' + (atrasadaEsp(t) ? ' atraso' : ''), '📅 ' + prazoEsp(t.prazo)));
-  if (textoDoHtml(t.descricao)) meta.appendChild(el('span', 'tag t-proj', '📝'));
-  return meta;
-}
-
 function cardTarefa(pid, t){
-  var c = el('div', 'card-esp st-' + t.status + (atrasadaEsp(t) ? ' atrasada' : ''));
+  var atras = atrasadaEsp(t);
+  var si = infoStatus(t.status);
+  var c = el('div', 'card-esp' + (atras ? ' atrasada' : ''));
+  c.style.setProperty('--st', si[2]);
+
+  var topo = el('div', 'ce-topo');
+  var chip = el('span', 'chip-status');
+  var ponto = el('i', 'pt');
+  ponto.style.background = si[2];
+  chip.appendChild(ponto);
+  chip.appendChild(el('span', null, si[1]));
+  topo.appendChild(chip);
+  if (t.prioridade === 'urgente'){
+    var u = el('span', 'ce-prio', '🔴');
+    u.title = 'Urgente';
+    topo.appendChild(u);
+  } else if (t.prioridade === 'importante'){
+    var im = el('span', 'ce-prio', '⭐');
+    im.title = 'Importante';
+    topo.appendChild(im);
+  }
+  c.appendChild(topo);
+
   c.appendChild(el('div', 'ce-titulo', t.texto));
-  c.appendChild(metaTarefa(t));
+
+  var rodape = el('div', 'ce-rodape');
+  if (prazoEsp(t.prazo)){
+    rodape.appendChild(el('span', 'chip-prazo' + (atras ? ' atraso' : ''), '📅 ' + prazoEsp(t.prazo)));
+  }
+  if (textoDoHtml(t.descricao)){
+    var nota = el('span', 'chip-nota', '📝');
+    nota.title = 'Tem descrição';
+    rodape.appendChild(nota);
+  }
+  rodape.appendChild(pilhaAvatares(t.responsaveis, 3));
+  c.appendChild(rodape);
+
   c.addEventListener('click', function(){ abrirTarefaEsp(t.id, pid); });
   return c;
+}
+
+/* campo de adicionar tarefa: botão visível, Enter também funciona */
+function compositor(pid){
+  var caixa = el('div', 'add-caixa');
+  var ghost = el('button', 'add-ghost', '＋ Adicionar tarefa');
+  ghost.type = 'button';
+  var form = el('div', 'add-form oculto');
+  var inp = el('input', 'add-input');
+  inp.type = 'text';
+  inp.placeholder = 'Título da tarefa';
+  inp.setAttribute('data-pid', pid);
+  var acoes = el('div', 'add-acoes');
+  var ok = el('button', 'add-ok', 'Adicionar');
+  ok.type = 'button';
+  var x = el('button', 'add-x', '✕');
+  x.type = 'button';
+  x.title = 'Cancelar';
+  acoes.appendChild(ok);
+  acoes.appendChild(x);
+  form.appendChild(inp);
+  form.appendChild(acoes);
+  caixa.appendChild(ghost);
+  caixa.appendChild(form);
+
+  function abrir(){
+    compAberto = pid;
+    ghost.classList.add('oculto');
+    form.classList.remove('oculto');
+    inp.focus();
+  }
+  function fechar(){
+    compAberto = null;
+    inp.value = '';
+    form.classList.add('oculto');
+    ghost.classList.remove('oculto');
+  }
+  function enviar(){
+    var v = inp.value.trim();
+    if (!v){ inp.focus(); return; }
+    inp.value = '';
+    compAberto = pid;
+    criarTarefaRapida(pid, v);
+  }
+
+  ghost.addEventListener('click', abrir);
+  ok.addEventListener('click', enviar);
+  x.addEventListener('click', fechar);
+  inp.addEventListener('keydown', function(e){
+    if (e.key === 'Enter'){ e.preventDefault(); enviar(); }
+    if (e.key === 'Escape') fechar();
+  });
+
+  if (compAberto === pid){
+    abrir();
+    if (rascunhoAdd.pid === pid && rascunhoAdd.valor){
+      inp.value = rascunhoAdd.valor;
+    }
+    try { inp.setSelectionRange(inp.value.length, inp.value.length); } catch(e){}
+  }
+  return caixa;
+}
+
+function menuColuna(btn, id){
+  var itens = [
+    { rot: '📊 Abrir painel do projeto', aoClicar: function(){ abrirProjEsp(id); } },
+    { rot: '＋ Nova tarefa (com detalhes)', aoClicar: function(){ abrirTarefaEsp(null, id); } }
+  ];
+  if (id !== 'avulsas' && souDono()){
+    itens.push({ sep: true });
+    itens.push({ rot: '🗑 Excluir projeto', perigo: true, aoClicar: function(){ excluirProjEsp(id); } });
+  }
+  abrirMenu(btn, itens);
 }
 
 function renderQuadroEsp(){
   var q = $('quadroEsp');
   if (!q) return;
+
+  /* guarda o que a pessoa estava digitando antes de redesenhar */
+  var at = document.activeElement;
+  if (at && at.classList && at.classList.contains('add-input')){
+    rascunhoAdd = { pid: at.getAttribute('data-pid'), valor: at.value };
+  }
+
   q.innerHTML = '';
   q.className = modoEsp === 'lista' ? 'lista-esp' : 'quadro-esp';
-  $('btnModoEsp').textContent = modoEsp === 'lista' ? '▦ Colunas' : '☰ Lista';
+  $('btnVisCol').classList.toggle('sel', modoEsp !== 'lista');
+  $('btnVisLista').classList.toggle('sel', modoEsp === 'lista');
 
   var mostrou = 0;
   idsOrdenados().forEach(function(id){
@@ -5805,26 +6174,23 @@ function renderQuadroEsp(){
     var col = el('div', (modoEsp === 'lista' ? 'sec-esp' : 'col-esp') + (id === 'avulsas' ? ' avulsas' : ''));
 
     var topo = el('div', 'col-topo');
-    var nome = el('b', null, (id === 'avulsas' ? '📥 ' : '📁 ') + nomeProj(id, d));
+    topo.appendChild(el('i', 'col-pt'));
+    var nome = el('button', 'col-nome', nomeProj(id, d));
+    nome.type = 'button';
     nome.title = 'Abrir o painel do projeto';
     nome.addEventListener('click', function(){ abrirProjEsp(id); });
     topo.appendChild(nome);
-    topo.appendChild(el('span', 'badge', String(tarefas.length)));
+    topo.appendChild(el('span', 'col-n', String(tarefas.length)));
+    var mais = el('button', 'col-mais', '⋯');
+    mais.type = 'button';
+    mais.title = 'Mais opções';
+    mais.addEventListener('click', function(e){ e.stopPropagation(); menuColuna(mais, id); });
+    topo.appendChild(mais);
     col.appendChild(topo);
 
-    if (!tarefas.length) col.appendChild(el('div', 'vazio', 'Sem tarefas'));
+    if (!tarefas.length) col.appendChild(el('div', 'col-vazia', 'Sem tarefas'));
     tarefas.forEach(function(t){ col.appendChild(cardTarefa(id, t)); });
-
-    var add = el('input', 'add-rapido');
-    add.type = 'text';
-    add.placeholder = '＋ Adicionar tarefa';
-    add.addEventListener('keydown', function(e){
-      if (e.key === 'Enter' && add.value.trim()){
-        criarTarefaRapida(id, add.value.trim());
-        add.value = '';
-      }
-    });
-    col.appendChild(add);
+    col.appendChild(compositor(id));
 
     q.appendChild(col);
   });
@@ -5832,11 +6198,27 @@ function renderQuadroEsp(){
   if (!mostrou){
     q.appendChild(el('div', 'vazio', soMinhas ? 'Nenhuma tarefa atribuída a você neste espaço.' : 'Carregando...'));
   }
+
+  if (modoEsp !== 'lista' && !soMinhas){
+    var nova = el('button', 'col-nova', '＋ Novo projeto');
+    nova.type = 'button';
+    nova.addEventListener('click', function(){ $('btnNovoProjEsp').click(); });
+    q.appendChild(nova);
+  }
+
+  /* devolve o foco ao campo que estava aberto */
+  if (compAberto){
+    var novo = q.querySelector('.add-input[data-pid="' + compAberto + '"]');
+    if (novo){
+      try { novo.focus(); novo.setSelectionRange(novo.value.length, novo.value.length); } catch(e){}
+    }
+  }
+  rascunhoAdd = { pid: null, valor: '' };
 }
 
 function criarTarefaRapida(pid, titulo){
   var reg = projEsp[pid];
-  if (!reg) return;
+  if (!reg){ toast('O projeto ainda está carregando. Tente de novo.', true); return; }
   reg.dados.tarefas.push({
     id: novoId('t'), texto: titulo, descricao: '', status: 'afazer', prazo: null,
     prioridade: 'geral', responsaveis: soMinhas ? [meuId()] : [],
@@ -5859,7 +6241,7 @@ async function criarProjEsp(nome){
     if (!r.j.ok) throw new Error(r.j.erro || 'Não foi possível criar o projeto.');
     projEsp[id] = { versao: r.j.versao, dados: d };
     renderQuadroEsp();
-    msgEspaco('Projeto criado.', false);
+    toast('Projeto criado.', false);
   } catch(e){
     msgEspaco(e.message, true);
   }
@@ -5893,8 +6275,7 @@ function abrirProjEsp(id, aba){
   $('peInNome').value = nomeProj(id, reg.dados);
   $('peInNome').disabled = avul;
   edObj.definir(reg.dados.objetivo || '');
-  var esp = espacoSelecionado();
-  $('btnExcluirProjEsp').classList.toggle('oculto', avul || !esp || esp.papel !== 'dono');
+  $('btnExcluirProjEsp').classList.toggle('oculto', avul || !souDono());
   mostrarAba(aba || 'painel');
   mostrar('modalProjEsp');
 }
@@ -5951,7 +6332,7 @@ function renderPainelProj(){
 
   var kpis = el('div', 'kpis');
   kpis.appendChild(kpi('Tarefas', t.length));
-  kpis.appendChild(kpi('Em andamento', porStatus.andamento, '#B88700'));
+  kpis.appendChild(kpi('Em andamento', porStatus.andamento, '#D9A400'));
   kpis.appendChild(kpi('Aguardando', porStatus.aguardando, '#FF8A1F'));
   kpis.appendChild(kpi('Atrasadas', atrasadas.length, atrasadas.length ? '#E5202E' : null));
   kpis.appendChild(kpi('Validadas', porStatus.validado, '#2F5BFF'));
@@ -6039,19 +6420,21 @@ function salvarDetalhes(){
   mostrarAba('painel');
 }
 
-async function excluirProjEsp(){
+async function excluirProjEsp(id){
   var esp = espacoSelecionado();
-  var reg = projEsp[projEspAberto];
-  if (!esp || !reg) return;
-  if (!confirm('Excluir o projeto "' + reg.dados.nome + '" e todas as tarefas dele, para todos os membros?')) return;
+  var reg = projEsp[id];
+  if (!esp || !reg || id === 'avulsas') return;
+  if (!confirm('Excluir o projeto "' + reg.dados.nome + '" e todas as tarefas dele, para todos os participantes?')) return;
   try {
-    var r = await apiBruta('/projetos/excluir', 'POST', { espaco_id: esp.id, projeto_id: projEspAberto });
+    var r = await apiBruta('/projetos/excluir', 'POST', { espaco_id: esp.id, projeto_id: id });
     if (!r.j.ok) throw new Error(r.j.erro || 'Não foi possível excluir.');
-    delete projEsp[projEspAberto];
-    projEspAberto = null;
-    esconder('modalProjEsp');
+    delete projEsp[id];
+    if (projEspAberto === id){
+      projEspAberto = null;
+      esconder('modalProjEsp');
+    }
     renderQuadroEsp();
-    msgEspaco('Projeto excluído.', false);
+    toast('Projeto excluído.', false);
   } catch(e){
     msgEspaco(e.message, true);
   }
@@ -6190,20 +6573,14 @@ function pedirNome(rotulo, titulo, dica, botaoTxt, cb){
 edDesc = criarEditorRico($('teDescHost'), 'Detalhes, passos, observações...');
 edObj = criarEditorRico($('peObjHost'), 'Objetivo, escopo, observações...');
 
-$('selEspaco').addEventListener('change', function(){
-  if (this.value === '__novo'){
-    this.value = espacoAtual || '';
-    pedirNome('NOVO ESPAÇO', 'Dê um nome ao espaço', 'Ex.: EHS Manutenção Central', 'Criar espaço', criarEspaco);
-    return;
-  }
-  espacoAtual = this.value;
-  localStorage.setItem('nowfind_espaco', espacoAtual);
-  abrirEspaco();
+$('btnTrocaEspaco').addEventListener('click', function(e){
+  e.stopPropagation();
+  abrirMenu($('btnTrocaEspaco'), menuEspacos());
 });
 
 $('btnCriarEspacoVazio').addEventListener('click', function(){
   var nome = $('inEspacoVazio').value.trim();
-  if (!nome){ msgEspaco('Dê um nome ao espaço.', true); return; }
+  if (!nome){ toast('Dê um nome ao espaço.', true); return; }
   criarEspaco(nome);
 });
 
@@ -6222,7 +6599,11 @@ $('btnOkNome').addEventListener('click', function(){
 $('inNomeEsp').addEventListener('keydown', function(e){ if (e.key === 'Enter') $('btnOkNome').click(); });
 $('btnFecharNome').addEventListener('click', function(){ esconder('modalNome'); });
 
-$('btnMembros').addEventListener('click', function(){ renderMembros(); mostrar('modalMembros'); });
+$('btnMembros').addEventListener('click', function(){
+  $('msgMembros').classList.add('oculto');
+  renderMembros();
+  mostrar('modalMembros');
+});
 $('btnFecharMembros').addEventListener('click', function(){ esconder('modalMembros'); });
 $('btnConvidar').addEventListener('click', convidarMembro);
 $('btnSairEspaco').addEventListener('click', sairDoEspaco);
@@ -6235,11 +6616,13 @@ $('btnSoMinhas').addEventListener('click', function(){
   renderProjetoAberto();
 });
 
-$('btnModoEsp').addEventListener('click', function(){
-  modoEsp = modoEsp === 'lista' ? 'colunas' : 'lista';
-  localStorage.setItem('nowfind_modo_esp', modoEsp);
+function definirModo(m){
+  modoEsp = m;
+  localStorage.setItem('nowfind_modo_esp', m);
   renderQuadroEsp();
-});
+}
+$('btnVisCol').addEventListener('click', function(){ definirModo('colunas'); });
+$('btnVisLista').addEventListener('click', function(){ definirModo('lista'); });
 
 $('btnFecharProjEsp').addEventListener('click', function(){
   esconder('modalProjEsp');
@@ -6249,7 +6632,7 @@ document.querySelectorAll('#peNav button[data-aba]').forEach(function(b){
   b.addEventListener('click', function(){ mostrarAba(b.getAttribute('data-aba')); });
 });
 $('btnSalvarDetalhes').addEventListener('click', salvarDetalhes);
-$('btnExcluirProjEsp').addEventListener('click', excluirProjEsp);
+$('btnExcluirProjEsp').addEventListener('click', function(){ excluirProjEsp(projEspAberto); });
 
 $('btnFecharTarefaEsp').addEventListener('click', function(){ esconder('modalTarefaEsp'); });
 $('btnSalvarTarefaEsp').addEventListener('click', salvarTarefaEsp);
@@ -6280,11 +6663,12 @@ abrirApp = function(u){
   }
 };
 
-/* atualiza sozinho o que outras pessoas alteraram */
+/* atualiza sozinho o que outras pessoas alteraram, sem atrapalhar quem está digitando */
 function atualizarEspacoAberto(){
-  if (ambiente === 'compartilhado' && document.visibilityState === 'visible' && espacoSelecionado()){
-    carregarProjetosEsp(true);
-  }
+  if (ambiente !== 'compartilhado' || document.visibilityState !== 'visible' || !espacoSelecionado()) return;
+  var at = document.activeElement;
+  if (at && at.classList && at.classList.contains('add-input') && at.value) return;
+  carregarProjetosEsp(true);
 }
 setInterval(atualizarEspacoAberto, 30000);
 document.addEventListener('visibilitychange', atualizarEspacoAberto);
