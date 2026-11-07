@@ -552,6 +552,31 @@ body[class] nav button.ativo{color:var(--tx);font-weight:700}
 }
 
 /* ===== TEMA VISUAL 4 - FIM ===== */
+/* ===== AJUSTES 5 - INÍCIO ===== */
+
+/* Revisão semanal acompanha o fundo */
+body[class] .rev-card{background:color-mix(in srgb,var(--azul) 10%,var(--card));border-left:5px solid var(--azul)}
+body[class] .rev-card.alerta{background:color-mix(in srgb,var(--azul) 18%,var(--card));border-left-color:#FFD600}
+body[class] .rev-card small{color:var(--texto)}
+
+/* caixa de captura menor */
+.captura h3{font-size:19px}
+.captura p{font-size:13px;margin-bottom:12px}
+.opcoes{gap:10px}
+.opcoes button{font-size:30px;padding:14px 6px 10px;border-radius:16px}
+.opcoes span{font-size:13px;margin-top:5px}
+
+/* fundos grená e vinho, em tom mais claro */
+body.tema-grena{--bg:#7A1B2D;--coluna:#92293D;--card:#AD3E52;--borda:#C9667A}
+body.tema-vinho{--bg:#6B2D44;--coluna:#84405A;--card:#9D5571;--borda:#BB7893}
+
+/* fontes */
+body.fonte-arredondada{font-family:ui-rounded,"SF Pro Rounded","Nunito","Varela Round","Trebuchet MS",sans-serif}
+body.fonte-classica{font-family:Georgia,"Times New Roman",serif}
+body.fonte-tecnica{font-family:"SF Mono","Cascadia Code",Consolas,"Courier New",monospace}
+body.fonte-limpa{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif}
+
+/* ===== AJUSTES 5 - FIM ===== */
 </style>
 </head>
 <body>
@@ -1049,6 +1074,8 @@ body[class] nav button.ativo{color:var(--tx);font-weight:700}
   <button data-v="grena"><i class="bol" style="background:#9B1B30"></i>Grená</button>
   <button data-v="vinho"><i class="bol" style="background:#722F37"></i>Vinho</button>
   <button data-v="uva"><i class="bol" style="background:#6F2DA8"></i>Uva</button>
+    <button data-v="roxoescuro"><i class="bol" style="background:#4A1D96"></i>Roxo escuro</button>
+
   <button data-v="roxo"><i class="bol" style="background:#8B3DFF"></i>Roxo</button>
   <button data-v="laranja"><i class="bol" style="background:#F97316"></i>Laranja</button>
   <button data-v="amarelo"><i class="bol" style="background:#FFD600"></i>Amarelo</button>
@@ -1063,6 +1090,14 @@ body[class] nav button.ativo{color:var(--tx);font-weight:700}
   <button data-v="liso">Liso</button>
   <button data-v="metal">Metálico</button>
 </div>
+<label>Fonte (letra)</label>
+<div id="cfgFonte" class="seg-cfg">
+  <button data-v="padrao">Padrão</button>
+  <button data-v="arredondada" style="font-family:ui-rounded,'Trebuchet MS',sans-serif">Arredondada</button>
+  <button data-v="classica" style="font-family:Georgia,serif">Clássica</button>
+  <button data-v="tecnica" style="font-family:Consolas,'SF Mono',monospace">Técnica</button>
+  <button data-v="limpa" style="font-family:Arial,sans-serif">Limpa</button>
+</div>
 
     <label>Fundo</label>
     <div id="cfgTema" class="seg-cfg">
@@ -1076,6 +1111,8 @@ body[class] nav button.ativo{color:var(--tx);font-weight:700}
   <button data-v="roxoescuro"><i class="bol" style="background:#3C1A66"></i>Roxo escuro</button>
   <button data-v="fosco"><i class="bol" style="background:#262626"></i>Preto fosco</button>
   <button data-v="preto"><i class="bol" style="background:#000"></i>Preto fechado</button>
+      <button data-v="grena"><i class="bol" style="background:#AD3E52"></i>Grená</button>
+<button data-v="vinho"><i class="bol" style="background:#9D5571"></i>Vinho</button>
 </div>
 
     <label>Estilo dos itens</label>
@@ -4304,6 +4341,7 @@ var ACENTOS = {
   grena:    { a:'#9B1B30', b:'#5C0D1B', t:'#ffffff' },
   vinho:    { a:'#722F37', b:'#3D1118', t:'#ffffff' },
   uva:      { a:'#6F2DA8', b:'#3F1366', t:'#ffffff' },
+    roxoescuro:{ a:'#4A1D96', b:'#2A0F5C', t:'#ffffff' },
   roxo:     { a:'#8B3DFF', b:'#5B1FC9', t:'#ffffff' },
   laranja:  { a:'#F97316', b:'#C2410C', t:'#ffffff' },
   amarelo:  { a:'#FFD600', b:'#C99700', t:'#1A1400' },
@@ -4314,17 +4352,18 @@ var ACENTOS = {
 };
 
 var CLAROS = ['branco','vermelhoclaro','verdevivo'];
-var ESCUROS = ['royal','petroleo','marinho','militar','roxoescuro','fosco','preto'];
+var ESCUROS = ['royal','petroleo','marinho','militar','roxoescuro','fosco','preto','grena','vinho'];
 
 var GRUPOS_CFG = [
   ['cfgAcento','acento'],
   ['cfgTema','tema'],
   ['cfgEstilo','estilo'],
-  ['cfgAcab','acabamento']
+    ['cfgAcab','acabamento'],
+  ['cfgFonte','fonte']
 ];
 
 function configPadrao(){
-  return { acento:'azul', tema:'branco', estilo:'cartao', acabamento:'liso' };
+  return { acento:'azul', tema:'branco', estilo:'cartao', acabamento:'liso', fonte:'padrao' };
 }
 
 function ambienteAtual(){
@@ -4363,7 +4402,8 @@ function aplicarConfig(){
   document.body.className =
     'tema-' + c.tema +
     (escuro ? ' tema-escuro' : '') +
-    ' acab-' + c.acabamento +
+       ' acab-' + c.acabamento +
+    ' fonte-' + c.fonte +
     ' estilo-' + c.estilo;
 
   var meta = document.querySelector('meta[name="theme-color"]');
