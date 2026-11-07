@@ -5,6 +5,24 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#0000FF">
 <title>NowFind</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet"
+  href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap">
+<link rel="stylesheet"
+  href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap">
+<link rel="stylesheet"
+  href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap">
+<link rel="stylesheet"
+  href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&display=swap">
+<link rel="stylesheet"
+  href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap">
+<link rel="stylesheet"
+  href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap">
+<link rel="stylesheet"
+  href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700&display=swap">
+<link rel="stylesheet"
+  href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{--azul:rgb(0,0,255);--azul2:rgb(51,51,153);--amarelo:#FFD600;--cinza:#F5F6FA;--texto:#737789;--linha:#E7E7EE}
@@ -577,6 +595,77 @@ body.fonte-tecnica{font-family:"SF Mono","Cascadia Code",Consolas,"Courier New",
 body.fonte-limpa{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif}
 
 /* ===== AJUSTES 5 - FIM ===== */
+/* ===== AJUSTES 6 - INÍCIO ===== */
+
+/* fontes */
+body.fonte-arredondada{font-family:ui-rounded,"SF Pro Rounded","Trebuchet MS",sans-serif}
+body.fonte-classica{font-family:Georgia,"Times New Roman",serif}
+body.fonte-tecnica{font-family:"SF Mono","Cascadia Code",Consolas,monospace}
+body.fonte-limpa{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif}
+body.fonte-jakarta{font-family:"Plus Jakarta Sans",ui-sans-serif,sans-serif}
+body.fonte-poppins{font-family:"Poppins",ui-sans-serif,sans-serif}
+body.fonte-outfit{font-family:"Outfit",ui-sans-serif,sans-serif}
+body.fonte-sora{font-family:"Sora",ui-sans-serif,sans-serif}
+body.fonte-grotesk{font-family:"Space Grotesk",ui-sans-serif,sans-serif}
+body.fonte-dmsans{font-family:"DM Sans",ui-sans-serif,sans-serif}
+body.fonte-nunito{font-family:"Nunito",ui-sans-serif,sans-serif}
+body.fonte-montserrat{font-family:"Montserrat",ui-sans-serif,sans-serif}
+
+/* caneta metálica */
+.ico-caneta{
+  display:block;
+  width:34px;
+  height:34px;
+  margin:0 auto;
+  filter:drop-shadow(0 2px 3px rgba(0,0,0,.28));
+}
+.opcoes button:hover .ico-caneta{
+  transform:rotate(-8deg) scale(1.06);
+  transition:transform .15s;
+}
+
+/* menu lateral: letras legíveis em qualquer cor */
+@media (min-width:900px){
+  body[class] nav button{
+    color:var(--nav-tx,#fff);
+    opacity:1;
+    font-weight:600;
+  }
+  body[class] nav button:hover{
+    background:color-mix(in srgb,var(--nav-tx,#fff) 18%,transparent);
+  }
+  body[class] nav button.ativo{
+    background:var(--nav-pill,#fff);
+    color:var(--nav-pill-tx,#14110A);
+    box-shadow:0 6px 16px rgba(0,0,0,.22);
+    font-weight:700;
+  }
+  body[class] .lat-proj,
+  body[class] .lateral-titulo,
+  body[class] .lateral-logo b,
+  body[class] nav .lateral-link{
+    color:var(--nav-tx,#fff);
+    opacity:1;
+  }
+  body[class] .lat-proj small,
+  body[class] .lateral-logo small{
+    color:var(--nav-tx,#fff);
+    opacity:.8;
+  }
+  body[class] .lat-proj:hover{
+    background:color-mix(in srgb,var(--nav-tx,#fff) 18%,transparent);
+  }
+  body[class] .lateral-avatar{
+    background:var(--nav-pill,#fff);
+    color:var(--nav-pill-tx,#14110A);
+  }
+  body[class] .lateral-projetos,
+  body[class] .lateral-rodape{
+    border-top-color:color-mix(in srgb,var(--nav-tx,#fff) 30%,transparent);
+  }
+}
+
+/* ===== AJUSTES 6 - FIM ===== */
 </style>
 </head>
 <body>
@@ -635,7 +724,36 @@ body.fonte-limpa{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif}
         <p>Registre agora. Organize depois.</p>
         <div class="opcoes" style="grid-template-columns:repeat(3,1fr)">
 
-          <button id="capTexto">✏️<span>Texto</span></button>
+          <button id="capTexto">
+  <svg class="ico-caneta" viewBox="0 0 48 48" aria-hidden="true">
+    <defs>
+      <linearGradient id="pgMetal" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0" stop-color="#8a94a3"/>
+        <stop offset=".28" stop-color="#f4f6f9"/>
+        <stop offset=".55" stop-color="#b9c1cc"/>
+        <stop offset=".8" stop-color="#eef1f5"/>
+        <stop offset="1" stop-color="#7c8695"/>
+      </linearGradient>
+      <linearGradient id="pgGold" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0" stop-color="#9a6b00"/>
+        <stop offset=".3" stop-color="#ffe58a"/>
+        <stop offset=".6" stop-color="#d9a21b"/>
+        <stop offset="1" stop-color="#8a5f00"/>
+      </linearGradient>
+    </defs>
+    <g transform="rotate(40 24 24)">
+      <rect x="20.5" y="2.5" width="7" height="5" rx="2" fill="url(#pgMetal)" stroke="#6b7482" stroke-width=".6"/>
+      <rect x="19" y="7" width="10" height="23" rx="2.5" fill="url(#pgMetal)" stroke="#6b7482" stroke-width=".6"/>
+      <rect x="18.4" y="13" width="11.2" height="2.6" rx="1" fill="url(#pgGold)"/>
+      <rect x="18.4" y="26.6" width="11.2" height="2.4" rx="1" fill="url(#pgGold)"/>
+      <rect x="29.4" y="9" width="2.2" height="14" rx="1.1" fill="url(#pgMetal)" stroke="#6b7482" stroke-width=".5"/>
+      <path d="M19.6 30 H28.4 L25.6 41 H22.4 Z" fill="url(#pgMetal)" stroke="#6b7482" stroke-width=".6"/>
+      <path d="M22.4 41 H25.6 L24 46.5 Z" fill="#4f5966"/>
+      <line x1="21.8" y1="9" x2="21.8" y2="27" stroke="#fff" stroke-width="1.3" stroke-linecap="round" opacity=".75"/>
+    </g>
+  </svg>
+  <span>Texto</span>
+</button>
           <button id="capAudio">🎙️<span>Áudio</span></button>
 
           <button id="capArquivo">📎<span>Arquivo</span></button>
@@ -1097,6 +1215,14 @@ body.fonte-limpa{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif}
   <button data-v="classica" style="font-family:Georgia,serif">Clássica</button>
   <button data-v="tecnica" style="font-family:Consolas,'SF Mono',monospace">Técnica</button>
   <button data-v="limpa" style="font-family:Arial,sans-serif">Limpa</button>
+  <button data-v="jakarta" style="font-family:'Plus Jakarta Sans',sans-serif">Jakarta</button>
+  <button data-v="poppins" style="font-family:'Poppins',sans-serif">Poppins</button>
+  <button data-v="outfit" style="font-family:'Outfit',sans-serif">Outfit</button>
+  <button data-v="sora" style="font-family:'Sora',sans-serif">Sora</button>
+  <button data-v="grotesk" style="font-family:'Space Grotesk',sans-serif">Space Grotesk</button>
+  <button data-v="dmsans" style="font-family:'DM Sans',sans-serif">DM Sans</button>
+  <button data-v="nunito" style="font-family:'Nunito',sans-serif">Nunito</button>
+  <button data-v="montserrat" style="font-family:'Montserrat',sans-serif">Montserrat</button>
 </div>
 
     <label>Fundo</label>
@@ -4335,20 +4461,20 @@ async function organizarArquivoComIA(arquivo){
 /* CONFIGURAÇÕES VISUAIS */
 
 var ACENTOS = {
-  azul:     { a:'#0000ff', b:'#333399', t:'#ffffff' },
-  vermelho: { a:'#FF0A2B', b:'#B8001A', t:'#ffffff' },
-  rosa:     { a:'#FF2E93', b:'#C2006B', t:'#ffffff' },
-  grena:    { a:'#9B1B30', b:'#5C0D1B', t:'#ffffff' },
-  vinho:    { a:'#722F37', b:'#3D1118', t:'#ffffff' },
-  uva:      { a:'#6F2DA8', b:'#3F1366', t:'#ffffff' },
-    roxoescuro:{ a:'#4A1D96', b:'#2A0F5C', t:'#ffffff' },
-  roxo:     { a:'#8B3DFF', b:'#5B1FC9', t:'#ffffff' },
-  laranja:  { a:'#F97316', b:'#C2410C', t:'#ffffff' },
-  amarelo:  { a:'#FFD600', b:'#C99700', t:'#1A1400' },
-  verde:    { a:'#00B86B', b:'#007A48', t:'#ffffff' },
-  militar:  { a:'#556B2F', b:'#2F3D18', t:'#ffffff' },
-  preto:    { a:'#111114', b:'#000000', t:'#ffffff' },
-  grafite:  { a:'#37474f', b:'#263238', t:'#ffffff' }
+  azul:       { a:'#0000ff', b:'#333399', t:'#ffffff' },
+  vermelho:   { a:'#FF0A2B', b:'#B8001A', t:'#ffffff' },
+  rosa:       { a:'#FF2E93', b:'#C2006B', t:'#ffffff' },
+  grena:      { a:'#9B1B30', b:'#5C0D1B', t:'#ffffff' },
+  vinho:      { a:'#722F37', b:'#3D1118', t:'#ffffff' },
+  uva:        { a:'#6F2DA8', b:'#3F1366', t:'#ffffff' },
+  roxoescuro: { a:'#4A1D96', b:'#2A0F5C', t:'#ffffff' },
+  roxo:       { a:'#8B3DFF', b:'#5B1FC9', t:'#ffffff' },
+  laranja:    { a:'#F97316', b:'#C2410C', t:'#ffffff' },
+  amarelo:    { a:'#FFD600', b:'#C99700', t:'#1A1400' },
+  verde:      { a:'#00B86B', b:'#007A48', t:'#ffffff' },
+  militar:    { a:'#556B2F', b:'#2F3D18', t:'#ffffff' },
+  preto:      { a:'#111114', b:'#000000', t:'#ffffff' },
+  grafite:    { a:'#37474f', b:'#263238', t:'#ffffff' }
 };
 
 var CLAROS = ['branco','vermelhoclaro','verdevivo'];
@@ -4358,7 +4484,7 @@ var GRUPOS_CFG = [
   ['cfgAcento','acento'],
   ['cfgTema','tema'],
   ['cfgEstilo','estilo'],
-    ['cfgAcab','acabamento'],
+  ['cfgAcab','acabamento'],
   ['cfgFonte','fonte']
 ];
 
@@ -4387,6 +4513,26 @@ function lerConfig(){
   return c;
 }
 
+function luz(hex){
+  var h = hex.replace('#','');
+  var v = [0,2,4].map(function(i){
+    var c = parseInt(h.substr(i,2),16) / 255;
+    return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+  });
+  return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2];
+}
+
+function contraste(l1, l2){
+  return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
+}
+
+function textoSobre(c1, c2){
+  var l1 = luz(c1), l2 = luz(c2), ld = luz('#14110A');
+  var branco = Math.min(contraste(1, l1), contraste(1, l2));
+  var escuro = Math.min(contraste(ld, l1), contraste(ld, l2));
+  return branco >= escuro ? '#ffffff' : '#14110A';
+}
+
 function aplicarConfig(){
 
   var c = lerConfig();
@@ -4395,14 +4541,19 @@ function aplicarConfig(){
 
   raiz.setProperty('--azul', cor.a);
   raiz.setProperty('--azul2', cor.b);
-  raiz.setProperty('--on-acento', cor.t);
+
+  var txNav = textoSobre(cor.a, cor.b);
+  raiz.setProperty('--on-acento', txNav);
+  raiz.setProperty('--nav-tx', txNav);
+  raiz.setProperty('--nav-pill', txNav);
+  raiz.setProperty('--nav-pill-tx', txNav === '#ffffff' ? cor.b : '#ffffff');
 
   var escuro = ESCUROS.indexOf(c.tema) >= 0;
 
   document.body.className =
     'tema-' + c.tema +
     (escuro ? ' tema-escuro' : '') +
-       ' acab-' + c.acabamento +
+    ' acab-' + c.acabamento +
     ' fonte-' + c.fonte +
     ' estilo-' + c.estilo;
 
@@ -4431,6 +4582,21 @@ GRUPOS_CFG.forEach(function(par){
   });
 });
 
+$('btnConfig').addEventListener('click', function(){
+  aplicarConfig();
+  mostrar('modalConfig');
+});
+
+$('btnFecharConfig').addEventListener('click', function(){
+  esconder('modalConfig');
+});
+
+$('btnRestaurarConfig').addEventListener('click', function(){
+  lerConfig();
+  dados.configs[ambienteAtual()] = configPadrao();
+  salvarDados();
+  aplicarConfig();
+});
 $('btnConfig').addEventListener('click', function(){
   aplicarConfig();
   mostrar('modalConfig');
