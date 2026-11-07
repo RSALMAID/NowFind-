@@ -923,24 +923,41 @@ nav .mais{background:linear-gradient(135deg,#FFD600,#FFB300)}
     </div>
 
     <label>Cor principal</label>
-   <div id="cfgAcento" class="seg-cfg">
+  <div id="cfgAcento" class="seg-cfg">
   <button data-v="azul"><i class="bol" style="background:#0000ff"></i>Azul</button>
-  <button data-v="vermelho"><i class="bol" style="background:#E11D48"></i>Vermelho</button>
-  <button data-v="rosa"><i class="bol" style="background:#EC4899"></i>Rosa</button>
-  <button data-v="amarelo"><i class="bol" style="background:#FFC400"></i>Amarelo</button>
+  <button data-v="vermelho"><i class="bol" style="background:#FF0A2B"></i>Vermelho</button>
+  <button data-v="rosa"><i class="bol" style="background:#FF2E93"></i>Rosa</button>
+  <button data-v="grena"><i class="bol" style="background:#9B1B30"></i>Grená</button>
+  <button data-v="vinho"><i class="bol" style="background:#722F37"></i>Vinho</button>
+  <button data-v="uva"><i class="bol" style="background:#6F2DA8"></i>Uva</button>
+  <button data-v="roxo"><i class="bol" style="background:#8B3DFF"></i>Roxo</button>
   <button data-v="laranja"><i class="bol" style="background:#F97316"></i>Laranja</button>
-  <button data-v="verde"><i class="bol" style="background:#10B981"></i>Verde</button>
-  <button data-v="roxo"><i class="bol" style="background:#7C3AED"></i>Roxo</button>
+  <button data-v="amarelo"><i class="bol" style="background:#FFD600"></i>Amarelo</button>
+  <button data-v="verde"><i class="bol" style="background:#00B86B"></i>Verde</button>
+  <button data-v="militar"><i class="bol" style="background:#556B2F"></i>Verde militar</button>
+  <button data-v="preto"><i class="bol" style="background:#111114"></i>Preto</button>
   <button data-v="grafite"><i class="bol" style="background:#37474F"></i>Grafite</button>
+</div>
+
+<label>Acabamento</label>
+<div id="cfgAcab" class="seg-cfg">
+  <button data-v="liso">Liso</button>
+  <button data-v="metal">Metálico</button>
 </div>
 
     <label>Fundo</label>
     <div id="cfgTema" class="seg-cfg">
-      <button data-v="branco">Branco</button>
-      <button data-v="cinza">Cinza</button>
-      <button data-v="azul">Azul claro</button>
-      <button data-v="escuro">Escuro</button>
-    </div>
+  <button data-v="branco"><i class="bol" style="background:#fff;box-shadow:0 0 0 2px #cfd3e2"></i>Branco</button>
+  <button data-v="vermelhoclaro"><i class="bol" style="background:#F8D2D6"></i>Vermelho claro</button>
+  <button data-v="verdevivo"><i class="bol" style="background:#7BE095"></i>Verde vivo</button>
+  <button data-v="royal"><i class="bol" style="background:#333399"></i>Azul</button>
+  <button data-v="petroleo"><i class="bol" style="background:#0F5562"></i>Azul petróleo</button>
+  <button data-v="marinho"><i class="bol" style="background:#1A3A66"></i>Azul marinho</button>
+  <button data-v="militar"><i class="bol" style="background:#3A4A25"></i>Verde militar</button>
+  <button data-v="roxoescuro"><i class="bol" style="background:#3C1A66"></i>Roxo escuro</button>
+  <button data-v="fosco"><i class="bol" style="background:#262626"></i>Preto fosco</button>
+  <button data-v="preto"><i class="bol" style="background:#000"></i>Preto fechado</button>
+</div>
 
     <label>Estilo dos itens</label>
     <div id="cfgEstilo" class="seg-cfg">
@@ -4163,53 +4180,90 @@ async function organizarArquivoComIA(arquivo){
 
 var ACENTOS = {
   azul:     { a:'#0000ff', b:'#333399', t:'#ffffff' },
-  vermelho: { a:'#E11D48', b:'#9F1239', t:'#ffffff' },
-  rosa:     { a:'#EC4899', b:'#BE185D', t:'#ffffff' },
-  amarelo:  { a:'#FFC400', b:'#B97700', t:'#1F1500' },
+  vermelho: { a:'#FF0A2B', b:'#B8001A', t:'#ffffff' },
+  rosa:     { a:'#FF2E93', b:'#C2006B', t:'#ffffff' },
+  grena:    { a:'#9B1B30', b:'#5C0D1B', t:'#ffffff' },
+  vinho:    { a:'#722F37', b:'#3D1118', t:'#ffffff' },
+  uva:      { a:'#6F2DA8', b:'#3F1366', t:'#ffffff' },
+  roxo:     { a:'#8B3DFF', b:'#5B1FC9', t:'#ffffff' },
   laranja:  { a:'#F97316', b:'#C2410C', t:'#ffffff' },
-  verde:    { a:'#10B981', b:'#047857', t:'#ffffff' },
-  roxo:     { a:'#7C3AED', b:'#5B21B6', t:'#ffffff' },
+  amarelo:  { a:'#FFD600', b:'#C99700', t:'#1A1400' },
+  verde:    { a:'#00B86B', b:'#007A48', t:'#ffffff' },
+  militar:  { a:'#556B2F', b:'#2F3D18', t:'#ffffff' },
+  preto:    { a:'#111114', b:'#000000', t:'#ffffff' },
   grafite:  { a:'#37474f', b:'#263238', t:'#ffffff' }
 };
 
+var CLAROS = ['branco','vermelhoclaro','verdevivo'];
+var ESCUROS = ['royal','petroleo','marinho','militar','roxoescuro','fosco','preto'];
+
+var GRUPOS_CFG = [
+  ['cfgAcento','acento'],
+  ['cfgTema','tema'],
+  ['cfgEstilo','estilo'],
+  ['cfgAcab','acabamento']
+];
+
 function configPadrao(){
-  return { acento:'azul', tema:'branco', estilo:'cartao' };
+  return { acento:'azul', tema:'branco', estilo:'cartao', acabamento:'liso' };
+}
+
+function ambienteAtual(){
+  return (typeof ambiente === 'undefined') ? 'pessoal' : ambiente;
 }
 
 function lerConfig(){
   var padrao = configPadrao();
-  dados.config = dados.config || {};
+  var amb = ambienteAtual();
+  dados.configs = dados.configs || {};
+  if(!dados.configs[amb]){
+    dados.configs[amb] = Object.assign({}, padrao, dados.config || {});
+  }
+  var c = dados.configs[amb];
   Object.keys(padrao).forEach(function(k){
-    if(!dados.config[k]) dados.config[k] = padrao[k];
+    if(!c[k]) c[k] = padrao[k];
   });
-  return dados.config;
+  if(c.tema === 'escuro') c.tema = 'fosco';
+  if(CLAROS.indexOf(c.tema) < 0 && ESCUROS.indexOf(c.tema) < 0) c.tema = 'branco';
+  if(!ACENTOS[c.acento]) c.acento = 'azul';
+  return c;
 }
 
 function aplicarConfig(){
 
   var c = lerConfig();
-  var cor = ACENTOS[c.acento] || ACENTOS.azul;
+  var cor = ACENTOS[c.acento];
   var raiz = document.documentElement.style;
 
   raiz.setProperty('--azul', cor.a);
   raiz.setProperty('--azul2', cor.b);
-raiz.setProperty('--on-acento', cor.t || '#ffffff');
+  raiz.setProperty('--on-acento', cor.t);
 
-  document.body.className = 'tema-' + c.tema + ' estilo-' + c.estilo;
+  var escuro = ESCUROS.indexOf(c.tema) >= 0;
+
+  document.body.className =
+    'tema-' + c.tema +
+    (escuro ? ' tema-escuro' : '') +
+    ' acab-' + c.acabamento +
+    ' estilo-' + c.estilo;
 
   var meta = document.querySelector('meta[name="theme-color"]');
-  if(meta) meta.setAttribute('content', c.tema === 'escuro' ? '#161A2B' : cor.a);
+  if(meta) meta.setAttribute('content', cor.a);
 
-  [['cfgAcento','acento'],['cfgTema','tema'],['cfgEstilo','estilo']].forEach(function(par){
-    $(par[0]).querySelectorAll('button').forEach(function(b){
+  GRUPOS_CFG.forEach(function(par){
+    var caixa = $(par[0]);
+    if(!caixa) return;
+    caixa.querySelectorAll('button').forEach(function(b){
       b.classList.toggle('sel', b.getAttribute('data-v') === c[par[1]]);
     });
   });
 
 }
 
-[['cfgAcento','acento'],['cfgTema','tema'],['cfgEstilo','estilo']].forEach(function(par){
-  $(par[0]).querySelectorAll('button').forEach(function(b){
+GRUPOS_CFG.forEach(function(par){
+  var caixa = $(par[0]);
+  if(!caixa) return;
+  caixa.querySelectorAll('button').forEach(function(b){
     b.addEventListener('click', function(){
       lerConfig()[par[1]] = b.getAttribute('data-v');
       salvarDados();
@@ -4228,7 +4282,8 @@ $('btnFecharConfig').addEventListener('click', function(){
 });
 
 $('btnRestaurarConfig').addEventListener('click', function(){
-  dados.config = configPadrao();
+  lerConfig();
+  dados.configs[ambienteAtual()] = configPadrao();
   salvarDados();
   aplicarConfig();
 });
