@@ -4296,10 +4296,11 @@ function criarListaIA(
 
 function aceitarAnaliseIA(analise){
 
-  var tipo =
-    analise.tipo === 'profissional'
-      ? 'profissional'
-      : 'pessoal';
+  var tipo = lerSegmento('capTipo');
+  if (tipo !== 'profissional' && tipo !== 'pessoal'){
+    tipo = (typeof ambiente !== 'undefined') ? ambiente : 'pessoal';
+  }
+  analise.tipo = tipo;
 
   var projetoId = null;
 
