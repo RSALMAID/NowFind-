@@ -811,12 +811,16 @@ body.tema-escuro .linha-hoje{background:#1C2136;color:#E8EAF2}
     </div>
 
     <label>Cor principal</label>
-    <div id="cfgAcento" class="seg-cfg">
-      <button data-v="azul">Azul</button>
-      <button data-v="roxo">Roxo</button>
-      <button data-v="verde">Verde</button>
-      <button data-v="grafite">Grafite</button>
-    </div>
+   <div id="cfgAcento" class="seg-cfg">
+  <button data-v="azul"><i class="bol" style="background:#0000ff"></i>Azul</button>
+  <button data-v="vermelho"><i class="bol" style="background:#E11D48"></i>Vermelho</button>
+  <button data-v="rosa"><i class="bol" style="background:#EC4899"></i>Rosa</button>
+  <button data-v="amarelo"><i class="bol" style="background:#FFC400"></i>Amarelo</button>
+  <button data-v="laranja"><i class="bol" style="background:#F97316"></i>Laranja</button>
+  <button data-v="verde"><i class="bol" style="background:#10B981"></i>Verde</button>
+  <button data-v="roxo"><i class="bol" style="background:#7C3AED"></i>Roxo</button>
+  <button data-v="grafite"><i class="bol" style="background:#37474F"></i>Grafite</button>
+</div>
 
     <label>Fundo</label>
     <div id="cfgTema" class="seg-cfg">
@@ -4046,10 +4050,14 @@ async function organizarArquivoComIA(arquivo){
 /* CONFIGURAÇÕES VISUAIS */
 
 var ACENTOS = {
-  azul:    { a:'#0000ff', b:'#333399' },
-  roxo:    { a:'#6a1b9a', b:'#4a148c' },
-  verde:   { a:'#00796b', b:'#004d40' },
-  grafite: { a:'#37474f', b:'#263238' }
+  azul:     { a:'#0000ff', b:'#333399', t:'#ffffff' },
+  vermelho: { a:'#E11D48', b:'#9F1239', t:'#ffffff' },
+  rosa:     { a:'#EC4899', b:'#BE185D', t:'#ffffff' },
+  amarelo:  { a:'#FFC400', b:'#B97700', t:'#1F1500' },
+  laranja:  { a:'#F97316', b:'#C2410C', t:'#ffffff' },
+  verde:    { a:'#10B981', b:'#047857', t:'#ffffff' },
+  roxo:     { a:'#7C3AED', b:'#5B21B6', t:'#ffffff' },
+  grafite:  { a:'#37474f', b:'#263238', t:'#ffffff' }
 };
 
 function configPadrao(){
@@ -4073,6 +4081,7 @@ function aplicarConfig(){
 
   raiz.setProperty('--azul', cor.a);
   raiz.setProperty('--azul2', cor.b);
+raiz.setProperty('--on-acento', cor.t || '#ffffff');
 
   document.body.className = 'tema-' + c.tema + ' estilo-' + c.estilo;
 
