@@ -317,6 +317,10 @@ body.tema-escuro .linha-hoje{background:#1C2136;color:#E8EAF2}
   -webkit-mask:url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='10' y='10' width='28' height='28' rx='4'/%3E%3Cpath d='M18 3v7M24 3v7M30 3v7M18 38v7M24 38v7M30 38v7M3 18h7M3 24h7M3 30h7M38 18h7M38 24h7M38 30h7'/%3E%3Cpath d='M16 32l5-14 5 14M18 27h6M31 18v14' stroke-width='2.5'/%3E%3C/svg%3E") center/contain no-repeat;
   mask:url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='10' y='10' width='28' height='28' rx='4'/%3E%3Cpath d='M18 3v7M24 3v7M30 3v7M18 38v7M24 38v7M30 38v7M3 18h7M3 24h7M3 30h7M38 18h7M38 24h7M38 30h7'/%3E%3Cpath d='M16 32l5-14 5 14M18 27h6M31 18v14' stroke-width='2.5'/%3E%3C/svg%3E") center/contain no-repeat;
 }
+/* CONTADORES CLICÁVEIS */
+#painelHoje .stats div{cursor:pointer;transition:transform .15s,box-shadow .15s}
+#painelHoje .stats div:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(0,0,80,.12)}
+.coluna.destaque{outline:3px solid var(--amarelo);outline-offset:2px;transition:outline .2s}
 </style>
 </head>
 <body>
@@ -391,10 +395,11 @@ body.tema-escuro .linha-hoje{background:#1C2136;color:#E8EAF2}
    <div id="painelHoje">
 
   <div class="stats">
-    <div><strong id="hjAfazer">0</strong><span>A fazer</span></div>
-    <div><strong id="hjAndamento">0</strong><span>Em andamento</span></div>
-    <div><strong id="hjAguardando">0</strong><span>Aguardando</span></div>
-    <div><strong id="hjValidados">0</strong><span>Validados 7 dias</span></div>
+<div data-alvo="afazer"><strong id="hjAfazer">0</strong><span>A fazer</span></div>
+<div data-alvo="andamento"><strong id="hjAndamento">0</strong><span>Em andamento</span></div>
+<div data-alvo="aguardando"><strong id="hjAguardando">0</strong><span>Aguardando</span></div>
+<div data-alvo="validado"><strong id="hjValidados">0</strong><span>Validados 7 dias</span></div>
+
   </div>
 
   <div class="grade-hoje">
@@ -4106,7 +4111,30 @@ $('btnRestaurarConfig').addEventListener('click', function(){
   salvarDados();
   aplicarConfig();
 });
-  
+function irParaColuna(status){
+
+  trocarTela('projetos');
+
+  setTimeout(function(){
+
+    var area = document.querySelector('#kanban .cards[data-status="' + status + '"]');
+    if (!area) return;
+
+    var coluna = area.parentNode;
+    coluna.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+
+    coluna.classList.add('destaque');
+    setTimeout(function(){ coluna.classList.remove('destaque'); }, 1800);
+
+  }, 120);
+
+}
+
+document.querySelectorAll('#painelHoje .stats div[data-alvo]').forEach(function(c){
+  c.addEventListener('click', function(){
+    irParaColuna(c.getAttribute('data-alvo'));
+  });
+});  
 /* EVENTOS */
 document.querySelectorAll('.segmento').forEach(function(seg){
   seg.querySelectorAll('button').forEach(function(b){
