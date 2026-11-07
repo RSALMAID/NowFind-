@@ -802,6 +802,22 @@ body.fonte-montserrat{font-family:"Montserrat",ui-sans-serif,sans-serif}
   body[class] nav .amb-lateral button{justify-content:flex-start;text-align:left;padding:10px 12px}
 }
 /* ===== AJUSTES 11 - FIM ===== */
+  /* ===== AJUSTES 12 - PROJETOS DO ESPAÇO ===== */
+.proj-esp{cursor:pointer;margin-bottom:10px}
+.tarefa-esp{background:var(--card,#fff);color:var(--tx,#14172B);border:1px solid var(--borda,#E6E9F2);border-left:6px solid #8E96B5;border-radius:14px;padding:12px;margin-bottom:8px}
+.tarefa-esp.st-andamento{border-left-color:#FFD600}
+.tarefa-esp.st-aguardando{border-left-color:#FF8A1F}
+.tarefa-esp.st-realizado{border-left-color:#22B573}
+.tarefa-esp.st-validado{border-left-color:#2F5BFF}
+.tarefa-esp .te-texto{font-weight:500;font-size:14px;cursor:pointer;margin-bottom:8px;white-space:pre-wrap;word-break:break-word}
+.tarefa-esp select{padding:8px;font-size:13px;border-radius:10px;margin-top:8px}
+.chip-resp{display:inline-block;background:color-mix(in srgb,var(--azul) 18%,transparent);color:var(--tx,#14172B);border-radius:999px;padding:3px 10px;font-size:11px;font-weight:600;margin:2px 4px 2px 0}
+.chip-resp.eu{background:var(--azul);color:var(--on-acento,#fff)}
+.chip-resp.sem{background:transparent;border:1px dashed var(--borda,#C9CEE0);font-weight:400}
+label.resp-opcao{display:flex;align-items:center;gap:10px;padding:8px 4px;margin:0;font-size:14px;font-weight:500}
+label.resp-opcao input{width:auto;padding:0;margin:0;border-radius:4px}
+#btnSoMinhas.sel{background:var(--azul);color:var(--on-acento,#fff)}
+/* ===== AJUSTES 12 - FIM ===== */
 </style>
 </head>
 <body>
@@ -1066,6 +1082,18 @@ body.fonte-montserrat{font-family:"Montserrat",ui-sans-serif,sans-serif}
     </div>
 
     <div id="listaMembros"></div>
+    <div class="secao" style="margin-top:22px">
+  <h3>📁 Projetos do espaço</h3>
+  <button id="btnSoMinhas" class="mini-btn" type="button">Só as minhas</button>
+</div>
+<p id="statusEsp" class="dica"></p>
+
+<div style="display:flex;gap:8px;margin-bottom:12px">
+  <input id="inNovoProjEsp" type="text" placeholder="Nome do novo projeto">
+  <button id="btnNovoProjEsp" class="mini-btn" type="button" style="white-space:nowrap">Criar projeto</button>
+</div>
+
+<div id="listaProjEsp"></div>
 
     <button id="btnSairEspaco" class="sair oculto" type="button">Sair deste espaço</button>
   </div>
@@ -1134,7 +1162,69 @@ body.fonte-montserrat{font-family:"Montserrat",ui-sans-serif,sans-serif}
 </nav>
 
 </div>
+<!-- PROJETO DO ESPAÇO -->
+<div id="modalProjEsp" class="modal oculto">
+  <div class="folha">
+    <div class="folha-topo">
+      <div><small>PROJETO DO ESPAÇO</small><h2 id="peNome">Projeto</h2></div>
+      <button id="btnFecharProjEsp" class="fechar" type="button">×</button>
+    </div>
 
+    <label>Nome</label>
+    <input id="peInNome" type="text">
+
+    <label>Objetivo</label>
+    <textarea id="peInObj" class="curto" placeholder="Qual resultado o grupo quer alcançar?"></textarea>
+
+    <div class="barra" style="margin-top:14px"><div id="peBarra" class="prog"></div></div>
+    <div class="legenda"><span id="peProg"></span></div>
+
+    <div class="det-secao">
+      <h3>Tarefas</h3>
+      <button id="btnNovaTarefaEsp" class="mini-btn" type="button">＋ Tarefa</button>
+    </div>
+    <div id="peTarefas"></div>
+
+    <button id="btnExcluirProjEsp" class="sair oculto" type="button">Excluir projeto (só o dono)</button>
+  </div>
+</div>
+
+<!-- TAREFA DO ESPAÇO -->
+<div id="modalTarefaEsp" class="modal oculto">
+  <div class="folha">
+    <div class="folha-topo">
+      <div><small>TAREFA</small><h2 id="teTitulo">Nova tarefa</h2></div>
+      <button id="btnFecharTarefaEsp" class="fechar" type="button">×</button>
+    </div>
+
+    <textarea id="teTexto" class="curto" placeholder="O que precisa ser feito?"></textarea>
+
+    <label>Responsáveis (um ou mais)</label>
+    <div id="teResp"></div>
+
+    <label>Status</label>
+    <select id="teStatus">
+      <option value="afazer">A fazer</option>
+      <option value="andamento">Em andamento</option>
+      <option value="aguardando">Aguardando</option>
+      <option value="realizado">Realizado</option>
+      <option value="validado">Validado</option>
+    </select>
+
+    <label>Prioridade</label>
+    <select id="tePrio">
+      <option value="geral">Geral</option>
+      <option value="importante">Importante</option>
+      <option value="urgente">Urgente</option>
+    </select>
+
+    <label>Prazo</label>
+    <input id="tePrazo" type="date">
+
+    <button id="btnSalvarTarefaEsp" class="btn" type="button">Salvar tarefa</button>
+    <button id="btnExcluirTarefaEsp" class="sair oculto" type="button">Excluir tarefa</button>
+  </div>
+</div>
 <!-- JANELA DE PERFIL -->
 <div id="modalPerfil" class="modal oculto">
   <div class="folha">
@@ -5219,6 +5309,534 @@ abrirApp = function(u){
     carregarEspacos();
   }
 };
+  /* ===== PROJETOS DO ESPAÇO COMPARTILHADO ===== */
+
+var espMembros = [];
+var projEsp = {};
+var projEspAberto = null;
+var tarefaEspEditando = null;
+var soMinhas = false;
+var espDoCache = null;
+var filaGravacao = {};
+var gravacoesPendentes = 0;
+
+var STATUS_ESP = [
+  ['afazer','A fazer'],
+  ['andamento','Em andamento'],
+  ['aguardando','Aguardando'],
+  ['realizado','Realizado'],
+  ['validado','Validado']
+];
+
+function meuId(){
+  return (usuario && usuario.id) ? usuario.id : '';
+}
+
+function statusEsp(txt){
+  var s = $('statusEsp');
+  if (s) s.textContent = txt || '';
+}
+
+async function apiBruta(caminho, metodo, corpo){
+  var r = await fetch(URL_ESP + caminho, {
+    method: metodo || 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + tokenAtual()
+    },
+    body: corpo ? JSON.stringify(corpo) : undefined
+  });
+  var j = {};
+  try { j = await r.json(); } catch(e){}
+  return { status: r.status, j: j };
+}
+
+function normalizarProj(d){
+  d = d || {};
+  d.tarefas = Array.isArray(d.tarefas) ? d.tarefas : [];
+  d.removidas = Array.isArray(d.removidas) ? d.removidas : [];
+  d.tarefas.forEach(function(t){
+    t.responsaveis = Array.isArray(t.responsaveis) ? t.responsaveis : [];
+  });
+  return d;
+}
+
+function nomeCurto(id){
+  if (id === meuId()) return 'Eu';
+  for (var i = 0; i < espMembros.length; i++){
+    if (espMembros[i].id === id) return espMembros[i].nome.trim().split(' ')[0];
+  }
+  return 'ex-membro';
+}
+
+function prazoEsp(p){
+  if (/^\d{4}-\d{2}-\d{2}$/.test(p || '')){
+    var x = p.split('-');
+    return x[2] + '/' + x[1];
+  }
+  return '';
+}
+
+function novoId(prefixo){
+  return prefixo + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+}
+
+/* ---------- carregar ---------- */
+
+async function carregarProjetosEsp(silencioso){
+  var esp = espacoSelecionado();
+  if (!esp || gravacoesPendentes > 0) return;
+  try {
+    var r = await apiBruta('/projetos?id=' + encodeURIComponent(esp.id));
+    if (!r.j.ok) throw new Error(r.j.erro || 'Não foi possível carregar os projetos.');
+    var novo = {};
+    (r.j.projetos || []).forEach(function(p){
+      try { novo[p.id] = { versao: p.versao, dados: normalizarProj(JSON.parse(p.conteudo)) }; } catch(e){}
+    });
+    projEsp = novo;
+    espDoCache = esp.id;
+    renderProjEsp();
+    if (projEspAberto){
+      if (projEsp[projEspAberto]){
+        renderTarefasEsp();
+      } else {
+        esconder('modalTarefaEsp');
+        esconder('modalProjEsp');
+        projEspAberto = null;
+      }
+    }
+    if (!silencioso) statusEsp('☁️ Atualizado');
+  } catch(e){
+    if (!silencioso) msgEspaco(e.message, true);
+  }
+}
+
+/* ---------- gravar, com junção em caso de conflito ---------- */
+
+function mesclarProjEsp(a, b){
+  var base = ((a.atualizadoEm || '') >= (b.atualizadoEm || '')) ? a : b;
+  var rem = {};
+  (a.removidas || []).concat(b.removidas || []).forEach(function(id){ rem[id] = true; });
+  var mapa = {};
+  (b.tarefas || []).concat(a.tarefas || []).forEach(function(t){
+    if (rem[t.id]) return;
+    var atual = mapa[t.id];
+    if (!atual || (t.atualizadoEm || '') >= (atual.atualizadoEm || '')) mapa[t.id] = t;
+  });
+  return {
+    id: a.id,
+    nome: base.nome,
+    objetivo: base.objetivo,
+    criadoPor: a.criadoPor || b.criadoPor,
+    atualizadoEm: base.atualizadoEm,
+    removidas: Object.keys(rem),
+    tarefas: Object.keys(mapa).map(function(k){ return mapa[k]; })
+  };
+}
+
+async function salvarProjEsp(id, tentativa){
+  var reg = projEsp[id];
+  var esp = espacoSelecionado();
+  if (!reg || !esp) return;
+  var r = await apiBruta('/projetos', 'POST', {
+    espaco_id: esp.id,
+    projeto_id: id,
+    conteudo: JSON.stringify(reg.dados),
+    versao: reg.versao
+  });
+  if (r.j.ok){
+    reg.versao = r.j.versao;
+    return;
+  }
+  if (r.status === 409){
+    if (!r.j.conteudo){
+      delete projEsp[id];
+      throw new Error('Este projeto foi excluído por outra pessoa.');
+    }
+    if ((tentativa || 0) >= 3) throw new Error('Muitas alterações ao mesmo tempo. Tente de novo.');
+    reg.dados = mesclarProjEsp(reg.dados, normalizarProj(JSON.parse(r.j.conteudo)));
+    reg.versao = r.j.versao;
+    return salvarProjEsp(id, (tentativa || 0) + 1);
+  }
+  throw new Error(r.j.erro || 'Não foi possível salvar.');
+}
+
+function gravarProjEsp(id){
+  gravacoesPendentes++;
+  statusEsp('☁️ Salvando...');
+  filaGravacao[id] = (filaGravacao[id] || Promise.resolve())
+    .then(function(){ return salvarProjEsp(id, 0); })
+    .then(
+      function(){ statusEsp('☁️ Salvo'); },
+      function(e){ msgEspaco(e.message, true); statusEsp('⚠️ Não salvo'); }
+    )
+    .then(function(){
+      gravacoesPendentes--;
+      renderProjEsp();
+      if (projEspAberto){
+        if (projEsp[projEspAberto]) renderTarefasEsp();
+        else { esconder('modalTarefaEsp'); esconder('modalProjEsp'); projEspAberto = null; }
+      }
+    });
+}
+
+/* ---------- lista de projetos ---------- */
+
+function renderProjEsp(){
+  var box = $('listaProjEsp');
+  if (!box) return;
+  box.innerHTML = '';
+
+  var ids = Object.keys(projEsp).sort(function(a, b){
+    return String(projEsp[a].dados.nome || '').localeCompare(String(projEsp[b].dados.nome || ''));
+  });
+
+  var mostrados = 0;
+  ids.forEach(function(id){
+    var d = projEsp[id].dados;
+    var minhas = d.tarefas.filter(function(t){ return t.responsaveis.indexOf(meuId()) >= 0; });
+    if (soMinhas && !minhas.length) return;
+    mostrados++;
+
+    var feitas = d.tarefas.filter(function(t){ return t.status === 'validado'; }).length;
+    var pct = d.tarefas.length ? Math.round(feitas / d.tarefas.length * 100) : 0;
+
+    var c = el('div', 'proj proj-esp');
+    var topo = el('div', 'proj-topo');
+    topo.appendChild(el('b', null, d.nome || 'Projeto'));
+    topo.appendChild(el('span', 'tag t-proj', d.tarefas.length + ' tarefa(s)'));
+    c.appendChild(topo);
+
+    var barra = el('div', 'barra');
+    var prog = el('div', 'prog');
+    prog.style.width = pct + '%';
+    barra.appendChild(prog);
+    c.appendChild(barra);
+
+    var leg = el('div', 'legenda');
+    leg.appendChild(el('span', null, feitas + ' de ' + d.tarefas.length + ' validadas · ' + pct + '%'));
+    leg.appendChild(el('span', null, '👤 ' + minhas.length + ' minha(s)'));
+    c.appendChild(leg);
+
+    c.addEventListener('click', function(){ abrirProjEsp(id); });
+    box.appendChild(c);
+  });
+
+  if (!mostrados){
+    box.appendChild(el('div', 'vazio',
+      soMinhas ? 'Nenhuma tarefa atribuída a você neste espaço.' : 'Nenhum projeto ainda. Crie o primeiro acima.'));
+  }
+}
+
+async function criarProjEsp(){
+  var esp = espacoSelecionado();
+  var nome = $('inNovoProjEsp').value.trim();
+  if (!esp){ msgEspaco('Abra um espaço primeiro.', true); return; }
+  if (!nome){ msgEspaco('Dê um nome ao projeto.', true); return; }
+
+  var id = novoId('pj');
+  var dados = {
+    id: id,
+    nome: nome,
+    objetivo: '',
+    criadoPor: meuId(),
+    atualizadoEm: agora(),
+    tarefas: [],
+    removidas: []
+  };
+
+  try {
+    var r = await apiBruta('/projetos', 'POST', {
+      espaco_id: esp.id,
+      projeto_id: id,
+      conteudo: JSON.stringify(dados),
+      versao: 0
+    });
+    if (!r.j.ok) throw new Error(r.j.erro || 'Não foi possível criar o projeto.');
+    projEsp[id] = { versao: r.j.versao, dados: dados };
+    $('inNovoProjEsp').value = '';
+    msgEspaco('Projeto criado.', false);
+    renderProjEsp();
+    abrirProjEsp(id);
+  } catch(e){
+    msgEspaco(e.message, true);
+  }
+}
+
+/* ---------- projeto aberto ---------- */
+
+function abrirProjEsp(id){
+  var reg = projEsp[id];
+  if (!reg) return;
+  projEspAberto = id;
+  $('peNome').textContent = reg.dados.nome || 'Projeto';
+  $('peInNome').value = reg.dados.nome || '';
+  $('peInObj').value = reg.dados.objetivo || '';
+  var esp = espacoSelecionado();
+  $('btnExcluirProjEsp').classList.toggle('oculto', !esp || esp.papel !== 'dono');
+  renderTarefasEsp();
+  mostrar('modalProjEsp');
+}
+
+function renderTarefasEsp(){
+  var reg = projEsp[projEspAberto];
+  var box = $('peTarefas');
+  if (!reg || !box) return;
+  var d = reg.dados;
+  box.innerHTML = '';
+
+  var feitas = d.tarefas.filter(function(t){ return t.status === 'validado'; }).length;
+  var pct = d.tarefas.length ? Math.round(feitas / d.tarefas.length * 100) : 0;
+  $('peBarra').style.width = pct + '%';
+  $('peProg').textContent = feitas + ' de ' + d.tarefas.length + ' validadas · ' + pct + '%';
+
+  var ordem = {};
+  STATUS_ESP.forEach(function(s, i){ ordem[s[0]] = i; });
+
+  var lista = d.tarefas.filter(function(t){
+    return !soMinhas || t.responsaveis.indexOf(meuId()) >= 0;
+  }).sort(function(a, b){
+    return (ordem[a.status] - ordem[b.status]) || String(a.criadoEm || '').localeCompare(String(b.criadoEm || ''));
+  });
+
+  if (!lista.length){
+    box.appendChild(el('div', 'vazio', soMinhas ? 'Nenhuma tarefa sua neste projeto.' : 'Nenhuma tarefa ainda. Toque em ＋ Tarefa.'));
+    return;
+  }
+
+  lista.forEach(function(t){
+    var linha = el('div', 'tarefa-esp st-' + t.status);
+
+    var texto = el('div', 'te-texto', t.texto);
+    texto.addEventListener('click', function(){ abrirTarefaEsp(t.id); });
+    linha.appendChild(texto);
+
+    var meta = el('div');
+    if (t.responsaveis.length){
+      t.responsaveis.forEach(function(rid){
+        meta.appendChild(el('span', 'chip-resp' + (rid === meuId() ? ' eu' : ''), nomeCurto(rid)));
+      });
+    } else {
+      meta.appendChild(el('span', 'chip-resp sem', 'Sem responsável'));
+    }
+    if (t.prioridade === 'urgente') meta.appendChild(el('span', 'tag t-urg', '🔴 Urgente'));
+    if (t.prioridade === 'importante') meta.appendChild(el('span', 'tag t-proj', '⭐ Importante'));
+    if (prazoEsp(t.prazo)) meta.appendChild(el('span', 'tag t-prazo', '📅 ' + prazoEsp(t.prazo)));
+    linha.appendChild(meta);
+
+    var sel = el('select');
+    STATUS_ESP.forEach(function(s){
+      var o = el('option', null, s[1]);
+      o.value = s[0];
+      sel.appendChild(o);
+    });
+    sel.value = t.status;
+    sel.addEventListener('change', function(){
+      t.status = sel.value;
+      t.atualizadoEm = agora();
+      renderTarefasEsp();
+      renderProjEsp();
+      gravarProjEsp(projEspAberto);
+    });
+    linha.appendChild(sel);
+
+    box.appendChild(linha);
+  });
+}
+
+/* ---------- tarefa: criar, editar, excluir ---------- */
+
+function abrirTarefaEsp(tid){
+  var reg = projEsp[projEspAberto];
+  if (!reg) return;
+  var t = null;
+  if (tid){
+    reg.dados.tarefas.forEach(function(x){ if (x.id === tid) t = x; });
+  }
+  tarefaEspEditando = t ? t.id : null;
+
+  $('teTitulo').textContent = t ? 'Editar tarefa' : 'Nova tarefa';
+  $('teTexto').value = t ? t.texto : '';
+  $('teStatus').value = t ? t.status : 'afazer';
+  $('tePrazo').value = (t && /^\d{4}-\d{2}-\d{2}$/.test(t.prazo || '')) ? t.prazo : '';
+  $('tePrio').value = t ? (t.prioridade || 'geral') : 'geral';
+
+  var box = $('teResp');
+  box.innerHTML = '';
+  if (!espMembros.length){
+    box.appendChild(el('div', 'vazio', 'Carregando os membros do espaço...'));
+  }
+  espMembros.forEach(function(m){
+    var rot = el('label', 'resp-opcao');
+    var cb = el('input');
+    cb.type = 'checkbox';
+    cb.value = m.id;
+    cb.checked = !!(t && t.responsaveis.indexOf(m.id) >= 0);
+    rot.appendChild(cb);
+    rot.appendChild(el('span', null, m.nome + (m.id === meuId() ? ' (eu)' : '')));
+    box.appendChild(rot);
+  });
+
+  $('btnExcluirTarefaEsp').classList.toggle('oculto', !t);
+  mostrar('modalTarefaEsp');
+  if (!t) setTimeout(function(){ $('teTexto').focus(); }, 150);
+}
+
+function salvarTarefaEsp(){
+  var reg = projEsp[projEspAberto];
+  if (!reg) return;
+  var texto = $('teTexto').value.trim();
+  if (!texto){ alert('Escreva o que precisa ser feito.'); return; }
+
+  var resp = [];
+  $('teResp').querySelectorAll('input[type="checkbox"]').forEach(function(cb){
+    if (cb.checked) resp.push(cb.value);
+  });
+
+  var campos = {
+    texto: texto,
+    status: $('teStatus').value,
+    prazo: $('tePrazo').value || null,
+    prioridade: $('tePrio').value,
+    responsaveis: resp,
+    atualizadoEm: agora()
+  };
+
+  var existente = null;
+  reg.dados.tarefas.forEach(function(x){ if (x.id === tarefaEspEditando) existente = x; });
+
+  if (existente){
+    Object.keys(campos).forEach(function(k){ existente[k] = campos[k]; });
+  } else {
+    campos.id = novoId('t');
+    campos.criadoPor = meuId();
+    campos.criadoEm = agora();
+    reg.dados.tarefas.push(campos);
+  }
+
+  reg.dados.atualizadoEm = reg.dados.atualizadoEm || agora();
+  esconder('modalTarefaEsp');
+  renderTarefasEsp();
+  renderProjEsp();
+  gravarProjEsp(projEspAberto);
+}
+
+function excluirTarefaEsp(){
+  var reg = projEsp[projEspAberto];
+  if (!reg || !tarefaEspEditando) return;
+  if (!confirm('Excluir esta tarefa?')) return;
+  reg.dados.tarefas = reg.dados.tarefas.filter(function(t){ return t.id !== tarefaEspEditando; });
+  reg.dados.removidas.push(tarefaEspEditando);
+  esconder('modalTarefaEsp');
+  renderTarefasEsp();
+  renderProjEsp();
+  gravarProjEsp(projEspAberto);
+}
+
+/* ---------- excluir projeto (só o dono) ---------- */
+
+async function excluirProjEsp(){
+  var esp = espacoSelecionado();
+  var reg = projEsp[projEspAberto];
+  if (!esp || !reg) return;
+  if (!confirm('Excluir o projeto "' + reg.dados.nome + '" e todas as tarefas dele, para todos os membros?')) return;
+  try {
+    var r = await apiBruta('/projetos/excluir', 'POST', { espaco_id: esp.id, projeto_id: projEspAberto });
+    if (!r.j.ok) throw new Error(r.j.erro || 'Não foi possível excluir.');
+    delete projEsp[projEspAberto];
+    projEspAberto = null;
+    esconder('modalProjEsp');
+    renderProjEsp();
+    msgEspaco('Projeto excluído.', false);
+  } catch(e){
+    msgEspaco(e.message, true);
+  }
+}
+
+/* ---------- ligações ---------- */
+
+$('btnNovoProjEsp').addEventListener('click', criarProjEsp);
+
+$('btnSoMinhas').addEventListener('click', function(){
+  soMinhas = !soMinhas;
+  $('btnSoMinhas').classList.toggle('sel', soMinhas);
+  $('btnSoMinhas').textContent = soMinhas ? '✓ Só as minhas' : 'Só as minhas';
+  renderProjEsp();
+  if (projEspAberto) renderTarefasEsp();
+});
+
+$('btnFecharProjEsp').addEventListener('click', function(){
+  esconder('modalProjEsp');
+  projEspAberto = null;
+});
+
+$('btnNovaTarefaEsp').addEventListener('click', function(){ abrirTarefaEsp(null); });
+$('btnFecharTarefaEsp').addEventListener('click', function(){ esconder('modalTarefaEsp'); });
+$('btnSalvarTarefaEsp').addEventListener('click', salvarTarefaEsp);
+$('btnExcluirTarefaEsp').addEventListener('click', excluirTarefaEsp);
+$('btnExcluirProjEsp').addEventListener('click', excluirProjEsp);
+
+$('peInNome').addEventListener('change', function(){
+  var reg = projEsp[projEspAberto];
+  var nome = $('peInNome').value.trim();
+  if (!reg || !nome) return;
+  reg.dados.nome = nome;
+  reg.dados.atualizadoEm = agora();
+  $('peNome').textContent = nome;
+  renderProjEsp();
+  gravarProjEsp(projEspAberto);
+});
+
+$('peInObj').addEventListener('change', function(){
+  var reg = projEsp[projEspAberto];
+  if (!reg) return;
+  reg.dados.objetivo = $('peInObj').value.trim();
+  reg.dados.atualizadoEm = agora();
+  gravarProjEsp(projEspAberto);
+});
+
+/* membros em memória para escolher os responsáveis */
+var carregarMembrosBase = carregarMembros;
+carregarMembros = async function(){
+  await carregarMembrosBase();
+  var esp = espacoSelecionado();
+  if (!esp) return;
+  if (espDoCache && espDoCache !== esp.id){
+    projEsp = {};
+    renderProjEsp();
+  }
+  try {
+    var r = await apiBruta('/membros?id=' + encodeURIComponent(esp.id));
+    if (r.j.ok) espMembros = r.j.membros || [];
+  } catch(e){}
+  carregarProjetosEsp(true);
+};
+
+/* o botão + abre o campo de novo projeto no espaço */
+var abrirCapturaEsp = abrirCaptura;
+abrirCaptura = function(id, pid){
+  if (ambiente === 'compartilhado' && !id){
+    trocarTela('espaco');
+    var campo = $('inNovoProjEsp');
+    if (campo && !$('detalheEspaco').classList.contains('oculto')){
+      campo.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      campo.focus();
+    } else {
+      alert('Crie ou abra um espaço primeiro.');
+    }
+    return;
+  }
+  abrirCapturaEsp(id, pid);
+};
+
+/* atualiza sozinho o que outras pessoas alteraram */
+function atualizarEspacoAberto(){
+  if (ambiente === 'compartilhado' && document.visibilityState === 'visible' && espacoSelecionado()){
+    carregarProjetosEsp(true);
+  }
+}
+setInterval(atualizarEspacoAberto, 30000);
+document.addEventListener('visibilitychange', atualizarEspacoAberto);
 /* EVENTOS */
   /* ===== SINCRONIZAÇÃO COM A NUVEM ===== */
 
