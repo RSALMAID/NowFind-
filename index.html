@@ -306,6 +306,17 @@ body.tema-escuro .linha-hoje{background:#1C2136;color:#E8EAF2}
   body.tema-escuro .lateral-logo b,body.tema-escuro .lat-proj{color:#E8EAF2}
   body.tema-escuro .lat-proj:hover{background:#1F2447}
 }
+/* ÍCONE IA (chip) */
+.ico-ia{
+  display:inline-block;
+  width:1.3em;
+  height:1.3em;
+  vertical-align:-0.28em;
+  margin-right:4px;
+  background-color:currentColor;
+  -webkit-mask:url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='10' y='10' width='28' height='28' rx='4'/%3E%3Cpath d='M18 3v7M24 3v7M30 3v7M18 38v7M24 38v7M30 38v7M3 18h7M3 24h7M3 30h7M38 18h7M38 24h7M38 30h7'/%3E%3Cpath d='M16 32l5-14 5 14M18 27h6M31 18v14' stroke-width='2.5'/%3E%3C/svg%3E") center/contain no-repeat;
+  mask:url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='10' y='10' width='28' height='28' rx='4'/%3E%3Cpath d='M18 3v7M24 3v7M30 3v7M18 38v7M24 38v7M30 38v7M3 18h7M3 24h7M3 30h7M38 18h7M38 24h7M38 30h7'/%3E%3Cpath d='M16 32l5-14 5 14M18 27h6M31 18v14' stroke-width='2.5'/%3E%3C/svg%3E") center/contain no-repeat;
+}
 </style>
 </head>
 <body>
@@ -526,7 +537,7 @@ body.tema-escuro .linha-hoje{background:#1C2136;color:#E8EAF2}
   <button
     data-view="ia"
   >
-    ✦
+    <i class="ico-ia"></i>
     <span>IA</span>
   </button>
 <div class="lateral-logo so-desktop">
@@ -612,6 +623,8 @@ body.tema-escuro .linha-hoje{background:#1C2136;color:#E8EAF2}
     <div id="capTipo" class="segmento"><button data-v="pessoal">🏠 Pessoal</button><button data-v="profissional">💼 Profissional</button></div>
     <label>Projeto</label>
     <select id="capProjeto"></select>
+    <label>Prazo</label>
+<input id="capPrazo" type="date">
     <button
   id="btnOrganizarIA"
   class="btn"
@@ -620,7 +633,7 @@ body.tema-escuro .linha-hoje{background:#1C2136;color:#E8EAF2}
     margin-bottom:8px;
   "
 >
-  ✨ Organizar com IA
+ <i class="ico-ia"></i> Organizar com IA
 </button>
 
 <div
@@ -761,7 +774,7 @@ body.tema-escuro .linha-hoje{background:#1C2136;color:#E8EAF2}
     margin-bottom:8px;
   "
 >
-  ✨ Organizar áudio com IA
+  <i class="ico-ia"></i> Organizar áudio com IA
 </button>
 
     <button
@@ -990,7 +1003,9 @@ function opcoesProjetos(valor){
   });
   s.value = valor || '';
 }
-
+function prazoEhData(p){
+  return /^\d{4}-\d{2}-\d{2}$/.test(p || '');
+}
 function abrirCaptura(id, pid){
   $('resultadoIA').classList.add('oculto');
 $('resultadoIA').innerHTML = '';
@@ -1030,7 +1045,8 @@ if(item){
     .textContent = '';
 
 }
-ultimaAnaliseIA = null;
+$('capPrazo').value = (item && prazoEhData(item.prazo)) ? item.prazo : '';
+  ultimaAnaliseIA = null;
 
 if(item && item.analiseIA){
   mostrarResultadoIA(item.analiseIA);
@@ -1046,19 +1062,20 @@ function salvarCaptura(){
   if (!texto){ alert('Escreva alguma coisa.'); return; }
   var tipo = lerSegmento('capTipo');
   var pid = $('capProjeto').value || null;
-
+var pz = $('capPrazo').value || null;
   var analiseVisivel = !$('resultadoIA').classList.contains('oculto');
   var analiseParaSalvar = analiseVisivel ? ultimaAnaliseIA : null;
 
   if (editandoId){
     var it = acharItem(editandoId);
     it.texto = texto; it.tipo = tipo; it.projetoId = pid; it.atualizadoEm = agora();
+    if (pz){ it.prazo = pz; } else if (prazoEhData(it.prazo)){ it.prazo = null; }
     if (analiseParaSalvar) it.analiseIA = analiseParaSalvar;
   } else {
     dados.itens.unshift({
       id: String(Date.now()), texto: texto, tipo: tipo, projetoId: pid, origem: 'texto',
       status: capturaDireta ? 'afazer' : 'entrada', urgente: false, importante: false,
-      analiseIA: analiseParaSalvar, criadoEm: agora()
+      prazo: pz, analiseIA: analiseParaSalvar, criadoEm: agora()
     });
   }
 
@@ -2541,7 +2558,7 @@ async function salvarAudio(){
     $('btnOrganizarAudioIA').disabled = true;
 
     $('btnOrganizarAudioIA').textContent =
-      '✨ Entendendo seu áudio...';
+      '.innerHTML = '<i class="ico-ia"></i> Entendendo seu áudio...' Entendendo seu áudio...';
 
 
     var respostaAudio =
@@ -2648,8 +2665,8 @@ async function salvarAudio(){
     $('btnOrganizarAudioIA').disabled =
       false;
 
-    $('btnOrganizarAudioIA').textContent =
-      '✨ Organizar áudio com IA';
+   $('btnOrganizarAudioIA').innerHTML =
+  '<i class="ico-ia"></i> Organizar áudio com IA';
   }
 
 }
@@ -2677,7 +2694,7 @@ async function organizarComIA(){
   area.classList.remove('oculto');
 
   area.innerHTML =
-    '<b>✨ NowFind IA</b><p style="margin-top:8px;color:#737789">Analisando e organizando...</p>';
+    '<b><i class="ico-ia"></i> NowFind IA</b><p style="margin-top:8px;color:#737789">Analisando e organizando...</p>';
 
   $('btnOrganizarIA').disabled = true;
 
@@ -2816,7 +2833,7 @@ function mostrarResultadoIA(analise){
     el(
       'b',
       null,
-      '✨ Entendi assim'
+      ' Entendi assim'
     );
 
   area.appendChild(titulo);
@@ -2964,7 +2981,7 @@ function mostrarResultadoIA(analise){
     );
 
   tituloOrganizacao.textContent =
-    '✨ Como o NowFind organizou';
+    ' Como o NowFind organizou';
 
   organizacao.appendChild(
     tituloOrganizacao
@@ -4000,7 +4017,7 @@ async function organizarArquivoComIA(arquivo){
       el(
         'p',
         null,
-        'Escolha Pessoal ou Profissional e toque em ✨ Organizar com IA.'
+       'Escolha Pessoal ou Profissional e toque em Organizar com IA.'
       );
 
     aviso.style.marginTop = '8px';
