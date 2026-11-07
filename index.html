@@ -1,102 +1,78 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
+
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#0000FF">
+
+<meta
+  name="viewport"
+  content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+>
+
+<meta
+  name="theme-color"
+  content="#0000FF"
+>
+
 <title>NowFind</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet"
-  href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap">
-<link rel="stylesheet"
-  href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap">
-<link rel="stylesheet"
-  href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap">
-<link rel="stylesheet"
-  href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&display=swap">
-<link rel="stylesheet"
-  href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap">
-<link rel="stylesheet"
-  href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap">
-<link rel="stylesheet"
-  href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700&display=swap">
-<link rel="stylesheet"
-  href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap">
-/* ===== AJUSTES 7 - INÍCIO ===== */
-
-@media (max-width:899px){
-
-  body[class] nav #btnMais{
-    position:relative;
-    display:block;
-    width:48px;
-    height:48px;
-    margin:-22px auto 0;
-    padding:0;
-    border:none;
-    border-radius:14px;
-
-    background:#D7B447 !important;
-    background-image:none !important;
-
-    box-shadow:
-      0 5px 12px rgba(55,43,8,.22),
-      inset 0 1px 0 rgba(255,255,255,.22);
-
-    animation:none !important;
-
-    font-size:0;
-    line-height:0;
-    color:transparent;
-
-    transition:
-      transform .15s ease,
-      box-shadow .15s ease;
-  }
 
 
-  body[class] nav #btnMais::before,
-  body[class] nav #btnMais::after{
-    content:"";
-    position:absolute;
+<!-- FONTES -->
 
-    left:50%;
-    top:50%;
+<link
+  rel="preconnect"
+  href="https://fonts.googleapis.com"
+>
 
-    background:#352C12;
+<link
+  rel="preconnect"
+  href="https://fonts.gstatic.com"
+  crossorigin
+>
 
-    border-radius:3px;
+<link
+  rel="stylesheet"
+  href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+>
 
-    transform:
-      translate(-50%,-50%);
-  }
+<link
+  rel="stylesheet"
+  href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap"
+>
+
+<link
+  rel="stylesheet"
+  href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap"
+>
+
+<link
+  rel="stylesheet"
+  href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&display=swap"
+>
+
+<link
+  rel="stylesheet"
+  href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap"
+>
+
+<link
+  rel="stylesheet"
+  href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap"
+>
+
+<link
+  rel="stylesheet"
+  href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700&display=swap"
+>
+
+<link
+  rel="stylesheet"
+  href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap"
+>
 
 
-  body[class] nav #btnMais::before{
-    width:18px;
-    height:3px;
-  }
-
-
-  body[class] nav #btnMais::after{
-    width:3px;
-    height:18px;
-  }
-
-
-  body[class] nav #btnMais:active{
-    transform:scale(.94);
-
-    box-shadow:
-      0 2px 7px rgba(55,43,8,.24),
-      inset 0 1px 0 rgba(255,255,255,.2);
-  }
-
-}
-
-/* ===== AJUSTES 7 - FIM ===== */
-  <style>
+<style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{--azul:rgb(0,0,255);--azul2:rgb(51,51,153);--amarelo:#FFD600;--cinza:#F5F6FA;--texto:#737789;--linha:#E7E7EE}
 body{font-family:-apple-system,Arial,sans-serif;background:#fff;color:#111;min-height:100vh}
@@ -739,6 +715,64 @@ body.fonte-montserrat{font-family:"Montserrat",ui-sans-serif,sans-serif}
 }
 
 /* ===== AJUSTES 6 - FIM ===== */
+  /* ===== AJUSTES 7 - INÍCIO ===== */
+
+@media (max-width:899px){
+
+  body[class] nav #btnMais{
+    position:relative;
+    display:block;
+    width:48px;
+    height:48px;
+    margin:-22px auto 0;
+    padding:0;
+    border:none;
+    border-radius:14px;
+    background:#D7B447 !important;
+    background-image:none !important;
+    box-shadow:
+      0 5px 12px rgba(55,43,8,.22),
+      inset 0 1px 0 rgba(255,255,255,.22);
+    animation:none !important;
+    font-size:0;
+    line-height:0;
+    color:transparent;
+    transition:
+      transform .15s ease,
+      box-shadow .15s ease;
+  }
+
+  body[class] nav #btnMais::before,
+  body[class] nav #btnMais::after{
+    content:"";
+    position:absolute;
+    left:50%;
+    top:50%;
+    background:#352C12;
+    border-radius:3px;
+    transform:translate(-50%,-50%);
+  }
+
+  body[class] nav #btnMais::before{
+    width:18px;
+    height:3px;
+  }
+
+  body[class] nav #btnMais::after{
+    width:3px;
+    height:18px;
+  }
+
+  body[class] nav #btnMais:active{
+    transform:scale(.94);
+    box-shadow:
+      0 2px 7px rgba(55,43,8,.24),
+      inset 0 1px 0 rgba(255,255,255,.20);
+  }
+
+}
+
+/* ===== AJUSTES 7 - FIM ===== */
 </style>
 </head>
 <body>
