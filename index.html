@@ -779,6 +779,14 @@ body.fonte-montserrat{font-family:"Montserrat",ui-sans-serif,sans-serif}
 .amb-switch button.sel{background:var(--grad-acento,linear-gradient(135deg,#0000ff,#333399));color:var(--on-acento,#fff)}
 #filtros{display:none}
 /* ===== AJUSTES 8 - FIM ===== */
+  /* ===== AJUSTES 9 - SELETOR NO MENU ===== */
+@media (min-width:900px){
+  #seletorAmbiente{display:none}
+  nav .amb-lateral{display:flex;order:-2;gap:4px;margin:0 2px 18px;padding:4px;max-width:none;border-radius:14px;background:color-mix(in srgb,var(--nav-tx,#fff) 14%,transparent)}
+  body[class] nav .amb-lateral button{flex:1;justify-content:center;padding:9px 6px;font-size:13px;border-radius:10px;color:var(--nav-tx,#fff);background:transparent;box-shadow:none;opacity:.85}
+  body[class] nav .amb-lateral button.sel{background:var(--nav-pill,#fff);color:var(--nav-pill-tx,#14110A);opacity:1;box-shadow:0 4px 10px rgba(0,0,0,.2)}
+}
+/* ===== AJUSTES 9 - FIM ===== */
 </style>
 </head>
 <body>
@@ -1039,6 +1047,10 @@ body.fonte-montserrat{font-family:"Montserrat",ui-sans-serif,sans-serif}
 <div class="lateral-logo so-desktop">
   <div class="logo">N</div>
   <div><b>NowFind</b><small>Organize. Execute. Aprenda.</small></div>
+</div>
+  <div class="amb-switch amb-lateral so-desktop">
+  <button data-amb="pessoal" type="button">🏠 Pessoal</button>
+  <button data-amb="profissional" type="button">💼 Profissional</button>
 </div>
 
 <div class="lateral-projetos so-desktop">
@@ -2645,9 +2657,16 @@ function trocarAmbiente(t){
 }
 
 function atualizarSeletorAmbiente(){
-  document.querySelectorAll('#seletorAmbiente button').forEach(function(b){
+  document.querySelectorAll('.amb-switch button').forEach(function(b){
     b.classList.toggle('sel', b.getAttribute('data-amb') === ambiente);
   });
+}
+
+document.querySelectorAll('.amb-switch button').forEach(function(b){
+  b.addEventListener('click', function(){
+    trocarAmbiente(b.getAttribute('data-amb'));
+  });
+});
 }
 
 document.querySelectorAll('#seletorAmbiente button').forEach(function(b){
@@ -4711,7 +4730,12 @@ function lerConfig(){
   var amb = ambienteAtual();
   dados.configs = dados.configs || {};
   if(!dados.configs[amb]){
-    dados.configs[amb] = Object.assign({}, padrao, dados.config || {});
+    var base = Object.assign({}, padrao, dados.config || {});
+    if(amb === 'profissional'){
+      base.tema = 'marinho';
+      base.acento = 'azul';
+    }
+    dados.configs[amb] = base;
   }
   var c = dados.configs[amb];
   Object.keys(padrao).forEach(function(k){
@@ -4722,7 +4746,6 @@ function lerConfig(){
   if(!ACENTOS[c.acento]) c.acento = 'azul';
   return c;
 }
-
 function luz(hex){
   var h = hex.replace('#','');
   var v = [0,2,4].map(function(i){
