@@ -2557,9 +2557,8 @@ async function salvarAudio(){
 
     $('btnOrganizarAudioIA').disabled = true;
 
-    $('btnOrganizarAudioIA').textContent =
-      '.innerHTML = '<i class="ico-ia"></i> Entendendo seu áudio...' Entendendo seu áudio...';
-
+    $('btnOrganizarAudioIA').innerHTML =
+  '<i class="ico-ia"></i> Entendendo seu áudio...';
 
     var respostaAudio =
       await fetch(
