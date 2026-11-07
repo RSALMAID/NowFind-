@@ -2667,13 +2667,7 @@ document.querySelectorAll('.amb-switch button').forEach(function(b){
     trocarAmbiente(b.getAttribute('data-amb'));
   });
 });
-}
 
-document.querySelectorAll('#seletorAmbiente button').forEach(function(b){
-  b.addEventListener('click', function(){
-    trocarAmbiente(b.getAttribute('data-amb'));
-  });
-});
 
 /* novas capturas já nascem no ambiente aberto */
 var abrirCapturaBase = abrirCaptura;
