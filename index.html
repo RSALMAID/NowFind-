@@ -773,6 +773,12 @@ body.fonte-montserrat{font-family:"Montserrat",ui-sans-serif,sans-serif}
 }
 
 /* ===== AJUSTES 7 - FIM ===== */
+  /* ===== AJUSTES 8 - AMBIENTES ===== */
+.amb-switch{display:flex;gap:6px;background:var(--coluna,#F4F6FB);padding:5px;border-radius:16px;margin-bottom:16px;width:100%;max-width:420px}
+.amb-switch button{flex:1;border:none;background:transparent;color:var(--tx,#14172B);padding:11px 14px;border-radius:12px;font-weight:600;font-size:14px;cursor:pointer}
+.amb-switch button.sel{background:var(--grad-acento,linear-gradient(135deg,#0000ff,#333399));color:var(--on-acento,#fff)}
+#filtros{display:none}
+/* ===== AJUSTES 8 - FIM ===== */
 </style>
 </head>
 <body>
@@ -819,6 +825,10 @@ body.fonte-montserrat{font-family:"Montserrat",ui-sans-serif,sans-serif}
   </header>
 
   <main>
+    <div id="seletorAmbiente" class="amb-switch">
+  <button data-amb="pessoal" type="button">🏠 Pessoal</button>
+  <button data-amb="profissional" type="button">💼 Profissional</button>
+</div>
     <!-- HOJE -->
     <div id="view-hoje">
       <section class="saudacao">
@@ -1587,35 +1597,53 @@ if(item && item.analiseIA){
 function salvarCaptura(){
   var texto = $('txtCaptura').value.trim();
   if (!texto){ alert('Escreva alguma coisa.'); return; }
+
   var tipo = lerSegmento('capTipo');
   var pid = $('capProjeto').value || null;
-var pz = $('capPrazo').value || null;
+  var campoPrazo = $('capPrazo');
+  var pz = campoPrazo ? (campoPrazo.value || null) : null;
+
   var analiseVisivel = !$('resultadoIA').classList.contains('oculto');
   var analiseParaSalvar = analiseVisivel ? ultimaAnaliseIA : null;
 
   if (editandoId){
     var it = acharItem(editandoId);
-    it.texto = texto; it.tipo = tipo; it.projetoId = pid; it.atualizadoEm = agora();
-    if (pz){ it.prazo = pz; } else if (prazoEhData(it.prazo)){ it.prazo = null; }
+    it.texto = texto;
+    it.tipo = tipo;
+    it.projetoId = pid;
+    it.atualizadoEm = agora();
+    if (pz){
+      it.prazo = pz;
+    } else if (prazoEhData(it.prazo)){
+      it.prazo = null;
+    }
     if (analiseParaSalvar) it.analiseIA = analiseParaSalvar;
   } else {
     dados.itens.unshift({
-      id: String(Date.now()), texto: texto, tipo: tipo, projetoId: pid, origem: 'texto',
-      status: capturaDireta ? 'afazer' : 'entrada', urgente: false, importante: false,
-      prazo: pz, analiseIA: analiseParaSalvar, criadoEm: agora()
+      id: String(Date.now()),
+      texto: texto,
+      tipo: tipo,
+      projetoId: pid,
+      origem: 'texto',
+      status: capturaDireta ? 'afazer' : 'entrada',
+      urgente: false,
+      importante: false,
+      prazo: pz,
+      analiseIA: analiseParaSalvar,
+      criadoEm: agora()
     });
   }
 
   ultimaAnaliseIA = null;
+  if (typeof seguirAmbiente === 'function') seguirAmbiente(tipo);
   salvarDados();
+
   $('resultadoIA').classList.add('oculto');
   $('resultadoIA').innerHTML = '';
   esconder('modalCaptura');
   renderizar();
   if (projetoAberto) abrirDetalhe(projetoAberto);
 }
-
-
 function excluirItem(){
   if (!editandoId || !confirm('Excluir este item?')) return;
   dados.itens = dados.itens.filter(function(i){ return i.id !== editandoId; });
@@ -2593,21 +2621,96 @@ function renderLateral(){
 $('btnConfigLateral').addEventListener('click', function(){ $('btnConfig').click(); });
 $('btnPerfilLateral').addEventListener('click', function(){ $('btnAvatar').click(); });
 $('btnNovoProjetoLateral').addEventListener('click', function(){ abrirFormProjeto(); });
-  function renderizar(){
+ /* ===== AMBIENTES: PESSOAL x PROFISSIONAL ===== */
+
+var ambiente =
+  localStorage.getItem('nowfind_ambiente') === 'profissional'
+    ? 'profissional'
+    : 'pessoal';
+
+filtroTipo = ambiente;
+
+function seguirAmbiente(t){
+  if (t !== 'pessoal' && t !== 'profissional') return;
+  if (t === ambiente) return;
+  ambiente = t;
+  filtroTipo = t;
+  localStorage.setItem('nowfind_ambiente', t);
+}
+
+function trocarAmbiente(t){
+  seguirAmbiente(t);
+  trocarTela('hoje');
+  renderizar();
+}
+
+function atualizarSeletorAmbiente(){
+  document.querySelectorAll('#seletorAmbiente button').forEach(function(b){
+    b.classList.toggle('sel', b.getAttribute('data-amb') === ambiente);
+  });
+}
+
+document.querySelectorAll('#seletorAmbiente button').forEach(function(b){
+  b.addEventListener('click', function(){
+    trocarAmbiente(b.getAttribute('data-amb'));
+  });
+});
+
+/* novas capturas já nascem no ambiente aberto */
+var abrirCapturaBase = abrirCaptura;
+abrirCaptura = function(id, pid){
+  abrirCapturaBase(id, pid);
+  if (!id && !pid) definirSegmento('capTipo', ambiente);
+};
+
+var abrirAudioBase = abrirAudio;
+abrirAudio = function(){
+  abrirAudioBase();
+  definirSegmento('audioTipo', ambiente);
+};
+
+/* se salvar algo do outro ambiente, o app vai junto */
+var salvarDadosBase = salvarDados;
+salvarDados = function(){
+  salvarDadosBase();
+  var recente = null;
+  dados.itens.forEach(function(i){
+    var t = new Date(i.atualizadoEm || i.criadoEm || 0).getTime();
+    if (!recente || t > recente.t) recente = { t: t, tipo: i.tipo };
+  });
+  if (recente && Date.now() - recente.t < 3000) seguirAmbiente(recente.tipo);
+};
+
+/* mostra só o ambiente aberto */
+function renderizar(){
+  var todosItens = dados.itens;
+  var todosProjetos = dados.projetos;
+  dados.itens = todosItens.filter(function(i){ return (i.tipo || 'pessoal') === ambiente; });
+  dados.projetos = todosProjetos.filter(function(p){ return (p.tipo || 'pessoal') === ambiente; });
+  try {
+    renderizarTudo();
+  } finally {
+    dados.itens = todosItens;
+    dados.projetos = todosProjetos;
+  }
+  atualizarSeletorAmbiente();
+}
+
+function renderizarTudo(){
   aplicarConfig();
-renderPainelHoje();
-    renderLateral();
+  renderPainelHoje();
+  renderLateral();
 
   var entrada = dados.itens.filter(function(i){ return i.status === 'entrada'; });
   $('contEntrada').textContent = entrada.length;
   preencher('listaHoje', entrada, cartaoEntrada, '✓ Tudo processado. Nenhuma captura aguardando decisão.');
 
-$('textoParaDecidir').textContent =
-  entrada.length === 0
-    ? 'Nada pendente de decisão.'
-    : entrada.length === 1
-      ? '1 captura aguarda sua decisão.'
-      : entrada.length + ' capturas aguardam sua decisão.';
+  $('textoParaDecidir').textContent =
+    entrada.length === 0
+      ? 'Nada pendente de decisão.'
+      : entrada.length === 1
+        ? '1 captura aguarda sua decisão.'
+        : entrada.length + ' capturas aguardam sua decisão.';
 
   preencher('listaEntrada', entrada, cartaoEntrada, 'Caixa de entrada vazia.');
 
@@ -2625,7 +2728,7 @@ $('textoParaDecidir').textContent =
   var posicao = k.scrollLeft;
   k.innerHTML = '';
   colunas.forEach(function(col){
-    var itens = dados.itens.filter(function(i){ return i.status === col[0] && passaFiltro(i.tipo); });
+    var itens = dados.itens.filter(function(i){ return i.status === col[0]; });
     var c = el('div', 'coluna');
     var h = el('h4');
     h.appendChild(el('span', null, col[1]));
