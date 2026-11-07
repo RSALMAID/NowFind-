@@ -321,6 +321,118 @@ body.tema-escuro .linha-hoje{background:#1C2136;color:#E8EAF2}
 #painelHoje .stats div{cursor:pointer;transition:transform .15s,box-shadow .15s}
 #painelHoje .stats div:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(0,0,80,.12)}
 .coluna.destaque{outline:3px solid var(--amarelo);outline-offset:2px;transition:outline .2s}
+/* ===== TEMA VISUAL 2 - INÍCIO (se algo ficar estranho, apague até o FIM) ===== */
+
+:root{--on-acento:#fff;--sombra:0 1px 2px rgba(20,24,60,.06),0 8px 24px rgba(20,24,60,.06)}
+body{font-family:"Inter","Segoe UI",-apple-system,Arial,sans-serif;letter-spacing:-.005em}
+h1,h2,h3,h4{letter-spacing:-.02em}
+.secao h3{font-size:17px;font-weight:800}
+.saudacao small,.link,.voltar{color:var(--azul2)}
+
+/* botões */
+.btn,.b-azul{background:linear-gradient(135deg,var(--azul),var(--azul2));color:var(--on-acento);border-radius:14px;box-shadow:0 8px 18px color-mix(in srgb,var(--azul) 32%,transparent);transition:transform .15s,box-shadow .15s}
+.btn:hover,.b-azul:hover{transform:translateY(-1px);box-shadow:0 12px 24px color-mix(in srgb,var(--azul) 40%,transparent)}
+.btn:active,.b-azul:active{transform:scale(.98)}
+#btnOrganizarIA,#btnOrganizarAudioIA{background:linear-gradient(135deg,#7C3AED,#EC4899)!important;color:#fff;box-shadow:0 8px 18px rgba(236,72,153,.35)}
+.b-claro,.mini-btn{background:color-mix(in srgb,var(--azul) 12%,#fff);color:var(--azul2)}
+.b-cinza{background:#EEF0F6;color:#4A5070}
+.b-amarelo{background:linear-gradient(135deg,#FFD600,#FFB300);color:#1a1a1a;box-shadow:0 6px 14px rgba(255,179,0,.35)}
+.acoes button{border-radius:12px;padding:10px 6px}
+.rev-card button{background:linear-gradient(135deg,var(--azul),var(--azul2));color:var(--on-acento);border-radius:12px}
+.seg-cfg .bol{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:6px;vertical-align:-1px;box-shadow:0 0 0 2px rgba(255,255,255,.9)}
+#cfgAcento button{flex:1 1 calc(33.3% - 6px)}
+
+/* campos e janelas */
+input,textarea,select{border-radius:14px}
+input:focus,textarea:focus,select:focus{box-shadow:0 0 0 3px color-mix(in srgb,var(--azul) 22%,transparent)}
+.modal{backdrop-filter:blur(6px)}
+.folha{border-radius:26px 26px 0 0}
+.segmento button,.filtros button{border-radius:12px}
+
+/* cartões e blocos */
+.card{border-top:1px solid #EDEFF6;border-right:1px solid #EDEFF6;border-bottom:1px solid #EDEFF6;border-radius:14px;padding:12px 14px;box-shadow:var(--sombra);transition:transform .15s,box-shadow .15s}
+.card:hover{transform:translateY(-2px)}
+.card p{font-size:14px;font-weight:600;margin:4px 0 10px}
+.proj{border-top:1px solid #EEF0F6;border-right:1px solid #EEF0F6;border-bottom:1px solid #EEF0F6;border-radius:18px;padding:16px;box-shadow:var(--sombra);margin-bottom:0}
+.bloco-hoje{background:#fff;border:1px solid #EEF0F6;box-shadow:var(--sombra);border-radius:20px}
+.linha-hoje{background:#F7F8FC;border-radius:12px}
+.lista{background:#F4F6FB;border-radius:20px;padding:10px;margin-bottom:14px}
+.lista .card{margin-bottom:0}
+.rev-card{border-radius:18px;box-shadow:var(--sombra);margin-bottom:14px}
+.tag{border-radius:999px;padding:4px 10px}
+.barra{height:8px;border-radius:99px}
+.prog{border-radius:99px}
+.pdca b{width:20px;height:20px;border-radius:50%}
+.vazio{padding:12px}
+
+/* contadores */
+.stats div{background:#fff;border-radius:16px;padding:14px 8px;box-shadow:var(--sombra);border-top:3px solid var(--azul)}
+.stats div:nth-child(2){border-top-color:#FF7A45}
+.stats div:nth-child(3){border-top-color:#FFB300}
+.stats div:nth-child(4){border-top-color:#22B573}
+.stats strong{font-size:26px;color:#1B1F3B}
+
+/* captura */
+.captura{position:relative;overflow:hidden;border-radius:22px;box-shadow:0 14px 30px color-mix(in srgb,var(--azul) 30%,transparent)}
+.captura::after{content:"";position:absolute;right:-30px;top:-30px;width:150px;height:150px;border-radius:50%;background:rgba(255,255,255,.12)}
+.opcoes button{border-radius:16px;padding:14px 6px;transition:transform .15s}
+.opcoes button:hover{transform:translateY(-2px)}
+
+/* grades: menos espaço vazio */
+#listaProjetos{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
+#listaProjetos .vazio{grid-column:1/-1}
+#listaHoje,#listaEntrada{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+#listaHoje .vazio,#listaEntrada .vazio{grid-column:1/-1}
+.grade-hoje{margin:12px 0 16px}
+
+/* quadro */
+.coluna{background:#F4F6FB;border-radius:18px;border-top:4px solid #C9CEE0}
+.coluna:has(.cards[data-status="afazer"]){border-top-color:#9AA3C7}
+.coluna:has(.cards[data-status="andamento"]){border-top-color:var(--azul)}
+.coluna:has(.cards[data-status="aguardando"]){border-top-color:#FFB300}
+.coluna:has(.cards[data-status="realizado"]){border-top-color:#FF7A45}
+.coluna:has(.cards[data-status="validado"]){border-top-color:#22B573}
+.coluna h4{font-size:14px;text-transform:uppercase;letter-spacing:.04em}
+.coluna .badge{background:#fff;color:#333;box-shadow:0 2px 6px rgba(20,24,60,.12)}
+.cards{min-height:64px}
+.cards:empty::before{padding:18px 10px}
+
+/* navegação do celular */
+nav{box-shadow:0 -8px 28px rgba(20,24,70,.08)}
+nav button.ativo{color:var(--azul2)}
+nav .mais{background:linear-gradient(135deg,#FFD600,#FFB300)}
+
+/* computador */
+@media (min-width:900px){
+  nav{background:linear-gradient(185deg,var(--azul2) 0%,var(--azul) 100%);border-right:none;box-shadow:8px 0 32px rgba(20,24,70,.14);padding:22px 14px}
+  nav button{color:var(--on-acento);opacity:.88;border-radius:12px;font-weight:600}
+  nav button:hover{background:rgba(255,255,255,.14);opacity:1}
+  nav button.ativo{background:#fff;color:var(--azul2);opacity:1;box-shadow:0 6px 16px rgba(0,0,0,.18)}
+  nav .mais{background:linear-gradient(135deg,#FFD600,#FFB300);color:#111;opacity:1;box-shadow:0 10px 22px rgba(0,0,0,.25)}
+  .lateral-logo b{color:var(--on-acento)}
+  .lateral-logo small{color:var(--on-acento);opacity:.72}
+  .lateral-logo .logo{box-shadow:0 0 0 2px rgba(255,255,255,.9),0 8px 18px rgba(0,0,0,.25)}
+  .lateral-titulo{color:var(--on-acento);opacity:.7}
+  .lateral-projetos,.lateral-rodape{border-top:1px solid rgba(255,255,255,.2)}
+  .lat-proj{color:var(--on-acento)}
+  .lat-proj small{color:var(--on-acento);opacity:.75}
+  .lat-proj:hover{background:rgba(255,255,255,.16)}
+  .lat-proj i{box-shadow:0 0 0 2px rgba(255,255,255,.85)}
+  nav .lateral-link{color:var(--on-acento);opacity:.9}
+  .lateral-avatar{background:#FFD600;color:#111}
+}
+
+/* Hoje em grade, sem buraco */
+@media (min-width:1000px){
+  #view-hoje:not(.oculto){display:grid;grid-template-columns:1.5fr 1fr;gap:16px}
+  #view-hoje .saudacao{grid-column:1;margin:0}
+  #view-hoje .saudacao p{margin-bottom:0}
+  #view-hoje .captura{grid-column:2;grid-row:1 / span 2;margin:0}
+  #view-hoje #cardRevisao{grid-column:1;margin:0}
+  #view-hoje #painelHoje,#view-hoje #blocoParaDecidir{grid-column:1 / -1}
+}
+
+/* ===== TEMA VISUAL 2 - FIM ===== */
 </style>
 </head>
 <body>
