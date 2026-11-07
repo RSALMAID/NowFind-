@@ -282,6 +282,30 @@ body.tema-escuro .linha-hoje{background:#1C2136;color:#E8EAF2}
 @media (min-width:900px){
   .grade-hoje{grid-template-columns:1.4fr 1fr}
 }
+/* BARRA LATERAL */
+.so-desktop{display:none}
+
+@media (min-width:900px){
+  header{display:none}
+  nav{padding:18px 14px;overflow-y:auto}
+  .so-desktop{display:block}
+  .lateral-logo{display:flex;align-items:center;gap:10px;order:-2;margin:0 4px 18px}
+  .lateral-logo b{display:block;font-size:18px;color:#111}
+  .lateral-logo small{color:var(--texto);font-size:11px}
+  .lateral-projetos{order:1;margin-top:18px;border-top:1px solid var(--linha);padding-top:14px}
+  .lateral-titulo{font-size:11px;font-weight:bold;letter-spacing:1px;color:var(--texto);margin:0 6px 8px}
+  .lat-proj{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:10px;cursor:pointer;font-size:13px;color:#333}
+  .lat-proj:hover{background:#F2F3F8}
+  .lat-proj i{width:10px;height:10px;border-radius:3px;flex-shrink:0;background:#FFD600}
+  .lat-proj.pro i{background:#333399}
+  .lat-proj span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .lat-proj small{color:var(--texto);font-size:11px}
+  .lateral-rodape{order:2;margin-top:auto;border-top:1px solid var(--linha);padding-top:10px}
+  nav .lateral-link{width:100%;font-size:13px;color:#555}
+  .lateral-avatar{width:26px;height:26px;border-radius:50%;background:var(--azul2);color:#fff;display:inline-flex !important;align-items:center;justify-content:center;font-weight:bold;font-size:12px}
+  body.tema-escuro .lateral-logo b,body.tema-escuro .lat-proj{color:#E8EAF2}
+  body.tema-escuro .lat-proj:hover{background:#1F2447}
+}
 </style>
 </head>
 <body>
@@ -505,7 +529,21 @@ body.tema-escuro .linha-hoje{background:#1C2136;color:#E8EAF2}
     ✦
     <span>IA</span>
   </button>
+<div class="lateral-logo so-desktop">
+  <div class="logo">N</div>
+  <div><b>NowFind</b><small>Organize. Execute. Aprenda.</small></div>
+</div>
 
+<div class="lateral-projetos so-desktop">
+  <div class="lateral-titulo">MEUS PROJETOS</div>
+  <div id="listaProjetosLateral"></div>
+  <button id="btnNovoProjetoLateral" class="lateral-link" type="button">＋ Novo projeto</button>
+</div>
+
+<div class="lateral-rodape so-desktop">
+  <button id="btnConfigLateral" class="lateral-link" type="button">⚙️ Configurações</button>
+  <button id="btnPerfilLateral" class="lateral-link" type="button"><span id="avatarLateral" class="lateral-avatar">R</span> <span id="nomeLateral">Perfil</span></button>
+</div>
 </nav>
 
 </div>
@@ -1984,9 +2022,38 @@ function renderPainelHoje(){
   });
 
 }
-function renderizar(){
+/* BARRA LATERAL */
+
+function renderLateral(){
+  var box = $('listaProjetosLateral');
+  if (!box) return;
+  box.innerHTML = '';
+  if (!dados.projetos.length){
+    box.appendChild(el('div', 'lateral-titulo', 'Nenhum projeto ainda.'));
+  }
+  dados.projetos.forEach(function(p){
+    var pr = progresso(p.id);
+    var l = el('div', 'lat-proj' + (p.tipo === 'profissional' ? ' pro' : ''));
+    l.appendChild(el('i'));
+    l.appendChild(el('span', null, p.nome));
+    l.appendChild(el('small', null, pr.pct + '%'));
+    l.addEventListener('click', function(){ trocarTela('projetos'); abrirDetalhe(p.id); });
+    box.appendChild(l);
+  });
+  if (usuario){
+    $('nomeLateral').textContent = usuario.nome.trim().split(' ')[0];
+    $('avatarLateral').textContent = usuario.nome.trim().charAt(0).toUpperCase();
+  }
+}
+
+$('btnConfigLateral').addEventListener('click', function(){ $('btnConfig').click(); });
+$('btnPerfilLateral').addEventListener('click', function(){ $('btnAvatar').click(); });
+$('btnNovoProjetoLateral').addEventListener('click', function(){ abrirFormProjeto(); });
+  function renderizar(){
   aplicarConfig();
 renderPainelHoje();
+    renderLateral();
+
   var entrada = dados.itens.filter(function(i){ return i.status === 'entrada'; });
   $('contEntrada').textContent = entrada.length;
   preencher('listaHoje', entrada, cartaoEntrada, '✓ Tudo processado. Nenhuma captura aguardando decisão.');
