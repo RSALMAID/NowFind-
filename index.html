@@ -798,22 +798,35 @@ body.fonte-montserrat{font-family:"Montserrat",ui-sans-serif,sans-serif}
     <h1>NowFind</h1>
     <p>Tire da cabeça. Coloque em movimento.</p>
   </div>
-  <div class="cartao">
-    <h2 id="authTitulo">Entrar</h2>
-    <p id="authDesc">Acesse seu espaço pessoal.</p>
-    <div id="blocoNome" class="oculto">
-      <label>Como podemos chamar você?</label>
-      <input id="inNome" type="text" placeholder="Seu nome">
-    </div>
-    <label>E-mail</label>
-    <input id="inEmail" type="email" placeholder="voce@email.com" autocapitalize="off">
-    <label>Senha</label>
-    <input id="inSenha" type="password" placeholder="Sua senha">
-    <button id="btnAuth" class="btn">Entrar</button>
-    <div class="troca">
-      <span id="txtTroca">Ainda não tem conta?</span>
-      <button id="btnTroca" class="link">Criar conta</button>
-    </div>
+ <div class="cartao">
+  <h2 id="authTitulo">Entrar</h2>
+  <p id="authDesc">Acesse seu espaço pessoal.</p>
+
+  <div id="blocoNome" class="oculto">
+    <label>Como podemos chamar você?</label>
+    <input id="inNome" type="text" placeholder="Seu nome">
+  </div>
+
+  <label>E-mail</label>
+  <input id="inEmail" type="email" placeholder="voce@email.com" autocapitalize="off">
+
+  <label>Senha</label>
+  <input id="inSenha" type="password" placeholder="Mínimo de 8 caracteres">
+
+  <div id="blocoConfirmar" class="oculto">
+    <label>Confirmar senha</label>
+    <input id="inConfirmar" type="password" placeholder="Repita a senha">
+  </div>
+
+  <div id="authMsg" class="aviso oculto"></div>
+
+  <button id="btnAuth" class="btn">Entrar</button>
+
+  <div class="troca">
+    <span id="txtTroca">Ainda não tem conta?</span>
+    <button id="btnTroca" class="link">Criar conta</button>
+  </div>
+</div>
     <div class="aviso">Versão de teste: os dados ficam somente neste aparelho. Não use uma senha real.</div>
   </div>
 </section>
@@ -1476,35 +1489,120 @@ async function gerarHash(texto){
 }
 
 /* LOGIN / CADASTRO */
+
+/* LOGIN / CADASTRO (CONTA REAL) */
+
+var URL_CONTA = 'https://nowfind-ia.raul-almeida-siqueira.workers.dev/api/conta';
+
+function msgAuth(texto, erro){
+  var m = $('authMsg');
+  if (!m) return;
+  m.textContent = texto || '';
+  m.classList.toggle('oculto', !texto);
+  m.style.borderLeftColor = erro ? '#E5202E' : '#22B573';
+}
+
 function trocarModo(){
   modoCadastro = !modoCadastro;
   $('blocoNome').classList.toggle('oculto', !modoCadastro);
+  $('blocoConfirmar').classList.toggle('oculto', !modoCadastro);
   $('authTitulo').textContent = modoCadastro ? 'Criar conta' : 'Entrar';
   $('authDesc').textContent = modoCadastro ? 'Crie seu espaço pessoal no NowFind.' : 'Acesse seu espaço pessoal.';
   $('btnAuth').textContent = modoCadastro ? 'Criar minha conta' : 'Entrar';
   $('txtTroca').textContent = modoCadastro ? 'Já tem conta?' : 'Ainda não tem conta?';
   $('btnTroca').textContent = modoCadastro ? 'Entrar' : 'Criar conta';
+  msgAuth('');
 }
 
 async function autenticar(){
   var nome = $('inNome').value.trim();
   var email = $('inEmail').value.trim().toLowerCase();
   var senha = $('inSenha').value;
-  var usuarios = lerUsuarios();
-  if (!email || !senha){ alert('Preencha e-mail e senha.'); return; }
-  var hash = await gerarHash(senha);
+  var confirmar = $('inConfirmar').value;
+
+  if (!email || !senha){ msgAuth('Preencha e-mail e senha.', true); return; }
+
   if (modoCadastro){
-    if (!nome){ alert('Digite seu nome.'); return; }
-    if (usuarios[email]){ alert('Este e-mail já tem conta. Use Entrar.'); return; }
-    usuarios[email] = { nome: nome, email: email, senha: hash };
-    salvarUsuarios(usuarios);
-  } else if (!usuarios[email] || usuarios[email].senha !== hash){
-    alert('E-mail ou senha incorretos.'); return;
+    if (!nome){ msgAuth('Digite seu nome.', true); return; }
+    if (senha.length < 8){ msgAuth('A senha precisa ter pelo menos 8 caracteres.', true); return; }
+    if (senha !== confirmar){ msgAuth('As senhas não conferem.', true); return; }
   }
-  localStorage.setItem('nowfind_sessao', email);
-  abrirApp(usuarios[email]);
+
+  var botaoAuth = $('btnAuth');
+  var textoOriginal = botaoAuth.textContent;
+  botaoAuth.disabled = true;
+  botaoAuth.textContent = 'Aguarde...';
+
+  try {
+    var resposta = await fetch(URL_CONTA + (modoCadastro ? '/cadastro' : '/login'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(
+        modoCadastro
+          ? { nome: nome, email: email, senha: senha, confirmar: confirmar }
+          : { email: email, senha: senha }
+      )
+    });
+
+    var retorno = await resposta.json();
+
+    if (!resposta.ok || !retorno.ok){
+      msgAuth(retorno.erro || 'Não foi possível entrar.', true);
+      return;
+    }
+
+    localStorage.setItem('nowfind_token', retorno.token);
+    localStorage.setItem('nowfind_usuario', JSON.stringify(retorno.usuario));
+    $('inSenha').value = '';
+    $('inConfirmar').value = '';
+    msgAuth('');
+    abrirApp(retorno.usuario);
+
+  } catch(e){
+    msgAuth('Sem conexão com o servidor. Tente de novo.', true);
+  } finally {
+    botaoAuth.disabled = false;
+    botaoAuth.textContent = textoOriginal;
+  }
 }
 
+async function sairDaConta(){
+  var token = localStorage.getItem('nowfind_token');
+  try {
+    if (token){
+      await fetch(URL_CONTA + '/sair', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+    }
+  } catch(e){}
+  localStorage.removeItem('nowfind_token');
+  localStorage.removeItem('nowfind_usuario');
+  localStorage.removeItem('nowfind_sessao');
+  location.reload();
+}
+
+async function restaurarSessao(){
+  var token = localStorage.getItem('nowfind_token');
+  var salvo = null;
+  try { salvo = JSON.parse(localStorage.getItem('nowfind_usuario')); } catch(e){}
+  if (!token || !salvo) return;
+
+  abrirApp(salvo);
+
+  try {
+    var r = await fetch(URL_CONTA + '/eu', {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    if (r.status === 401){
+      localStorage.removeItem('nowfind_token');
+      localStorage.removeItem('nowfind_usuario');
+      location.reload();
+    }
+  } catch(e){
+    /* sem internet: continua com a sessão guardada */
+  }
+}
 function abrirApp(u){
   usuario = u;
   esconder('auth');
@@ -4972,16 +5070,11 @@ $('inputArquivosTarefa').addEventListener(
 
 $('btnAvatar').addEventListener('click', function(){ mostrar('modalPerfil'); });
 $('btnFecharPerfil').addEventListener('click', function(){ esconder('modalPerfil'); });
-$('btnSair').addEventListener('click', function(){
-  localStorage.removeItem('nowfind_sessao');
-  location.reload();
-});
+$('btnSair').addEventListener('click', sairDaConta);
 
 /* INÍCIO */
 carregarSortable();
-var sessao = localStorage.getItem('nowfind_sessao');
-var usuarios = lerUsuarios();
-if (sessao && usuarios[sessao]) abrirApp(usuarios[sessao]);
+restaurarSessao();
 
 })();
 </script>
