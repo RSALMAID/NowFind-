@@ -795,6 +795,13 @@ body.fonte-montserrat{font-family:"Montserrat",ui-sans-serif,sans-serif}
   }
 }
 /* ===== AJUSTES 10 - FIM ===== */
+  /* ===== AJUSTES 11 - COMPARTILHADO ===== */
+.amb-switch button{font-size:13px;padding:10px 6px}
+@media (min-width:900px){
+  nav .amb-lateral{flex-direction:column}
+  body[class] nav .amb-lateral button{justify-content:flex-start;text-align:left;padding:10px 12px}
+}
+/* ===== AJUSTES 11 - FIM ===== */
 </style>
 </head>
 <body>
@@ -854,9 +861,10 @@ body.fonte-montserrat{font-family:"Montserrat",ui-sans-serif,sans-serif}
   </header>
 
   <main>
-    <div id="seletorAmbiente" class="amb-switch">
+   <div id="seletorAmbiente" class="amb-switch">
   <button data-amb="pessoal" type="button">🏠 Pessoal</button>
   <button data-amb="profissional" type="button">💼 Profissional</button>
+  <button data-amb="compartilhado" type="button">👥 Compartilhado</button>
 </div>
     <!-- HOJE -->
     <div id="view-hoje">
@@ -1026,6 +1034,44 @@ body.fonte-montserrat{font-family:"Montserrat",ui-sans-serif,sans-serif}
       <div class="quad q4"><div class="quad-topo"><b>🗑️ Eliminar<small>Nem urgente, nem importante</small></b><span id="q4n" class="badge">0</span></div><div id="q4"></div></div>
       <button id="btnConcluirRevisao" class="btn">Concluir revisão</button>
     </div>
+    <!-- ESPAÇO COMPARTILHADO -->
+<div id="view-espaco" class="oculto">
+
+  <div class="secao"><h3>👥 Espaços compartilhados</h3></div>
+  <p class="dica">Aqui só as pessoas convidadas entram. O seu Pessoal e o seu Profissional continuam só seus.</p>
+
+  <div id="espMsg" class="aviso oculto"></div>
+
+  <div id="listaEspacos"></div>
+
+  <div class="secao" style="margin-top:18px"><h3>Criar novo espaço</h3></div>
+  <div style="display:flex;gap:8px">
+    <input id="inNovoEspaco" type="text" placeholder="Ex.: EHS Manutenção Central">
+    <button id="btnCriarEspaco" class="mini-btn" type="button" style="white-space:nowrap">Criar</button>
+  </div>
+
+  <div id="detalheEspaco" class="oculto" style="margin-top:22px">
+    <div class="secao">
+      <h3 id="tituloEspaco">Espaço</h3>
+      <span class="badge" id="qtdMembros">0</span>
+    </div>
+
+    <div id="blocoConvite" class="oculto" style="margin-bottom:12px">
+      <label>Convidar pessoa pelo e-mail</label>
+      <div style="display:flex;gap:8px">
+        <input id="inConvite" type="email" placeholder="pessoa@email.com" autocapitalize="off">
+        <button id="btnConvidar" class="mini-btn" type="button" style="white-space:nowrap">Convidar</button>
+      </div>
+      <p class="dica" style="margin-top:6px">A pessoa precisa ter conta no NowFind. Não há limite de participantes.</p>
+    </div>
+
+    <div id="listaMembros"></div>
+
+    <button id="btnSairEspaco" class="sair oculto" type="button">Sair deste espaço</button>
+  </div>
+
+</div>
+
   </main>
 
 <nav>
@@ -1069,9 +1115,10 @@ body.fonte-montserrat{font-family:"Montserrat",ui-sans-serif,sans-serif}
   <div class="logo">N</div>
   <div><b>NowFind</b><small>Organize. Execute. Aprenda.</small></div>
 </div>
-  <div class="amb-switch amb-lateral so-desktop">
+ <div class="amb-switch amb-lateral so-desktop">
   <button data-amb="pessoal" type="button">🏠 Pessoal</button>
   <button data-amb="profissional" type="button">💼 Profissional</button>
+  <button data-amb="compartilhado" type="button">👥 Compartilhado</button>
 </div>
 
 <div class="lateral-projetos so-desktop">
@@ -1630,14 +1677,21 @@ function abrirApp(u){
 
 /* NAVEGAÇÃO */
 function trocarTela(nome){
-  ['hoje','entrada','projetos','ia','revisao'].forEach(function(v){
-    $('view-' + v).classList.toggle('oculto', v !== nome);
+  var tela = nome;
+  if (typeof ambiente !== 'undefined' && ambiente === 'compartilhado' &&
+      (nome === 'hoje' || nome === 'projetos' || nome === 'entrada')){
+    tela = 'espaco';
+  }
+  ['hoje','entrada','projetos','ia','revisao','espaco'].forEach(function(v){
+    var e = $('view-' + v);
+    if (e) e.classList.toggle('oculto', v !== tela);
   });
   document.querySelectorAll('nav [data-view]').forEach(function(b){
     b.classList.toggle('ativo', b.getAttribute('data-view') === nome);
   });
   window.scrollTo(0, 0);
 }
+
 
 /* SEGMENTOS PESSOAL / PROFISSIONAL */
 function definirSegmento(id, valor){
@@ -2740,17 +2794,19 @@ function renderLateral(){
 $('btnConfigLateral').addEventListener('click', function(){ $('btnConfig').click(); });
 $('btnPerfilLateral').addEventListener('click', function(){ $('btnAvatar').click(); });
 $('btnNovoProjetoLateral').addEventListener('click', function(){ abrirFormProjeto(); });
- /* ===== AMBIENTES: PESSOAL x PROFISSIONAL ===== */
+/* ===== AMBIENTES: PESSOAL x PROFISSIONAL x COMPARTILHADO ===== */
+
+var AMBIENTES = ['pessoal','profissional','compartilhado'];
 
 var ambiente =
-  localStorage.getItem('nowfind_ambiente') === 'profissional'
-    ? 'profissional'
+  AMBIENTES.indexOf(localStorage.getItem('nowfind_ambiente')) >= 0
+    ? localStorage.getItem('nowfind_ambiente')
     : 'pessoal';
 
 filtroTipo = ambiente;
 
 function seguirAmbiente(t){
-  if (t !== 'pessoal' && t !== 'profissional') return;
+  if (AMBIENTES.indexOf(t) < 0) return;
   if (t === ambiente) return;
   ambiente = t;
   filtroTipo = t;
@@ -2759,6 +2815,12 @@ function seguirAmbiente(t){
 
 function trocarAmbiente(t){
   seguirAmbiente(t);
+  if (t === 'compartilhado'){
+    trocarTela('espaco');
+    renderizar();
+    carregarEspacos();
+    return;
+  }
   trocarTela('hoje');
   renderizar();
 }
@@ -2775,20 +2837,26 @@ document.querySelectorAll('.amb-switch button').forEach(function(b){
   });
 });
 
-
 /* novas capturas já nascem no ambiente aberto */
 var abrirCapturaBase = abrirCaptura;
 abrirCaptura = function(id, pid){
+  if (ambiente === 'compartilhado' && !id){
+    alert('Os projetos e as tarefas do espaço compartilhado chegam na próxima etapa. Por enquanto, crie o espaço e convide as pessoas.');
+    return;
+  }
   abrirCapturaBase(id, pid);
   if (!id && !pid) definirSegmento('capTipo', ambiente);
 };
 
 var abrirAudioBase = abrirAudio;
 abrirAudio = function(){
+  if (ambiente === 'compartilhado'){
+    alert('O áudio no espaço compartilhado chega na próxima etapa.');
+    return;
+  }
   abrirAudioBase();
   definirSegmento('audioTipo', ambiente);
 };
-
 /* se salvar algo do outro ambiente, o app vai junto */
 var salvarDadosBase = salvarDados;
 salvarDados = function(){
@@ -4837,6 +4905,10 @@ function lerConfig(){
       base.tema = 'marinho';
       base.acento = 'azul';
     }
+    if(amb === 'compartilhado'){
+      base.tema = 'petroleo';
+      base.acento = 'amarelo';
+    }
     dados.configs[amb] = base;
   }
   var c = dados.configs[amb];
@@ -4971,6 +5043,182 @@ document.querySelectorAll('#painelHoje .stats div[data-alvo]').forEach(function(
     irParaColuna(c.getAttribute('data-alvo'));
   });
 });  
+/* ===== ESPAÇOS COMPARTILHADOS ===== */
+
+var URL_ESP = URL_CONTA + '/espacos';
+var espacos = [];
+var espacoAtual = localStorage.getItem('nowfind_espaco') || null;
+
+function msgEspaco(texto, erro){
+  var m = $('espMsg');
+  if (!m) return;
+  m.textContent = texto || '';
+  m.classList.toggle('oculto', !texto);
+  m.style.borderLeftColor = erro ? '#E5202E' : '#22B573';
+}
+
+async function apiEspaco(caminho, metodo, corpo){
+  var token = tokenAtual();
+  var r = await fetch(URL_ESP + caminho, {
+    method: metodo || 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + token
+    },
+    body: corpo ? JSON.stringify(corpo) : undefined
+  });
+  var j = await r.json();
+  if (!r.ok || !j.ok){
+    throw new Error(j.erro || 'Não foi possível concluir.');
+  }
+  return j;
+}
+
+function espacoSelecionado(){
+  for (var i = 0; i < espacos.length; i++){
+    if (espacos[i].id === espacoAtual) return espacos[i];
+  }
+  return null;
+}
+
+async function carregarEspacos(){
+  if (!$('listaEspacos')) return;
+  try {
+    var j = await apiEspaco('', 'GET');
+    espacos = j.espacos || [];
+    if (!espacoSelecionado()){
+      espacoAtual = espacos.length ? espacos[0].id : null;
+      if (espacoAtual) localStorage.setItem('nowfind_espaco', espacoAtual);
+    }
+    renderEspacos();
+    carregarMembros();
+  } catch(e){
+    msgEspaco(e.message, true);
+  }
+}
+
+function renderEspacos(){
+  var box = $('listaEspacos');
+  box.innerHTML = '';
+  if (!espacos.length){
+    box.appendChild(el('div', 'vazio', 'Você ainda não participa de nenhum espaço. Crie o primeiro abaixo.'));
+    $('detalheEspaco').classList.add('oculto');
+    return;
+  }
+  espacos.forEach(function(e){
+    var linha = el('div', 'linha-tarefa');
+    var nome = el('span', null, e.nome + (e.papel === 'dono' ? ' · dono' : ''));
+    if (e.id === espacoAtual) nome.style.fontWeight = '700';
+    linha.appendChild(nome);
+    linha.appendChild(el('small', null, e.id === espacoAtual ? 'Aberto' : 'Abrir'));
+    linha.addEventListener('click', function(){
+      espacoAtual = e.id;
+      localStorage.setItem('nowfind_espaco', e.id);
+      renderEspacos();
+      carregarMembros();
+    });
+    box.appendChild(linha);
+  });
+}
+
+async function carregarMembros(){
+  var esp = espacoSelecionado();
+  var det = $('detalheEspaco');
+  if (!esp){ det.classList.add('oculto'); return; }
+  det.classList.remove('oculto');
+  $('tituloEspaco').textContent = esp.nome;
+  $('blocoConvite').classList.toggle('oculto', esp.papel !== 'dono');
+
+  var lista = $('listaMembros');
+  lista.innerHTML = '';
+  try {
+    var j = await apiEspaco('/membros?id=' + encodeURIComponent(esp.id), 'GET');
+    $('qtdMembros').textContent = j.membros.length;
+    j.membros.forEach(function(m){
+      var linha = el('div', 'arq');
+      var info = el('div', 'arq-info');
+      info.appendChild(el('b', null, m.nome + (m.papel === 'dono' ? ' · dono' : '')));
+      info.appendChild(el('small', null, m.email));
+      linha.appendChild(info);
+      if (esp.papel === 'dono' && m.papel !== 'dono'){
+        linha.appendChild(botao('Remover', 'b-cinza', function(){ removerMembro(m); }));
+      }
+      lista.appendChild(linha);
+    });
+    $('btnSairEspaco').classList.toggle('oculto', esp.papel === 'dono');
+  } catch(e){
+    msgEspaco(e.message, true);
+  }
+}
+
+async function criarEspaco(){
+  var nome = $('inNovoEspaco').value.trim();
+  if (!nome){ msgEspaco('Dê um nome ao espaço.', true); return; }
+  try {
+    var j = await apiEspaco('', 'POST', { nome: nome });
+    $('inNovoEspaco').value = '';
+    espacoAtual = j.espaco.id;
+    localStorage.setItem('nowfind_espaco', espacoAtual);
+    msgEspaco('Espaço criado.', false);
+    await carregarEspacos();
+  } catch(e){
+    msgEspaco(e.message, true);
+  }
+}
+
+async function convidarMembro(){
+  var esp = espacoSelecionado();
+  var email = $('inConvite').value.trim().toLowerCase();
+  if (!esp || !email){ msgEspaco('Digite o e-mail da pessoa.', true); return; }
+  try {
+    var j = await apiEspaco('/convidar', 'POST', { espaco_id: esp.id, email: email });
+    $('inConvite').value = '';
+    msgEspaco(j.membro.nome + ' entrou no espaço.', false);
+    carregarMembros();
+  } catch(e){
+    msgEspaco(e.message, true);
+  }
+}
+
+async function removerMembro(m){
+  var esp = espacoSelecionado();
+  if (!esp || !confirm('Remover ' + m.nome + ' deste espaço?')) return;
+  try {
+    await apiEspaco('/remover', 'POST', { espaco_id: esp.id, usuario_id: m.id });
+    msgEspaco(m.nome + ' saiu do espaço.', false);
+    carregarMembros();
+  } catch(e){
+    msgEspaco(e.message, true);
+  }
+}
+
+async function sairDoEspaco(){
+  var esp = espacoSelecionado();
+  if (!esp || !confirm('Sair do espaço "' + esp.nome + '"?')) return;
+  try {
+    await apiEspaco('/remover', 'POST', { espaco_id: esp.id });
+    espacoAtual = null;
+    localStorage.removeItem('nowfind_espaco');
+    msgEspaco('Você saiu do espaço.', false);
+    await carregarEspacos();
+  } catch(e){
+    msgEspaco(e.message, true);
+  }
+}
+
+$('btnCriarEspaco').addEventListener('click', criarEspaco);
+$('btnConvidar').addEventListener('click', convidarMembro);
+$('btnSairEspaco').addEventListener('click', sairDoEspaco);
+
+/* ao abrir o app já no ambiente compartilhado */
+var abrirAppEspBase = abrirApp;
+abrirApp = function(u){
+  abrirAppEspBase(u);
+  if (ambiente === 'compartilhado'){
+    trocarTela('espaco');
+    carregarEspacos();
+  }
+};
 /* EVENTOS */
   /* ===== SINCRONIZAÇÃO COM A NUVEM ===== */
 
