@@ -2998,6 +2998,80 @@ body.home-aberta .oculto-home{
     }
   }
   /* ===== AJUSTES 21 - FIM ===== */
+      /* ===== AJUSTES 22 - BARRA SUPERIOR ===== */
+  /* iPhone: início e configuração do cabeçalho só fora da Home */
+  body.na-home header .btn-cfg-topo,
+  body.na-home .btn-voltar-home-topo{
+    display:none !important;
+  }
+  /* barra do app instalado: escondida por padrão */
+  #barraApp{
+    display:none;
+  }
+  @media (display-mode: window-controls-overlay){
+    html{
+      --barra-h: env(titlebar-area-height, 40px);
+    }
+    body{
+      padding-top:var(--barra-h);
+    }
+    .app{
+      min-height:calc(100vh - var(--barra-h));
+    }
+    #barraApp{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      position:fixed;
+      top:0;
+      left:0;
+      right:0;
+      height:var(--barra-h);
+      padding:0 14px;
+      z-index:400;
+      background:color-mix(in srgb,var(--bg,#0A1B38) 80%,transparent);
+      -webkit-backdrop-filter:blur(16px) saturate(170%);
+      backdrop-filter:blur(16px) saturate(170%);
+      border-bottom:1px solid color-mix(in srgb,var(--borda,#2C4F82) 70%,transparent);
+      -webkit-app-region:drag;
+      app-region:drag;
+      user-select:none;
+    }
+    #barraApp .barra-logo{
+      display:grid;
+      place-items:center;
+      width:24px;
+      height:24px;
+      border-radius:8px;
+      background:var(--grad-acento,var(--azul));
+      color:#FFD600;
+      font-size:13px;
+      font-weight:900;
+      box-shadow:0 2px 8px rgba(0,0,0,.28);
+    }
+    #barraApp .barra-nome{
+      color:var(--tx,#fff);
+      font-size:13px;
+      font-weight:700;
+      letter-spacing:.02em;
+    }
+    #barraApp .barra-frase{
+      color:var(--texto,#B7BCD6);
+      font-size:12px;
+      font-weight:500;
+    }
+  }
+  @media (display-mode: window-controls-overlay) and (min-width:900px){
+    nav{
+      top:var(--barra-h) !important;
+    }
+  }
+  @media (display-mode: window-controls-overlay) and (max-width:760px){
+    #barraApp .barra-frase{
+      display:none;
+    }
+  }
+  /* ===== AJUSTES 22 - FIM ===== */
   </style>
 </head>
 <body>
@@ -13333,6 +13407,52 @@ $('btnSair').addEventListener('click', sairDaConta);
     navigator.serviceWorker.register('/sw.js').catch(function(){});
   }
   /* ===== SERVICE WORKER - FIM ===== */
+      /* ===== AJUSTES 22 - BARRA SUPERIOR ===== */
+  (function(){
+    if (!document.getElementById('barraApp')){
+      var barra = document.createElement('div');
+      barra.id = 'barraApp';
+      barra.innerHTML =
+        '<span class="barra-logo">N</span>' +
+        '<span class="barra-nome">NowFind</span>' +
+        '<span class="barra-frase">Tire da cabeça. Coloque em movimento.</span>';
+      document.body.appendChild(barra);
+    }
+
+    function ajustarTopo(){
+      var home = document.getElementById('view-home');
+      var naHome = Boolean(home && home.offsetParent !== null);
+      document.body.classList.toggle('na-home', naHome);
+
+      var botoes = Array.prototype.slice.call(
+        document.querySelectorAll('header button')
+      ).filter(function(b){
+        return !b.classList.contains('avatar') &&
+          b.id !== 'btnVoltarHomeTopo' &&
+          !b.closest('.marca');
+      });
+
+      var achou = false;
+      botoes.forEach(function(b){
+        var rotulo = (b.textContent || '') + ' ' +
+          (b.title || '') + ' ' +
+          (b.getAttribute('aria-label') || '');
+        if (rotulo.indexOf('⚙') > -1 || /config/i.test(rotulo)){
+          b.classList.add('btn-cfg-topo');
+          achou = true;
+        }
+      });
+      if (!achou){
+        botoes.forEach(function(b){
+          b.classList.add('btn-cfg-topo');
+        });
+      }
+    }
+
+    ajustarTopo();
+    setInterval(ajustarTopo, 400);
+  })();
+  /* ===== AJUSTES 22 - FIM ===== */
 carregarSortable();
 restaurarSessao();
 
