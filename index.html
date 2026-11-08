@@ -14478,89 +14478,243 @@ function escreverTexto(alvo, texto){
   }
 })();
 /* ===== AJUSTES 29 - FIM ===== */
-    /* ===== AJUSTES 30 - CLIMA DA HOME ===== */
+/* ===== AJUSTES 30 - CLIMA DA HOME ===== */
 (function () {
   const temp = document.getElementById('homeClimaTemperatura');
   const desc = document.getElementById('homeClimaDescricao');
+
   if (!temp || !desc) return;
 
-  const cartao = temp.closest('.home-card') || temp.parentNode.parentNode;
+  const cartao = temp.closest('.home-card');
 
-  const LAT = -22.9068;
-  const LON = -43.1729;
+  const titulo = cartao
+    ? cartao.querySelector('h2')
+    : null;
 
   const codigos = {
     0: ['Céu limpo', '☀️'],
     1: ['Poucas nuvens', '🌤️'],
     2: ['Parcialmente nublado', '⛅'],
     3: ['Nublado', '☁️'],
-    45: ['Neblina', '🌫️'], 48: ['Neblina', '🌫️'],
-    51: ['Garoa fraca', '🌦️'], 53: ['Garoa', '🌦️'], 55: ['Garoa forte', '🌦️'],
-    61: ['Chuva fraca', '🌧️'], 63: ['Chuva', '🌧️'], 65: ['Chuva forte', '🌧️'],
-    80: ['Pancadas de chuva', '🌦️'], 81: ['Pancadas de chuva', '🌧️'],
+    45: ['Neblina', '🌫️'],
+    48: ['Neblina', '🌫️'],
+    51: ['Garoa fraca', '🌦️'],
+    53: ['Garoa', '🌦️'],
+    55: ['Garoa forte', '🌧️'],
+    61: ['Chuva fraca', '🌧️'],
+    63: ['Chuva', '🌧️'],
+    65: ['Chuva forte', '🌧️'],
+    80: ['Pancadas de chuva', '🌦️'],
+    81: ['Pancadas de chuva', '🌧️'],
     82: ['Pancadas fortes', '⛈️'],
-    95: ['Trovoadas', '⛈️'], 96: ['Trovoadas com granizo', '⛈️'],
+    95: ['Trovoadas', '⛈️'],
+    96: ['Trovoadas com granizo', '⛈️'],
     99: ['Trovoadas com granizo', '⛈️']
   };
 
-  /* Preenche o valor que fica junto do rótulo (Máxima, Mínima, Chuva, Umidade) */
   function preencher(rotulo, valor) {
+    if (!cartao) return;
+
     const todos = cartao.querySelectorAll('*');
+
     for (const el of todos) {
-      if (el.children.length === 0 && el.textContent.trim() === rotulo) {
+      if (
+        el.children.length === 0 &&
+        el.textContent.trim() === rotulo
+      ) {
         const caixa = el.parentNode;
-        const filhos = [...caixa.children].filter(f => f !== el);
+        const filhos = [...caixa.children].filter(
+          f => f !== el
+        );
+
         if (filhos.length) {
           filhos[filhos.length - 1].textContent = valor;
         }
+
         return;
       }
     }
   }
 
   function trocarIcone(icone) {
+    if (!cartao) return;
+
     const todos = cartao.querySelectorAll('*');
+
     for (const el of todos) {
-      if (el.children.length === 0 && /^[☀️🌤️⛅☁️🌫️🌦️🌧️⛈️]+$/u.test(el.textContent.trim())) {
+      if (
+        el.children.length === 0 &&
+        /^[☀️🌤️⛅☁️🌫️🌦️🌧️⛈️]+$/u.test(
+          el.textContent.trim()
+        )
+      ) {
         el.textContent = icone;
         return;
       }
     }
   }
 
-  async function carregarClima() {
+  async function atualizarNome(latitude, longitude) {
+    if (!titulo) return;
+
     try {
       const url =
-        'https://api.open-meteo.com/v1/forecast' +
-        '?latitude=' + LAT + '&longitude=' + LON +
-        '&current=temperature_2m,relative_humidity_2m,weather_code' +
-        '&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max' +
-        '&timezone=America%2FSao_Paulo&forecast_days=1';
+        'https://api.bigdatacloud.net/data/reverse-geocode-client' +
+        '?latitude=' + encodeURIComponent(latitude) +
+        '&longitude=' + encodeURIComponent(longitude) +
+        '&localityLanguage=pt';
 
-      const r = await fetch(url);
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      const d = await r.json();
+      const resposta = await fetch(url);
 
-      const atual = d.current || {};
-      const dia = d.daily || {};
-      const info = codigos[atual.weather_code] || ['Tempo variável', '🌤️'];
+      if (!resposta.ok) {
+        throw new Error('Falha ao identificar cidade');
+      }
 
-      temp.textContent = Math.round(atual.temperature_2m) + '°';
-      desc.textContent = info[0];
-      trocarIcone(info[1]);
+      const dados = await resposta.json();
 
-      preencher('Máxima', Math.round(dia.temperature_2m_max[0]) + '°');
-      preencher('Mínima', Math.round(dia.temperature_2m_min[0]) + '°');
-      preencher('Chuva', (dia.precipitation_probability_max[0] ?? 0) + '%');
-      preencher('Umidade', Math.round(atual.relative_humidity_2m) + '%');
-    } catch (e) {
-      desc.textContent = 'Clima indisponível';
-      console.error('Erro ao carregar clima:', e);
+      const cidade =
+        dados.city ||
+        dados.locality ||
+        dados.principalSubdivision ||
+        '';
+
+      if (cidade) {
+        titulo.textContent = cidade;
+      } else {
+        titulo.textContent = 'Minha localização';
+      }
+
+    } catch (erro) {
+      titulo.textContent = 'Minha localização';
+      console.warn('Localidade não identificada:', erro);
     }
   }
 
-  carregarClima();
-  setInterval(carregarClima, 30 * 60 * 1000);
+  async function carregarClima(latitude, longitude) {
+    try {
+      const url =
+        'https://api.open-meteo.com/v1/forecast' +
+        '?latitude=' + encodeURIComponent(latitude) +
+        '&longitude=' + encodeURIComponent(longitude) +
+        '&current=temperature_2m,relative_humidity_2m,weather_code' +
+        '&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max' +
+        '&timezone=auto&forecast_days=1';
+
+      const resposta = await fetch(url);
+
+      if (!resposta.ok) {
+        throw new Error('Erro HTTP ' + resposta.status);
+      }
+
+      const dados = await resposta.json();
+
+      const atual = dados.current || {};
+      const dia = dados.daily || {};
+
+      if (!Number.isFinite(atual.temperature_2m)) {
+        throw new Error('Temperatura não disponível');
+      }
+
+      const info = codigos[atual.weather_code] ||
+        ['Tempo variável', '🌤️'];
+
+      temp.textContent =
+        Math.round(atual.temperature_2m) + '°';
+
+      desc.textContent = info[0];
+
+      trocarIcone(info[1]);
+
+      if (Number.isFinite(dia.temperature_2m_max?.[0])) {
+        preencher(
+          'Máxima',
+          Math.round(dia.temperature_2m_max[0]) + '°'
+        );
+      }
+
+      if (Number.isFinite(dia.temperature_2m_min?.[0])) {
+        preencher(
+          'Mínima',
+          Math.round(dia.temperature_2m_min[0]) + '°'
+        );
+      }
+
+      if (Number.isFinite(dia.precipitation_probability_max?.[0])) {
+        preencher(
+          'Chuva',
+          Math.round(dia.precipitation_probability_max[0]) + '%'
+        );
+      }
+
+      if (Number.isFinite(atual.relative_humidity_2m)) {
+        preencher(
+          'Umidade',
+          Math.round(atual.relative_humidity_2m) + '%'
+        );
+      }
+
+    } catch (erro) {
+      desc.textContent = 'Clima indisponível';
+      console.error('Erro ao carregar clima:', erro);
+    }
+  }
+
+  let ultimaLocalizacao = null;
+
+  function atualizarLocalizacao() {
+    if (!navigator.geolocation) {
+      desc.textContent = 'Localização não disponível';
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      function (posicao) {
+        const latitude = posicao.coords.latitude;
+        const longitude = posicao.coords.longitude;
+
+        ultimaLocalizacao = {
+          latitude: latitude,
+          longitude: longitude
+        };
+
+        atualizarNome(latitude, longitude);
+        carregarClima(latitude, longitude);
+      },
+
+      function (erro) {
+        console.warn('Erro de geolocalização:', erro);
+
+        if (ultimaLocalizacao) {
+          carregarClima(
+            ultimaLocalizacao.latitude,
+            ultimaLocalizacao.longitude
+          );
+        } else {
+          temp.textContent = '--°';
+          desc.textContent =
+            'Autorize a localização para consultar o clima';
+
+          if (titulo) {
+            titulo.textContent = 'Minha localização';
+          }
+        }
+      },
+
+      {
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: 300000
+      }
+    );
+  }
+
+  atualizarLocalizacao();
+
+  setInterval(
+    atualizarLocalizacao,
+    30 * 60 * 1000
+  );
+
 })();
 /* ===== AJUSTES 30 - FIM ===== */
 carregarSortable();
