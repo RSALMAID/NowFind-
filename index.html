@@ -3163,6 +3163,20 @@ body.home-aberta .oculto-home{
     }
   }
   /* ===== AJUSTES 24 - FIM ===== */
+      /* ===== AJUSTES 25 - INÍCIO COM TEMA PRÓPRIO ===== */
+  body.home-aberta #btnConfig{
+    display:none !important;
+  }
+  body:has(#view-home:not(.oculto)) #btnConfig{
+    display:none !important;
+  }
+  body.home-aberta .btn-voltar-home-topo{
+    display:none !important;
+  }
+  body:has(#view-home:not(.oculto)) .btn-voltar-home-topo{
+    display:none !important;
+  }
+  /* ===== AJUSTES 25 - FIM ===== */
   </style>
 </head>
 <body>
@@ -13575,6 +13589,54 @@ $('btnSair').addEventListener('click', sairDaConta);
     meta.setAttribute('content', '#0E0E10');
   })();
   /* ===== AJUSTES 24 - FIM ===== */
+      /* ===== AJUSTES 25 - TEMA PRÓPRIO DO INÍCIO ===== */
+  (function(){
+    var telaHome = document.getElementById('view-home');
+    if (!telaHome) return;
+
+    function inicioAberto(){
+      return !telaHome.classList.contains('oculto');
+    }
+
+    /* o Início passa a ter uma configuração própria, chamada "home" */
+    var ambienteAtualBase = ambienteAtual;
+    ambienteAtual = function(){
+      return inicioAberto() ? 'home' : ambienteAtualBase();
+    };
+
+    var aplicarConfigBase = aplicarConfig;
+    aplicarConfig = function(){
+      var noInicio = inicioAberto();
+      if (noInicio){
+        dados.configs = dados.configs || {};
+        if (!dados.configs.home){
+          dados.configs.home = {
+            acento: 'azul',
+            tema: 'fosco',
+            estilo: 'cartao',
+            acabamento: 'liso',
+            fonte: 'padrao'
+          };
+        }
+      }
+      aplicarConfigBase();
+      /* aplicarConfig reescreve body.className: devolve a marca do Início */
+      document.body.classList.toggle('home-aberta', noInicio);
+      /* barra do app instalado continua preta */
+      var meta = document.querySelector('meta[name="theme-color"]');
+      if (meta) meta.setAttribute('content', '#0E0E10');
+    };
+
+    /* ao entrar ou sair do Início, aplica o tema certo */
+    var ultimo = inicioAberto();
+    new MutationObserver(function(){
+      var agora = inicioAberto();
+      if (agora === ultimo) return;
+      ultimo = agora;
+      aplicarConfig();
+    }).observe(telaHome, { attributes: true, attributeFilter: ['class'] });
+  })();
+  /* ===== AJUSTES 25 - FIM ===== */
 carregarSortable();
 restaurarSessao();
 
