@@ -13637,6 +13637,87 @@ $('btnSair').addEventListener('click', sairDaConta);
     }).observe(telaHome, { attributes: true, attributeFilter: ['class'] });
   })();
   /* ===== AJUSTES 25 - FIM ===== */
+      /* ===== AJUSTES 26 - CORES DOS BOTÕES DE AMBIENTE ===== */
+  (function(){
+    var telaHome = document.getElementById('view-home');
+    if (!telaHome) return;
+
+    var ACENTO_PADRAO = {
+      pessoal: 'azul',
+      profissional: 'azul',
+      compartilhado: 'amarelo'
+    };
+
+    function corEscolhida(amb){
+      var cfg = dados.configs && dados.configs[amb];
+      if (!cfg || !cfg.acento) return null;
+      var escolheu = cfg.acentoEscolhido ||
+        cfg.acento !== ACENTO_PADRAO[amb];
+      if (!escolheu) return null;
+      return PALETA[cfg.acento] || null;
+    }
+
+    function pintarBotoesAmbiente(){
+      ['pessoal', 'profissional', 'compartilhado'].forEach(function(amb){
+        var botao = telaHome.querySelector('.home-ambiente.' + amb);
+        if (!botao) return;
+        var icone = botao.querySelector('.home-amb-icone');
+        var cor = corEscolhida(amb);
+        if (!cor || !cor.a || !cor.b){
+          /* sem escolha: volta ao visual padrão do CSS */
+          botao.style.removeProperty('--azul');
+          botao.style.removeProperty('border-color');
+          if (icone){
+            icone.style.removeProperty('background');
+            icone.style.removeProperty('color');
+          }
+          return;
+        }
+        botao.style.setProperty('--azul', cor.a);
+        botao.style.borderColor =
+          'color-mix(in srgb, ' + cor.a + ' 45%, var(--borda))';
+        if (icone){
+          icone.style.background =
+            'linear-gradient(135deg,' + cor.a + ',' + cor.b + ')';
+          icone.style.color = textoSobre(cor.a, cor.b);
+        }
+      });
+    }
+
+    /* ao escolher uma cor num ambiente, marca como escolhida e repinta */
+    var caixaAcento = document.getElementById('cfgAcento');
+    if (caixaAcento){
+      caixaAcento.addEventListener('click', function(e){
+        var alvo = e.target.closest('button');
+        if (!alvo) return;
+        var amb = ambienteAtual();
+        if (amb === 'home') return;
+        dados.configs = dados.configs || {};
+        if (dados.configs[amb]){
+          dados.configs[amb].acentoEscolhido = true;
+          salvarDados();
+        }
+        pintarBotoesAmbiente();
+      });
+    }
+
+    /* ao restaurar o padrão do ambiente, volta a cor original */
+    var botaoRestaurar = document.getElementById('btnRestaurarConfig');
+    if (botaoRestaurar){
+      botaoRestaurar.addEventListener('click', function(){
+        setTimeout(pintarBotoesAmbiente, 0);
+      });
+    }
+
+    /* ao abrir o Início ou depois de sincronizar */
+    new MutationObserver(pintarBotoesAmbiente)
+      .observe(telaHome, { attributes: true, attributeFilter: ['class'] });
+    document.addEventListener('visibilitychange', function(){
+      if (!document.hidden) setTimeout(pintarBotoesAmbiente, 600);
+    });
+    setTimeout(pintarBotoesAmbiente, 1200);
+  })();
+  /* ===== AJUSTES 26 - FIM ===== */
 carregarSortable();
 restaurarSessao();
 
