@@ -1105,6 +1105,1693 @@ nav .nav-rot{display:inline;margin:0;font-size:inherit}
 .lat-proj i.lat-av{display:grid;place-items:center;width:24px;height:24px;border-radius:8px;color:#fff;font-size:12px;font-weight:700;font-style:normal;box-shadow:none}
 .vazio-grade{grid-column:1/-1;text-align:left;padding:6px 2px}
 /* ===== AJUSTES 16 - FIM ===== */
+  /* ===== AJUSTES 17 - HOME GERAL, CALENDÁRIO, NOTAS, IA E EVENTOS ===== */
+
+/* =========================================================
+   HOME GERAL
+   ========================================================= */
+
+#view-home{
+  width:100%;
+  max-width:1720px;
+  margin:0 auto;
+  padding-bottom:26px;
+}
+
+.home-cabecalho{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:18px;
+  margin-bottom:18px;
+}
+
+.home-saudacao{
+  min-width:0;
+}
+
+.home-saudacao small,
+.home-card-topo small,
+.clima-topo small{
+  display:block;
+  margin-bottom:5px;
+  color:var(--azul);
+  font-size:11px;
+  font-weight:800;
+  letter-spacing:.13em;
+}
+
+.home-saudacao h1{
+  margin:0;
+  color:var(--tx);
+  font-size:clamp(27px,3vw,42px);
+  font-weight:750;
+  line-height:1.04;
+  letter-spacing:-.035em;
+}
+
+.home-saudacao p{
+  margin:8px 0 0;
+  color:var(--texto);
+  font-size:15px;
+}
+
+.home-cab-acoes{
+  display:flex;
+  align-items:center;
+  gap:9px;
+  flex:none;
+}
+
+/* =========================================================
+   ACESSO AOS AMBIENTES
+   ========================================================= */
+
+.home-ambientes{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:12px;
+  margin-bottom:16px;
+}
+
+.home-ambiente{
+  display:flex;
+  align-items:center;
+  gap:13px;
+  min-width:0;
+  padding:14px;
+  border:1px solid var(--borda);
+  border-radius:19px;
+  background:var(--card);
+  color:var(--tx);
+  text-align:left;
+  cursor:pointer;
+  box-shadow:0 3px 10px rgba(0,0,0,.07);
+  transition:
+    transform .17s ease,
+    border-color .17s ease,
+    box-shadow .17s ease;
+}
+
+.home-ambiente:hover{
+  transform:translateY(-2px);
+  border-color:var(--azul);
+  box-shadow:0 10px 25px rgba(0,0,0,.12);
+}
+
+.home-ambiente:focus-visible{
+  outline:3px solid color-mix(in srgb,var(--azul) 35%,transparent);
+  outline-offset:2px;
+}
+
+.home-amb-icone{
+  display:grid;
+  place-items:center;
+  width:45px;
+  height:45px;
+  flex:none;
+  border-radius:14px;
+  color:#fff;
+  font-size:17px;
+  font-weight:800;
+}
+
+.home-ambiente.pessoal .home-amb-icone{
+  background:linear-gradient(135deg,#39B96B,#178C4B);
+}
+
+.home-ambiente.profissional .home-amb-icone{
+  background:linear-gradient(135deg,#4F46E5,#312E81);
+}
+
+.home-ambiente.compartilhado .home-amb-icone{
+  background:linear-gradient(135deg,var(--azul),var(--azul2));
+  color:var(--on-acento,#fff);
+}
+
+.home-amb-texto{
+  min-width:0;
+  flex:1;
+}
+
+.home-amb-texto small{
+  display:block;
+  margin-bottom:2px;
+  color:var(--texto);
+  font-size:9px;
+  font-weight:800;
+  letter-spacing:.1em;
+}
+
+.home-amb-texto strong{
+  display:block;
+  overflow:hidden;
+  margin-bottom:3px;
+  font-size:15px;
+  font-weight:750;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.home-amb-texto > span{
+  display:block;
+  overflow:hidden;
+  color:var(--texto);
+  font-size:11px;
+  line-height:1.35;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.home-amb-seta{
+  color:var(--texto);
+  font-size:25px;
+  line-height:1;
+}
+
+/* =========================================================
+   ESTRUTURA GERAL DE CARTÕES
+   ========================================================= */
+
+.home-grade-principal{
+  display:grid;
+  grid-template-columns:minmax(0,1.72fr) minmax(310px,.83fr);
+  gap:16px;
+  align-items:start;
+}
+
+.home-grade-secundaria{
+  display:grid;
+  grid-template-columns:minmax(0,1.15fr) minmax(340px,.85fr);
+  gap:16px;
+  margin-top:16px;
+  align-items:stretch;
+}
+
+.home-coluna-lateral{
+  display:grid;
+  gap:16px;
+}
+
+.home-card{
+  min-width:0;
+  border:1px solid var(--borda);
+  border-radius:24px;
+  background:var(--card);
+  color:var(--tx);
+  box-shadow:0 5px 18px rgba(0,0,0,.08);
+}
+
+.home-card-topo,
+.clima-topo{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+}
+
+.home-card-topo h2,
+.clima-topo h2{
+  margin:0;
+  font-size:19px;
+  font-weight:750;
+  line-height:1.15;
+  letter-spacing:-.018em;
+}
+
+.home-vazio{
+  display:grid;
+  place-items:center;
+  min-height:90px;
+  padding:18px;
+  color:var(--texto);
+  font-size:13px;
+  line-height:1.4;
+  text-align:center;
+}
+
+/* =========================================================
+   CALENDÁRIO
+   ========================================================= */
+
+.home-calendario-card{
+  padding:18px;
+}
+
+.cal-acoes{
+  display:flex;
+  align-items:center;
+  gap:7px;
+}
+
+.cal-nav{
+  display:grid;
+  place-items:center;
+  width:36px;
+  height:36px;
+  border:1px solid var(--borda);
+  border-radius:11px;
+  background:var(--coluna);
+  color:var(--tx);
+  font-size:24px;
+  line-height:1;
+  cursor:pointer;
+  transition:background .15s ease,color .15s ease;
+}
+
+.cal-nav:hover{
+  border-color:var(--azul);
+  background:var(--azul);
+  color:var(--on-acento,#fff);
+}
+
+.cal-filtros{
+  display:flex;
+  align-items:center;
+  gap:7px;
+  margin:15px 0 13px;
+  overflow-x:auto;
+  scrollbar-width:none;
+}
+
+.cal-filtros::-webkit-scrollbar{
+  display:none;
+}
+
+.cal-filtro{
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  padding:7px 12px;
+  border:1px solid var(--borda);
+  border-radius:999px;
+  background:transparent;
+  color:var(--texto);
+  font-size:12px;
+  font-weight:650;
+  white-space:nowrap;
+  cursor:pointer;
+}
+
+.cal-filtro:hover{
+  color:var(--tx);
+  border-color:var(--azul);
+}
+
+.cal-filtro.sel{
+  border-color:var(--azul);
+  background:var(--azul);
+  color:var(--on-acento,#fff);
+}
+
+.cal-cor{
+  width:9px;
+  height:9px;
+  border-radius:50%;
+}
+
+.cal-cor.pessoal{
+  background:#22B573;
+}
+
+.cal-cor.profissional{
+  background:#4F46E5;
+}
+
+.cal-semana{
+  display:grid;
+  grid-template-columns:repeat(7,1fr);
+  gap:5px;
+  margin-bottom:6px;
+}
+
+.cal-semana span{
+  padding:4px 2px;
+  color:var(--texto);
+  font-size:10px;
+  font-weight:800;
+  letter-spacing:.07em;
+  text-align:center;
+}
+
+.cal-grade{
+  display:grid;
+  grid-template-columns:repeat(7,minmax(0,1fr));
+  grid-auto-rows:minmax(82px,1fr);
+  gap:5px;
+}
+
+.cal-dia{
+  position:relative;
+  display:flex;
+  flex-direction:column;
+  min-width:0;
+  min-height:82px;
+  padding:7px;
+  border:1px solid var(--borda);
+  border-radius:14px;
+  background:var(--card);
+  color:var(--tx);
+  text-align:left;
+  cursor:pointer;
+  transition:
+    border-color .15s ease,
+    background .15s ease,
+    transform .15s ease;
+}
+
+.cal-dia:hover{
+  z-index:2;
+  transform:translateY(-1px);
+  border-color:var(--azul);
+  background:color-mix(in srgb,var(--azul) 5%,var(--card));
+}
+
+.cal-dia.fora{
+  opacity:.42;
+}
+
+.cal-dia.hoje{
+  border-color:var(--azul);
+  box-shadow:inset 0 0 0 1px var(--azul);
+}
+
+.cal-dia.selecionado{
+  border-color:var(--azul);
+  background:color-mix(in srgb,var(--azul) 11%,var(--card));
+  box-shadow:0 5px 14px color-mix(in srgb,var(--azul) 16%,transparent);
+}
+
+.cal-dia-numero{
+  display:grid;
+  place-items:center;
+  width:26px;
+  height:26px;
+  margin-bottom:5px;
+  border-radius:9px;
+  color:inherit;
+  font-size:12px;
+  font-weight:750;
+}
+
+.cal-dia.hoje .cal-dia-numero{
+  background:var(--azul);
+  color:var(--on-acento,#fff);
+}
+
+.cal-dia-eventos{
+  display:flex;
+  flex-direction:column;
+  gap:3px;
+  min-width:0;
+}
+
+.cal-evento{
+  display:flex;
+  align-items:center;
+  gap:5px;
+  min-width:0;
+  padding:3px 5px;
+  border-radius:7px;
+  font-size:9px;
+  font-weight:650;
+  line-height:1.25;
+}
+
+.cal-evento.pessoal{
+  background:color-mix(in srgb,#22B573 18%,var(--card));
+  color:color-mix(in srgb,#22B573 75%,var(--tx));
+  border-left:3px solid #22B573;
+}
+
+.cal-evento.profissional{
+  background:color-mix(in srgb,#4F46E5 17%,var(--card));
+  color:color-mix(in srgb,#4F46E5 75%,var(--tx));
+  border-left:3px solid #4F46E5;
+}
+
+.cal-evento-hora{
+  flex:none;
+  opacity:.8;
+}
+
+.cal-evento-titulo{
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.cal-evento-mais{
+  padding-top:2px;
+  color:var(--texto);
+  font-size:9px;
+  font-weight:700;
+}
+
+/* =========================================================
+   CLIMA
+   ========================================================= */
+
+.home-clima{
+  position:relative;
+  overflow:hidden;
+  padding:17px;
+  background:
+    radial-gradient(
+      circle at 92% 0,
+      color-mix(in srgb,var(--azul) 25%,transparent),
+      transparent 47%
+    ),
+    var(--card);
+}
+
+.home-clima::after{
+  content:"";
+  position:absolute;
+  right:-35px;
+  bottom:-45px;
+  width:120px;
+  height:120px;
+  border-radius:50%;
+  background:color-mix(in srgb,var(--azul) 9%,transparent);
+  pointer-events:none;
+}
+
+.clima-principal{
+  position:relative;
+  z-index:1;
+  display:flex;
+  align-items:center;
+  gap:16px;
+  margin:15px 0;
+}
+
+.clima-icone{
+  display:grid;
+  place-items:center;
+  width:68px;
+  height:68px;
+  flex:none;
+  border-radius:22px;
+  background:var(--grad-acento,var(--azul));
+  color:var(--on-acento,#fff);
+  font-size:33px;
+  box-shadow:0 10px 24px color-mix(in srgb,var(--azul) 30%,transparent);
+}
+
+.clima-principal strong{
+  display:block;
+  color:var(--tx);
+  font-size:39px;
+  font-weight:750;
+  line-height:1;
+}
+
+.clima-principal span{
+  display:block;
+  margin-top:5px;
+  color:var(--texto);
+  font-size:12px;
+}
+
+.clima-detalhes{
+  position:relative;
+  z-index:1;
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:7px;
+}
+
+.clima-detalhes > div{
+  padding:8px 5px;
+  border:1px solid var(--borda);
+  border-radius:12px;
+  background:color-mix(in srgb,var(--coluna) 75%,transparent);
+  text-align:center;
+}
+
+.clima-detalhes small{
+  display:block;
+  color:var(--texto);
+  font-size:9px;
+}
+
+.clima-detalhes strong{
+  display:block;
+  margin-top:3px;
+  color:var(--tx);
+  font-size:13px;
+}
+
+.clima-horas{
+  position:relative;
+  z-index:1;
+  display:flex;
+  gap:7px;
+  margin-top:13px;
+  overflow-x:auto;
+  scrollbar-width:none;
+}
+
+.clima-horas::-webkit-scrollbar{
+  display:none;
+}
+
+.clima-hora{
+  min-width:58px;
+  padding:8px 7px;
+  border-radius:12px;
+  background:var(--coluna);
+  text-align:center;
+}
+
+.clima-hora span,
+.clima-hora small,
+.clima-hora strong{
+  display:block;
+}
+
+.clima-hora small{
+  color:var(--texto);
+  font-size:9px;
+}
+
+.clima-hora span{
+  margin:4px 0;
+  font-size:18px;
+}
+
+.clima-hora strong{
+  font-size:12px;
+}
+
+/* =========================================================
+   AGENDA DO DIA
+   ========================================================= */
+
+.home-agenda{
+  padding:17px;
+}
+
+.agenda-lista{
+  display:flex;
+  flex-direction:column;
+  gap:7px;
+  margin-top:13px;
+  max-height:270px;
+  overflow-y:auto;
+  scrollbar-width:thin;
+}
+
+.agenda-evento{
+  display:grid;
+  grid-template-columns:54px 4px minmax(0,1fr);
+  gap:10px;
+  align-items:center;
+  padding:10px;
+  border:1px solid var(--borda);
+  border-radius:14px;
+  background:var(--coluna);
+  cursor:pointer;
+  transition:border-color .15s ease,transform .15s ease;
+}
+
+.agenda-evento:hover{
+  transform:translateX(2px);
+  border-color:var(--azul);
+}
+
+.agenda-evento-hora{
+  color:var(--tx);
+  font-size:12px;
+  font-weight:750;
+  text-align:center;
+}
+
+.agenda-evento-barra{
+  width:4px;
+  align-self:stretch;
+  border-radius:99px;
+}
+
+.agenda-evento.pessoal .agenda-evento-barra{
+  background:#22B573;
+}
+
+.agenda-evento.profissional .agenda-evento-barra{
+  background:#4F46E5;
+}
+
+.agenda-evento-info{
+  min-width:0;
+}
+
+.agenda-evento-info strong{
+  display:block;
+  overflow:hidden;
+  color:var(--tx);
+  font-size:13px;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.agenda-evento-info small{
+  display:block;
+  overflow:hidden;
+  margin-top:3px;
+  color:var(--texto);
+  font-size:10px;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+/* =========================================================
+   ANOTAÇÕES
+   ========================================================= */
+
+.home-notas{
+  padding:17px;
+}
+
+.notas-layout{
+  display:grid;
+  grid-template-columns:210px minmax(0,1fr);
+  min-height:380px;
+  margin-top:14px;
+  overflow:hidden;
+  border:1px solid var(--borda);
+  border-radius:18px;
+}
+
+.notas-paginas{
+  display:flex;
+  flex-direction:column;
+  min-width:0;
+  border-right:1px solid var(--borda);
+  background:var(--coluna);
+}
+
+.notas-busca{
+  padding:10px;
+  border-bottom:1px solid var(--borda);
+}
+
+.notas-busca input{
+  width:100%;
+  padding:9px 10px;
+  border:1px solid var(--borda);
+  border-radius:11px;
+  background:var(--card);
+  color:var(--tx);
+  font-size:12px;
+  outline:none;
+}
+
+.notas-busca input:focus{
+  border-color:var(--azul);
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--azul) 12%,transparent);
+}
+
+.notas-lista{
+  flex:1;
+  padding:7px;
+  overflow-y:auto;
+}
+
+.nota-pagina{
+  width:100%;
+  padding:10px;
+  border:none;
+  border-radius:11px;
+  background:transparent;
+  color:var(--tx);
+  text-align:left;
+  cursor:pointer;
+}
+
+.nota-pagina:hover{
+  background:color-mix(in srgb,var(--azul) 7%,var(--card));
+}
+
+.nota-pagina.sel{
+  background:var(--card);
+  box-shadow:0 3px 10px rgba(0,0,0,.09);
+}
+
+.nota-pagina strong{
+  display:block;
+  overflow:hidden;
+  font-size:12px;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.nota-pagina small{
+  display:block;
+  margin-top:4px;
+  color:var(--texto);
+  font-size:9px;
+}
+
+.nota-editor{
+  display:flex;
+  flex-direction:column;
+  min-width:0;
+  background:var(--card);
+}
+
+.nota-titulo{
+  width:100%;
+  padding:16px 17px 12px;
+  border:none;
+  border-bottom:1px solid var(--borda);
+  background:transparent;
+  color:var(--tx);
+  font-size:20px;
+  font-weight:750;
+  outline:none;
+}
+
+.nota-titulo::placeholder{
+  color:var(--texto);
+  opacity:.7;
+}
+
+.nota-barra{
+  display:flex;
+  align-items:center;
+  gap:4px;
+  padding:7px 10px;
+  overflow-x:auto;
+  border-bottom:1px solid var(--borda);
+  background:var(--coluna);
+  scrollbar-width:none;
+}
+
+.nota-barra::-webkit-scrollbar{
+  display:none;
+}
+
+.nota-barra button{
+  min-width:34px;
+  height:34px;
+  padding:0 9px;
+  border:none;
+  border-radius:9px;
+  background:transparent;
+  color:var(--tx);
+  font-size:12px;
+  font-weight:750;
+  white-space:nowrap;
+  cursor:pointer;
+}
+
+.nota-barra button:hover:not(:disabled){
+  background:var(--azul);
+  color:var(--on-acento,#fff);
+}
+
+.nota-barra button:disabled{
+  opacity:.38;
+  cursor:not-allowed;
+}
+
+.nota-conteudo{
+  flex:1;
+  min-height:230px;
+  padding:17px;
+  overflow-y:auto;
+  color:var(--tx);
+  font-size:14px;
+  line-height:1.65;
+  outline:none;
+}
+
+.nota-conteudo:empty::before{
+  content:attr(data-placeholder);
+  color:var(--texto);
+  opacity:.65;
+  pointer-events:none;
+}
+
+.nota-conteudo:focus{
+  box-shadow:inset 3px 0 0 var(--azul);
+}
+
+.nota-rodape{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:9px 12px;
+  border-top:1px solid var(--borda);
+  color:var(--texto);
+  font-size:10px;
+}
+
+.nota-excluir{
+  border:none;
+  background:transparent;
+  color:#E5202E;
+  font-size:10px;
+  font-weight:700;
+  cursor:pointer;
+}
+
+.nota-excluir:disabled{
+  opacity:.35;
+  cursor:not-allowed;
+}
+
+/* =========================================================
+   CHAT GERAL COM IA
+   ========================================================= */
+
+.home-ia{
+  display:flex;
+  flex-direction:column;
+  min-height:470px;
+  padding:17px;
+}
+
+.home-chat-mensagens{
+  display:flex;
+  flex:1;
+  flex-direction:column;
+  gap:10px;
+  min-height:210px;
+  max-height:340px;
+  margin:14px 0 10px;
+  padding:13px;
+  overflow-y:auto;
+  border:1px solid var(--borda);
+  border-radius:18px;
+  background:
+    radial-gradient(
+      circle at 100% 0,
+      color-mix(in srgb,var(--azul) 9%,transparent),
+      transparent 43%
+    ),
+    var(--coluna);
+}
+
+.chat-msg{
+  display:flex;
+  align-items:flex-end;
+  gap:8px;
+  max-width:92%;
+}
+
+.chat-msg.usuario{
+  align-self:flex-end;
+  flex-direction:row-reverse;
+}
+
+.chat-avatar{
+  display:grid;
+  place-items:center;
+  width:29px;
+  height:29px;
+  flex:none;
+  border-radius:10px;
+  background:var(--grad-acento,var(--azul));
+  color:var(--on-acento,#fff);
+  font-size:11px;
+  font-weight:800;
+}
+
+.chat-msg.usuario .chat-avatar{
+  background:var(--tx);
+  color:var(--card);
+}
+
+.chat-balao{
+  padding:10px 12px;
+  border:1px solid var(--borda);
+  border-radius:15px 15px 15px 4px;
+  background:var(--card);
+  color:var(--tx);
+  font-size:12px;
+  line-height:1.45;
+  box-shadow:0 2px 8px rgba(0,0,0,.05);
+}
+
+.chat-msg.usuario .chat-balao{
+  border:none;
+  border-radius:15px 15px 4px 15px;
+  background:var(--grad-acento,var(--azul));
+  color:var(--on-acento,#fff);
+}
+
+.home-chat-sugestoes{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+  margin-bottom:10px;
+}
+
+.home-chat-sugestoes button{
+  padding:7px 10px;
+  border:1px solid var(--borda);
+  border-radius:999px;
+  background:transparent;
+  color:var(--texto);
+  font-size:10px;
+  font-weight:650;
+  cursor:pointer;
+}
+
+.home-chat-sugestoes button:hover{
+  border-color:var(--azul);
+  color:var(--tx);
+  background:color-mix(in srgb,var(--azul) 6%,var(--card));
+}
+
+.home-chat-caixa{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:8px;
+  align-items:end;
+}
+
+.home-chat-caixa textarea{
+  width:100%;
+  min-height:45px;
+  max-height:130px;
+  padding:11px 12px;
+  resize:vertical;
+  border:1px solid var(--borda);
+  border-radius:14px;
+  background:var(--coluna);
+  color:var(--tx);
+  font-size:12px;
+  line-height:1.4;
+  outline:none;
+}
+
+.home-chat-caixa textarea:focus{
+  border-color:var(--azul);
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--azul) 12%,transparent);
+}
+
+.home-chat-caixa .btn-prim{
+  min-height:45px;
+}
+
+/* =========================================================
+   JANELA DE EVENTO
+   ========================================================= */
+
+.evento-folha{
+  max-width:720px;
+}
+
+.evento-tipos{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:9px;
+}
+
+.evento-tipo{
+  display:flex;
+  align-items:center;
+  gap:11px;
+  min-width:0;
+  padding:12px;
+  border:1px solid var(--borda);
+  border-radius:15px;
+  background:var(--card);
+  color:var(--tx);
+  text-align:left;
+  cursor:pointer;
+}
+
+.evento-tipo:hover{
+  border-color:var(--azul);
+}
+
+.evento-tipo.sel{
+  border-color:var(--azul);
+  background:color-mix(in srgb,var(--azul) 8%,var(--card));
+  box-shadow:0 0 0 2px color-mix(in srgb,var(--azul) 12%,transparent);
+}
+
+.evento-tipo-icone{
+  display:grid;
+  place-items:center;
+  width:38px;
+  height:38px;
+  flex:none;
+  border-radius:12px;
+  color:#fff;
+  font-size:14px;
+  font-weight:800;
+}
+
+.evento-tipo.pessoal .evento-tipo-icone{
+  background:linear-gradient(135deg,#39B96B,#178C4B);
+}
+
+.evento-tipo.profissional .evento-tipo-icone{
+  background:linear-gradient(135deg,#4F46E5,#312E81);
+}
+
+.evento-tipo strong,
+.evento-tipo small{
+  display:block;
+}
+
+.evento-tipo strong{
+  font-size:13px;
+}
+
+.evento-tipo small{
+  margin-top:3px;
+  color:var(--texto);
+  font-size:9px;
+}
+
+.evento-check{
+  display:flex;
+  align-items:center;
+  gap:9px;
+  margin:14px 0 2px;
+  cursor:pointer;
+}
+
+.evento-check input{
+  width:18px;
+  height:18px;
+  margin:0;
+}
+
+.evento-check span{
+  font-size:12px;
+  font-weight:650;
+}
+
+.evento-grade-data{
+  display:grid;
+  grid-template-columns:1.2fr .8fr 1.2fr .8fr;
+  gap:10px;
+}
+
+.evento-grade-opcoes{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+}
+
+#eventoHomeDescricao{
+  width:100%;
+  min-height:95px;
+  max-height:220px;
+  resize:vertical;
+}
+
+.evento-personalizado{
+  display:grid;
+  grid-template-columns:1fr 1.2fr;
+  gap:9px;
+}
+
+.evento-botoes{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:9px;
+  margin-top:16px;
+}
+
+.evento-botoes .sair{
+  width:auto;
+  margin:0 auto 0 0;
+}
+
+.evento-botoes .btn{
+  width:auto;
+  min-width:160px;
+  margin:0;
+}
+
+/* =========================================================
+   POPUPS DE LEMBRETE
+   ========================================================= */
+
+.home-lembretes{
+  position:fixed;
+  z-index:220;
+  right:20px;
+  bottom:22px;
+  display:flex;
+  width:min(370px,calc(100vw - 28px));
+  flex-direction:column;
+  gap:9px;
+  pointer-events:none;
+}
+
+.home-lembrete{
+  position:relative;
+  overflow:hidden;
+  padding:14px;
+  border:1px solid var(--borda);
+  border-radius:19px;
+  background:var(--card);
+  color:var(--tx);
+  box-shadow:0 16px 40px rgba(0,0,0,.24);
+  pointer-events:auto;
+  animation:lembreteEntrar .22s ease-out;
+}
+
+.home-lembrete::before{
+  content:"";
+  position:absolute;
+  top:0;
+  left:0;
+  bottom:0;
+  width:5px;
+  background:var(--azul);
+}
+
+.home-lembrete.pessoal::before{
+  background:#22B573;
+}
+
+.home-lembrete.profissional::before{
+  background:#4F46E5;
+}
+
+.home-lembrete-topo{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:10px;
+}
+
+.home-lembrete-topo small{
+  color:var(--texto);
+  font-size:9px;
+  font-weight:800;
+  letter-spacing:.08em;
+}
+
+.home-lembrete-topo button{
+  display:grid;
+  place-items:center;
+  width:28px;
+  height:28px;
+  border:none;
+  border-radius:9px;
+  background:var(--coluna);
+  color:var(--tx);
+  font-size:15px;
+  cursor:pointer;
+}
+
+.home-lembrete h3{
+  margin:4px 0 5px;
+  font-size:15px;
+  line-height:1.25;
+}
+
+.home-lembrete p{
+  margin:0;
+  color:var(--texto);
+  font-size:11px;
+  line-height:1.4;
+}
+
+.home-lembrete-acoes{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+  margin-top:11px;
+}
+
+.home-lembrete-acoes button{
+  padding:7px 9px;
+  border:1px solid var(--borda);
+  border-radius:10px;
+  background:var(--coluna);
+  color:var(--tx);
+  font-size:10px;
+  font-weight:700;
+  cursor:pointer;
+}
+
+.home-lembrete-acoes button.principal{
+  border-color:var(--azul);
+  background:var(--azul);
+  color:var(--on-acento,#fff);
+}
+
+@keyframes lembreteEntrar{
+  from{
+    opacity:0;
+    transform:translateY(18px) scale(.97);
+  }
+  to{
+    opacity:1;
+    transform:translateY(0) scale(1);
+  }
+}
+
+/* =========================================================
+   ACESSIBILIDADE E CARREGAMENTO
+   ========================================================= */
+
+.home-skeleton{
+  position:relative;
+  overflow:hidden;
+  min-height:16px;
+  border-radius:9px;
+  background:var(--coluna);
+}
+
+.home-skeleton::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  transform:translateX(-100%);
+  background:linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb,var(--tx) 9%,transparent),
+    transparent
+  );
+  animation:homeSkeleton 1.35s infinite;
+}
+
+@keyframes homeSkeleton{
+  to{
+    transform:translateX(100%);
+  }
+}
+
+@media (prefers-reduced-motion:reduce){
+  .home-skeleton::after,
+  .home-lembrete{
+    animation:none;
+  }
+
+  .home-ambiente,
+  .cal-dia,
+  .agenda-evento{
+    transition:none;
+  }
+}
+
+/* =========================================================
+   TABLET
+   ========================================================= */
+
+@media (max-width:1180px){
+
+  .home-grade-principal{
+    grid-template-columns:minmax(0,1.45fr) minmax(275px,.8fr);
+  }
+
+  .home-grade-secundaria{
+    grid-template-columns:1fr;
+  }
+
+  .home-ia{
+    min-height:420px;
+  }
+
+  .cal-grade{
+    grid-auto-rows:minmax(74px,1fr);
+  }
+
+}
+
+/* =========================================================
+   CELULAR
+   ========================================================= */
+
+@media (max-width:760px){
+
+  #view-home{
+    padding-bottom:82px;
+  }
+
+  .home-cabecalho{
+    align-items:flex-end;
+    margin-bottom:14px;
+  }
+
+  .home-cab-acoes{
+    gap:6px;
+  }
+
+  .home-cab-acoes #btnHomeHoje{
+    display:none;
+  }
+
+  .home-cab-acoes .btn-prim{
+    padding:10px 13px;
+  }
+
+  .home-saudacao h1{
+    font-size:29px;
+  }
+
+  .home-saudacao p{
+    font-size:12px;
+  }
+
+  .home-ambientes{
+    display:flex;
+    gap:8px;
+    margin:0 -2px 14px;
+    overflow-x:auto;
+    padding:2px 2px 6px;
+    scroll-snap-type:x mandatory;
+    scrollbar-width:none;
+  }
+
+  .home-ambientes::-webkit-scrollbar{
+    display:none;
+  }
+
+  .home-ambiente{
+    min-width:235px;
+    padding:12px;
+    border-radius:17px;
+    scroll-snap-align:start;
+  }
+
+  .home-amb-icone{
+    width:40px;
+    height:40px;
+  }
+
+  .home-grade-principal,
+  .home-grade-secundaria{
+    display:block;
+  }
+
+  .home-card{
+    margin-bottom:13px;
+    border-radius:20px;
+  }
+
+  .home-calendario-card,
+  .home-clima,
+  .home-agenda,
+  .home-notas,
+  .home-ia{
+    padding:14px;
+  }
+
+  .home-card-topo h2,
+  .clima-topo h2{
+    font-size:17px;
+  }
+
+  .cal-acoes{
+    gap:4px;
+  }
+
+  .cal-acoes #btnMesAtual{
+    padding:7px 9px;
+  }
+
+  .cal-nav{
+    width:33px;
+    height:33px;
+  }
+
+  .cal-filtros{
+    margin:12px 0 10px;
+  }
+
+  .cal-grade{
+    gap:3px;
+    grid-auto-rows:minmax(57px,1fr);
+  }
+
+  .cal-dia{
+    min-height:57px;
+    padding:4px;
+    border-radius:11px;
+  }
+
+  .cal-dia-numero{
+    width:23px;
+    height:23px;
+    margin-bottom:2px;
+    border-radius:8px;
+    font-size:10px;
+  }
+
+  .cal-evento{
+    min-height:5px;
+    padding:0;
+    border:none;
+    border-radius:99px;
+    font-size:0;
+  }
+
+  .cal-evento.pessoal{
+    height:5px;
+    background:#22B573;
+  }
+
+  .cal-evento.profissional{
+    height:5px;
+    background:#4F46E5;
+  }
+
+  .cal-evento-hora,
+  .cal-evento-titulo{
+    display:none;
+  }
+
+  .cal-evento-mais{
+    font-size:8px;
+  }
+
+  .clima-principal{
+    margin:12px 0;
+  }
+
+  .clima-icone{
+    width:58px;
+    height:58px;
+    border-radius:18px;
+    font-size:27px;
+  }
+
+  .clima-principal strong{
+    font-size:34px;
+  }
+
+  .clima-detalhes{
+    grid-template-columns:repeat(4,minmax(68px,1fr));
+    overflow-x:auto;
+    scrollbar-width:none;
+  }
+
+  .notas-layout{
+    display:block;
+    min-height:0;
+  }
+
+  .notas-paginas{
+    max-height:180px;
+    border-right:none;
+    border-bottom:1px solid var(--borda);
+  }
+
+  .notas-lista{
+    display:flex;
+    gap:6px;
+    overflow-x:auto;
+    padding:7px;
+    scrollbar-width:none;
+  }
+
+  .nota-pagina{
+    min-width:170px;
+    max-width:210px;
+    background:var(--card);
+  }
+
+  .nota-editor{
+    min-height:360px;
+  }
+
+  .nota-conteudo{
+    min-height:230px;
+  }
+
+  .home-ia{
+    min-height:465px;
+  }
+
+  .home-chat-mensagens{
+    max-height:300px;
+  }
+
+  .home-chat-sugestoes{
+    flex-wrap:nowrap;
+    overflow-x:auto;
+    padding-bottom:3px;
+    scrollbar-width:none;
+  }
+
+  .home-chat-sugestoes::-webkit-scrollbar{
+    display:none;
+  }
+
+  .home-chat-sugestoes button{
+    flex:none;
+  }
+
+  .home-chat-caixa{
+    grid-template-columns:1fr;
+  }
+
+  .home-chat-caixa .btn-prim{
+    width:100%;
+  }
+
+  .evento-folha{
+    max-width:none;
+  }
+
+  .evento-tipos{
+    grid-template-columns:1fr;
+  }
+
+  .evento-grade-data{
+    grid-template-columns:1fr 1fr;
+  }
+
+  .evento-grade-opcoes{
+    grid-template-columns:1fr;
+  }
+
+  .evento-botoes{
+    flex-direction:column-reverse;
+  }
+
+  .evento-botoes .btn,
+  .evento-botoes .sair{
+    width:100%;
+    margin:0;
+  }
+
+  .home-lembretes{
+    right:14px;
+    bottom:88px;
+    width:calc(100vw - 28px);
+  }
+
+}
+
+/* =========================================================
+   CELULAR PEQUENO
+   ========================================================= */
+
+@media (max-width:380px){
+
+  .home-saudacao h1{
+    font-size:25px;
+  }
+
+  .home-cab-acoes .btn-prim{
+    padding:9px 11px;
+    font-size:12px;
+  }
+
+  .cal-semana span{
+    font-size:8px;
+  }
+
+  .cal-grade{
+    grid-auto-rows:minmax(53px,1fr);
+  }
+
+  .cal-dia{
+    min-height:53px;
+  }
+
+  .evento-grade-data{
+    grid-template-columns:1fr;
+  }
+
+  .evento-personalizado{
+    grid-template-columns:1fr;
+  }
+
+}
+
+/* ===== AJUSTES 17 - FIM ===== */
+  /* ===== AJUSTES 18 - NAVEGAÇÃO DA HOME ===== */
+
+/* Home precisa continuar visível no menu do Compartilhado */
+body[class] nav.nav-comp #navHomeGeral{
+  display:flex !important;
+}
+
+/* item Home no menu lateral */
+#navHomeGeral{
+  cursor:pointer;
+}
+
+/* evita exibir a Home junto com outra tela */
+#view-home.oculto{
+  display:none !important;
+}
+
+/* quando a Home estiver aberta */
+body.home-aberta #navHomeGeral{
+  background:var(--nav-pill,#fff);
+  color:var(--nav-pill-tx,#14110A);
+}
+
+/* ícone ativo no computador */
+@media (min-width:900px){
+
+  body.home-aberta #navHomeGeral .nav-ico{
+    background:var(--grad-acento,var(--azul));
+    color:var(--on-acento,#fff);
+    box-shadow:
+      0 4px 10px
+      color-mix(
+        in srgb,
+        var(--azul) 40%,
+        transparent
+      );
+  }
+
+}
+
+/* barra inferior do celular */
+@media (max-width:899px){
+
+  body.home-aberta #navHomeGeral{
+    background:transparent;
+    color:var(--tx);
+    box-shadow:none;
+  }
+
+  body.home-aberta #navHomeGeral .nav-ico{
+    background:var(--grad-acento,var(--azul));
+    color:var(--on-acento,#fff);
+  }
+
+}
+
+/* lembrete durante uma ação */
+.home-lembrete.carregando{
+  opacity:.65;
+  pointer-events:none;
+}
+
+/* ===== AJUSTES 18 - FIM ===== */
 </style>
 </head>
 <body>
@@ -1170,6 +2857,499 @@ nav .nav-rot{display:inline;margin:0;font-size:inherit}
   <button data-amb="compartilhado" type="button">👥 Compartilhado</button>
 </div>
     <!-- HOJE -->
+  <!-- HOME GERAL DO NOWFIND -->
+<div id="view-home" class="oculto">
+
+  <!-- CABEÇALHO DA HOME -->
+  <section class="home-cabecalho">
+
+    <div class="home-saudacao">
+      <small>SEU DIA</small>
+      <h1 id="homeSaudacao">Olá</h1>
+      <p id="homeDataCompleta">Carregando data...</p>
+    </div>
+
+    <div class="home-cab-acoes">
+
+      <button id="btnHomeHoje" class="chip-filtro" type="button">
+        Hoje
+      </button>
+
+      <button id="btnNovoEventoHome" class="btn-prim" type="button">
+        ＋ Evento
+      </button>
+
+    </div>
+
+  </section>
+
+  <!-- ACESSO AOS AMBIENTES -->
+  <section class="home-ambientes">
+
+    <button
+      class="home-ambiente pessoal"
+      data-home-ambiente="pessoal"
+      type="button"
+    >
+      <span class="home-amb-icone">P</span>
+
+      <span class="home-amb-texto">
+        <small>AMBIENTE</small>
+        <strong>Pessoal</strong>
+        <span>Compromissos, projetos e organização pessoal</span>
+      </span>
+
+      <span class="home-amb-seta">›</span>
+    </button>
+
+    <button
+      class="home-ambiente profissional"
+      data-home-ambiente="profissional"
+      type="button"
+    >
+      <span class="home-amb-icone">P</span>
+
+      <span class="home-amb-texto">
+        <small>AMBIENTE</small>
+        <strong>Profissional</strong>
+        <span>Agenda, projetos e compromissos profissionais</span>
+      </span>
+
+      <span class="home-amb-seta">›</span>
+    </button>
+
+    <button
+      class="home-ambiente compartilhado"
+      data-home-ambiente="compartilhado"
+      type="button"
+    >
+      <span class="home-amb-icone">C</span>
+
+      <span class="home-amb-texto">
+        <small>AMBIENTE</small>
+        <strong>Compartilhado</strong>
+        <span>Espaços e projetos com outras pessoas</span>
+      </span>
+
+      <span class="home-amb-seta">›</span>
+    </button>
+
+  </section>
+
+  <!-- PRIMEIRA LINHA -->
+  <div class="home-grade-principal">
+
+    <!-- CALENDÁRIO -->
+    <section class="home-card home-calendario-card">
+
+      <header class="home-card-topo">
+
+        <div>
+          <small>CALENDÁRIO</small>
+          <h2 id="homeMesTitulo">Novembro 2026</h2>
+        </div>
+
+        <div class="cal-acoes">
+
+          <button
+            id="btnMesAnterior"
+            class="cal-nav"
+            type="button"
+            aria-label="Mês anterior"
+          >
+            ‹
+          </button>
+
+          <button
+            id="btnMesAtual"
+            class="chip-filtro"
+            type="button"
+          >
+            Hoje
+          </button>
+
+          <button
+            id="btnMesSeguinte"
+            class="cal-nav"
+            type="button"
+            aria-label="Próximo mês"
+          >
+            ›
+          </button>
+
+        </div>
+
+      </header>
+
+      <!-- FILTROS -->
+      <div class="cal-filtros">
+
+        <button
+          class="cal-filtro sel"
+          data-cal-filtro="todos"
+          type="button"
+        >
+          Todos
+        </button>
+
+        <button
+          class="cal-filtro"
+          data-cal-filtro="pessoal"
+          type="button"
+        >
+          <i class="cal-cor pessoal"></i>
+          Pessoal
+        </button>
+
+        <button
+          class="cal-filtro"
+          data-cal-filtro="profissional"
+          type="button"
+        >
+          <i class="cal-cor profissional"></i>
+          Profissional
+        </button>
+
+      </div>
+
+      <!-- DIAS DA SEMANA -->
+      <div class="cal-semana">
+
+        <span>SEG</span>
+        <span>TER</span>
+        <span>QUA</span>
+        <span>QUI</span>
+        <span>SEX</span>
+        <span>SÁB</span>
+        <span>DOM</span>
+
+      </div>
+
+      <!-- GRADE DO CALENDÁRIO -->
+      <div
+        id="homeCalendario"
+        class="cal-grade"
+        aria-label="Calendário mensal"
+      ></div>
+
+    </section>
+
+    <!-- COLUNA LATERAL -->
+    <aside class="home-coluna-lateral">
+
+      <!-- CLIMA -->
+      <section class="home-card home-clima">
+
+        <header class="clima-topo">
+
+          <div>
+            <small>CLIMA</small>
+            <h2 id="homeClimaCidade">Rio de Janeiro</h2>
+          </div>
+
+          <button
+            id="btnAtualizarClima"
+            class="mini-btn"
+            type="button"
+            aria-label="Atualizar clima"
+          >
+            ↻
+          </button>
+
+        </header>
+
+        <div class="clima-principal">
+
+          <div id="homeClimaIcone" class="clima-icone">
+            ☀
+          </div>
+
+          <div>
+            <strong id="homeClimaTemperatura">--°</strong>
+            <span id="homeClimaDescricao">
+              Clima indisponível
+            </span>
+          </div>
+
+        </div>
+
+        <div class="clima-detalhes">
+
+          <div>
+            <small>Máxima</small>
+            <strong id="homeClimaMax">--°</strong>
+          </div>
+
+          <div>
+            <small>Mínima</small>
+            <strong id="homeClimaMin">--°</strong>
+          </div>
+
+          <div>
+            <small>Chuva</small>
+            <strong id="homeClimaChuva">--%</strong>
+          </div>
+
+          <div>
+            <small>Umidade</small>
+            <strong id="homeClimaUmidade">--%</strong>
+          </div>
+
+        </div>
+
+        <div id="homePrevisaoHoras" class="clima-horas"></div>
+
+      </section>
+
+      <!-- AGENDA DO DIA -->
+      <section class="home-card home-agenda">
+
+        <header class="home-card-topo">
+
+          <div>
+            <small>AGENDA DO DIA</small>
+            <h2 id="homeAgendaData">Hoje</h2>
+          </div>
+
+          <button
+            id="btnEventoAgenda"
+            class="mini-btn"
+            type="button"
+          >
+            ＋ Evento
+          </button>
+
+        </header>
+
+        <div id="homeAgendaLista" class="agenda-lista">
+
+          <div class="home-vazio">
+            Nenhum evento para este dia.
+          </div>
+
+        </div>
+
+      </section>
+
+    </aside>
+
+  </div>
+
+  <!-- SEGUNDA LINHA -->
+  <div class="home-grade-secundaria">
+
+    <!-- ANOTAÇÕES -->
+    <section class="home-card home-notas">
+
+      <header class="home-card-topo">
+
+        <div>
+          <small>ANOTAÇÕES</small>
+          <h2>Minhas páginas</h2>
+        </div>
+
+        <button
+          id="btnNovaNotaHome"
+          class="mini-btn"
+          type="button"
+        >
+          ＋ Página
+        </button>
+
+      </header>
+
+      <div class="notas-layout">
+
+        <aside class="notas-paginas">
+
+          <div class="notas-busca">
+            <input
+              id="homeBuscaNotas"
+              type="search"
+              placeholder="Buscar páginas..."
+            >
+          </div>
+
+          <div id="homeListaNotas" class="notas-lista">
+
+            <div class="home-vazio">
+              Nenhuma página criada.
+            </div>
+
+          </div>
+
+        </aside>
+
+        <div class="nota-editor">
+
+          <input
+            id="homeNotaTitulo"
+            class="nota-titulo"
+            type="text"
+            placeholder="Título da página"
+            disabled
+          >
+
+          <div id="homeNotaBarra" class="nota-barra">
+
+            <button
+              type="button"
+              data-nota-comando="bold"
+              title="Negrito"
+            >
+              B
+            </button>
+
+            <button
+              type="button"
+              data-nota-comando="italic"
+              title="Itálico"
+            >
+              I
+            </button>
+
+            <button
+              type="button"
+              data-nota-comando="underline"
+              title="Sublinhado"
+            >
+              U
+            </button>
+
+            <button
+              type="button"
+              data-nota-comando="insertUnorderedList"
+              title="Lista"
+            >
+              •
+            </button>
+
+            <button
+              type="button"
+              data-nota-comando="insertOrderedList"
+              title="Lista numerada"
+            >
+              1.
+            </button>
+
+            <button
+              id="btnNotaParaTarefa"
+              type="button"
+              title="Transformar texto selecionado em tarefa"
+              disabled
+            >
+              → Tarefa
+            </button>
+
+          </div>
+
+          <div
+            id="homeNotaConteudo"
+            class="nota-conteudo"
+            contenteditable="false"
+            data-placeholder="Crie ou selecione uma página para começar..."
+          ></div>
+
+          <div class="nota-rodape">
+
+            <span id="homeNotaStatus">
+              Nenhuma página selecionada
+            </span>
+
+            <button
+              id="btnExcluirNotaHome"
+              class="nota-excluir"
+              type="button"
+              disabled
+            >
+              Excluir página
+            </button>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    </section>
+
+    <!-- CHAT GERAL COM IA -->
+    <section class="home-card home-ia">
+
+      <header class="home-card-topo">
+
+        <div>
+          <small>IA GERAL</small>
+          <h2>IA NowFind</h2>
+        </div>
+
+        <button
+          id="btnLimparChatHome"
+          class="mini-btn"
+          type="button"
+        >
+          Limpar
+        </button>
+
+      </header>
+
+      <div id="homeChatMensagens" class="home-chat-mensagens">
+
+        <div class="chat-msg ia">
+          <span class="chat-avatar">
+            N
+          </span>
+
+          <div class="chat-balao">
+            Como posso ajudar a organizar seu dia?
+          </div>
+        </div>
+
+      </div>
+
+      <div class="home-chat-sugestoes">
+
+        <button type="button" data-home-prompt="Resuma minha agenda de hoje">
+          Resumir agenda
+        </button>
+
+        <button type="button" data-home-prompt="Quais são minhas prioridades de hoje?">
+          Prioridades
+        </button>
+
+        <button type="button" data-home-prompt="O que está atrasado no ambiente Profissional?">
+          Itens atrasados
+        </button>
+
+        <button type="button" data-home-prompt="Ajude a organizar minha semana">
+          Organizar semana
+        </button>
+
+      </div>
+
+      <div class="home-chat-caixa">
+
+        <textarea
+          id="homeChatEntrada"
+          rows="2"
+          placeholder="Pergunte sobre agenda, notas, tarefas ou projetos..."
+        ></textarea>
+
+        <button
+          id="btnEnviarChatHome"
+          class="btn-prim"
+          type="button"
+        >
+          Enviar
+        </button>
+
+      </div>
+
+    </section>
+
+  </div>
+
+</div>
     <div id="view-hoje">
       <section class="saudacao">
         <small>SEU DIA</small>
@@ -1561,6 +3741,382 @@ nav .nav-rot{display:inline;margin:0;font-size:inherit}
   </div>
 </div>
 <!-- JANELA DE PERFIL -->
+  <!-- NOVO / EDITAR EVENTO DA HOME -->
+<div id="modalEventoHome" class="modal oculto">
+
+  <div class="folha evento-folha">
+
+    <div class="folha-topo">
+
+      <div>
+        <small>CALENDÁRIO</small>
+        <h2 id="eventoHomeTituloJanela">
+          Novo evento
+        </h2>
+      </div>
+
+      <button
+        id="btnFecharEventoHome"
+        class="fechar"
+        type="button"
+        aria-label="Fechar"
+      >
+        ×
+      </button>
+
+    </div>
+
+    <div id="eventoHomeMsg" class="aviso oculto"></div>
+
+    <input id="eventoHomeId" type="hidden">
+
+    <label for="eventoHomeNome">
+      Título
+    </label>
+
+    <input
+      id="eventoHomeNome"
+      type="text"
+      maxlength="200"
+      placeholder="Ex.: Consulta médica"
+    >
+
+    <label>
+      Tipo do evento
+    </label>
+
+    <div id="eventoHomeTipos" class="evento-tipos">
+
+      <button
+        class="evento-tipo pessoal sel"
+        data-evento-tipo="pessoal"
+        type="button"
+      >
+        <span class="evento-tipo-icone">P</span>
+
+        <span>
+          <strong>Pessoal</strong>
+          <small>Compromisso pessoal</small>
+        </span>
+      </button>
+
+      <button
+        class="evento-tipo profissional"
+        data-evento-tipo="profissional"
+        type="button"
+      >
+        <span class="evento-tipo-icone">P</span>
+
+        <span>
+          <strong>Profissional</strong>
+          <small>Compromisso de trabalho</small>
+        </span>
+      </button>
+
+    </div>
+
+    <label class="evento-check">
+
+      <input
+        id="eventoHomeDiaInteiro"
+        type="checkbox"
+      >
+
+      <span>Evento de dia inteiro</span>
+
+    </label>
+
+    <div class="evento-grade-data">
+
+      <div>
+        <label for="eventoHomeDataInicio">
+          Data de início
+        </label>
+
+        <input
+          id="eventoHomeDataInicio"
+          type="date"
+        >
+      </div>
+
+      <div class="evento-campo-hora">
+        <label for="eventoHomeHoraInicio">
+          Horário de início
+        </label>
+
+        <input
+          id="eventoHomeHoraInicio"
+          type="time"
+          value="09:00"
+        >
+      </div>
+
+      <div>
+        <label for="eventoHomeDataFim">
+          Data de término
+        </label>
+
+        <input
+          id="eventoHomeDataFim"
+          type="date"
+        >
+      </div>
+
+      <div class="evento-campo-hora">
+        <label for="eventoHomeHoraFim">
+          Horário de término
+        </label>
+
+        <input
+          id="eventoHomeHoraFim"
+          type="time"
+          value="10:00"
+        >
+      </div>
+
+    </div>
+
+    <label for="eventoHomeLocal">
+      Local
+    </label>
+
+    <input
+      id="eventoHomeLocal"
+      type="text"
+      maxlength="300"
+      placeholder="Ex.: escritório, consulta, Teams..."
+    >
+
+    <label for="eventoHomeDescricao">
+      Descrição
+    </label>
+
+    <textarea
+      id="eventoHomeDescricao"
+      rows="4"
+      maxlength="20000"
+      placeholder="Informações e observações do evento..."
+    ></textarea>
+
+    <div class="evento-grade-opcoes">
+
+      <div>
+
+        <label for="eventoHomeLembrete">
+          Lembrete
+        </label>
+
+        <select id="eventoHomeLembrete">
+
+          <option value="">
+            Nenhum
+          </option>
+
+          <option value="0">
+            Na hora do evento
+          </option>
+
+          <option value="5">
+            5 minutos antes
+          </option>
+
+          <option value="10">
+            10 minutos antes
+          </option>
+
+          <option value="15">
+            15 minutos antes
+          </option>
+
+          <option value="30" selected>
+            30 minutos antes
+          </option>
+
+          <option value="60">
+            1 hora antes
+          </option>
+
+          <option value="120">
+            2 horas antes
+          </option>
+
+          <option value="1440">
+            1 dia antes
+          </option>
+
+          <option value="personalizado">
+            Personalizado
+          </option>
+
+        </select>
+
+      </div>
+
+      <div>
+
+        <label for="eventoHomeRepeticao">
+          Repetição
+        </label>
+
+        <select id="eventoHomeRepeticao">
+
+          <option value="nenhuma">
+            Não repetir
+          </option>
+
+          <option value="diaria">
+            Todos os dias
+          </option>
+
+          <option value="semanal">
+            Toda semana
+          </option>
+
+          <option value="mensal">
+            Todo mês
+          </option>
+
+          <option value="anual">
+            Todo ano
+          </option>
+
+          <option value="personalizada">
+            Personalizado
+          </option>
+
+        </select>
+
+      </div>
+
+    </div>
+
+    <div id="eventoLembretePersonalizado" class="oculto">
+
+      <label for="eventoHomeLembreteNumero">
+        Lembrar com antecedência
+      </label>
+
+      <div class="evento-personalizado">
+
+        <input
+          id="eventoHomeLembreteNumero"
+          type="number"
+          min="1"
+          max="525600"
+          value="45"
+        >
+
+        <select id="eventoHomeLembreteUnidade">
+
+          <option value="1">
+            minutos
+          </option>
+
+          <option value="60">
+            horas
+          </option>
+
+          <option value="1440">
+            dias
+          </option>
+
+        </select>
+
+      </div>
+
+    </div>
+
+    <div id="eventoRepeticaoPersonalizada" class="oculto">
+
+      <div class="evento-grade-opcoes">
+
+        <div>
+
+          <label for="eventoHomeRepetirCada">
+            Repetir a cada
+          </label>
+
+          <input
+            id="eventoHomeRepetirCada"
+            type="number"
+            min="1"
+            max="365"
+            value="1"
+          >
+
+        </div>
+
+        <div>
+
+          <label for="eventoHomeRepetirUnidade">
+            Período
+          </label>
+
+          <select id="eventoHomeRepetirUnidade">
+
+            <option value="dias">
+              dias
+            </option>
+
+            <option value="semanas">
+              semanas
+            </option>
+
+            <option value="meses">
+              meses
+            </option>
+
+            <option value="anos">
+              anos
+            </option>
+
+          </select>
+
+        </div>
+
+      </div>
+
+      <label for="eventoHomeRepetirAte">
+        Repetir até
+      </label>
+
+      <input
+        id="eventoHomeRepetirAte"
+        type="date"
+      >
+
+    </div>
+
+    <div class="evento-botoes">
+
+      <button
+        id="btnExcluirEventoHome"
+        class="sair oculto"
+        type="button"
+      >
+        Excluir evento
+      </button>
+
+      <button
+        id="btnSalvarEventoHome"
+        class="btn"
+        type="button"
+      >
+        Salvar evento
+      </button>
+
+    </div>
+
+  </div>
+
+</div>
+
+<!-- POPUPS DE LEMBRETES -->
+<div
+  id="homeLembretes"
+  class="home-lembretes"
+  aria-live="polite"
+></div>
 <div id="modalPerfil" class="modal oculto">
   <div class="folha">
     <div class="folha-topo">
@@ -7759,6 +10315,356 @@ if (typeof renderPainelHoje === 'function'){
 /* aplica de novo, agora com a paleta e a fonte novas */
 aplicarConfig();
   /* EVENTOS */
+  /* ===== HOME GERAL - PARTE 1: CALENDÁRIO E EVENTOS ===== */
+
+var URL_EVENTOS_HOME = URL_CONTA + '/eventos';
+
+var homeDataAtual = new Date();
+var homeMesExibido = new Date(
+  homeDataAtual.getFullYear(),
+  homeDataAtual.getMonth(),
+  1
+);
+
+var homeDataSelecionada = new Date(
+  homeDataAtual.getFullYear(),
+  homeDataAtual.getMonth(),
+  homeDataAtual.getDate()
+);
+
+var homeFiltroCalendario = 'todos';
+var homeEventos = [];
+var homeEventosCarregando = false;
+var homeEventoTipoSelecionado = 'pessoal';
+var homeIniciada = false;
+
+var HOME_MESES = [
+  'Janeiro',
+  'Fevereiro',
+  'Março',
+  'Abril',
+  'Maio',
+  'Junho',
+  'Julho',
+  'Agosto',
+  'Setembro',
+  'Outubro',
+  'Novembro',
+  'Dezembro'
+];
+
+var HOME_DIAS = [
+  'domingo',
+  'segunda-feira',
+  'terça-feira',
+  'quarta-feira',
+  'quinta-feira',
+  'sexta-feira',
+  'sábado'
+];
+
+/* =========================================================
+   UTILIDADES DE DATA
+   ========================================================= */
+
+function homeDoisDigitos(valor){
+  return String(valor).padStart(2, '0');
+}
+
+function homeDataLocalISO(data){
+  return [
+    data.getFullYear(),
+    homeDoisDigitos(data.getMonth() + 1),
+    homeDoisDigitos(data.getDate())
+  ].join('-');
+}
+
+function homeInicioDoDia(data){
+  return new Date(
+    data.getFullYear(),
+    data.getMonth(),
+    data.getDate(),
+    0,
+    0,
+    0,
+    0
+  );
+}
+
+function homeFimDoDia(data){
+  return new Date(
+    data.getFullYear(),
+    data.getMonth(),
+    data.getDate(),
+    23,
+    59,
+    59,
+    999
+  );
+}
+
+function homeInicioMes(data){
+  return new Date(
+    data.getFullYear(),
+    data.getMonth(),
+    1,
+    0,
+    0,
+    0,
+    0
+  );
+}
+
+function homeFimMes(data){
+  return new Date(
+    data.getFullYear(),
+    data.getMonth() + 1,
+    1,
+    0,
+    0,
+    0,
+    0
+  );
+}
+
+function homeMesmaData(a, b){
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
+
+function homeInicioSemanaSegunda(data){
+  var d = new Date(data);
+  var dia = d.getDay();
+  var diferenca = dia === 0 ? -6 : 1 - dia;
+
+  d.setDate(d.getDate() + diferenca);
+  d.setHours(0, 0, 0, 0);
+
+  return d;
+}
+
+function homeFimSemanaDomingo(data){
+  var d = new Date(
+    homeInicioSemanaSegunda(data)
+  );
+
+  d.setDate(d.getDate() + 6);
+  d.setHours(23, 59, 59, 999);
+
+  return d;
+}
+
+function homeDataParaCampo(data){
+  return homeDataLocalISO(data);
+}
+
+function homeHoraParaCampo(data){
+  return (
+    homeDoisDigitos(data.getHours()) +
+    ':' +
+    homeDoisDigitos(data.getMinutes())
+  );
+}
+
+function homeDataHoraISO(dataCampo, horaCampo, diaInteiro, fim){
+  if (!dataCampo) return null;
+
+  var partes = dataCampo.split('-');
+  var ano = Number(partes[0]);
+  var mes = Number(partes[1]) - 1;
+  var dia = Number(partes[2]);
+
+  var hora = 0;
+  var minuto = 0;
+
+  if (!diaInteiro && horaCampo){
+    var horaPartes = horaCampo.split(':');
+    hora = Number(horaPartes[0]);
+    minuto = Number(horaPartes[1]);
+  }
+
+  if (diaInteiro && fim){
+    hora = 23;
+    minuto = 59;
+  }
+
+  var data = new Date(
+    ano,
+    mes,
+    dia,
+    hora,
+    minuto,
+    diaInteiro && fim ? 59 : 0,
+    diaInteiro && fim ? 999 : 0
+  );
+
+  return data.toISOString();
+}
+
+function homeFormatarHora(valor){
+  if (!valor) return '';
+
+  var data = new Date(valor);
+
+  if (Number.isNaN(data.getTime())) return '';
+
+  return (
+    homeDoisDigitos(data.getHours()) +
+    ':' +
+    homeDoisDigitos(data.getMinutes())
+  );
+}
+
+function homeFormatarDataCompleta(data){
+  return (
+    HOME_DIAS[data.getDay()] +
+    ', ' +
+    data.getDate() +
+    ' de ' +
+    HOME_MESES[data.getMonth()].toLowerCase() +
+    ' de ' +
+    data.getFullYear()
+  );
+}
+
+function homeEscaparTexto(valor){
+  return String(valor || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+/* =========================================================
+   SAUDAÇÃO E CABEÇALHO
+   ========================================================= */
+
+function homePrimeiroNome(){
+  var nome = '';
+
+  if (
+    typeof usuario !== 'undefined' &&
+    usuario &&
+    usuario.nome
+  ){
+    nome = String(usuario.nome).trim();
+  }
+
+  if (!nome) return '';
+
+  return nome.split(/\s+/)[0];
+}
+
+function atualizarCabecalhoHome(){
+  var agora = new Date();
+  var hora = agora.getHours();
+  var saudacao = 'Boa noite';
+
+  if (hora >= 5 && hora < 12){
+    saudacao = 'Bom dia';
+  } else if (hora >= 12 && hora < 18){
+    saudacao = 'Boa tarde';
+  }
+
+  var primeiroNome = homePrimeiroNome();
+
+  $('homeSaudacao').textContent =
+    saudacao +
+    (primeiroNome ? ', ' + primeiroNome : '');
+
+  $('homeDataCompleta').textContent =
+    homeFormatarDataCompleta(agora);
+}
+
+/* =========================================================
+   API DE EVENTOS
+   ========================================================= */
+
+async function apiEventosHome(caminho, metodo, corpo){
+  var resposta = await fetch(
+    URL_EVENTOS_HOME + caminho,
+    {
+      method: metodo || 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + tokenAtual()
+      },
+      body: corpo
+        ? JSON.stringify(corpo)
+        : undefined
+    }
+  );
+
+  var dadosResposta = {};
+
+  try {
+    dadosResposta = await resposta.json();
+  } catch(e){}
+
+  return {
+    status: resposta.status,
+    dados: dadosResposta
+  };
+}
+
+async function carregarEventosHome(){
+  if (homeEventosCarregando) return;
+
+  homeEventosCarregando = true;
+
+  var inicio = homeInicioSemanaSegunda(
+    homeInicioMes(homeMesExibido)
+  );
+
+  var fim = homeFimSemanaDomingo(
+    new Date(
+      homeMesExibido.getFullYear(),
+      homeMesExibido.getMonth() + 1,
+      0
+    )
+  );
+
+  fim.setDate(fim.getDate() + 1);
+  fim.setHours(0, 0, 0, 0);
+
+  var caminho =
+    '?inicio=' +
+    encodeURIComponent(inicio.toISOString()) +
+    '&fim=' +
+    encodeURIComponent(fim.toISOString());
+
+  if (
+    homeFiltroCalendario === 'pessoal' ||
+    homeFiltroCalendario === 'profissional'
+  ){
+    caminho +=
+      '&tipo=' +
+      encodeURIComponent(homeFiltroCalendario);
+  }
+
+  try {
+    var resposta = await apiEventosHome(
+      caminho,
+      'GET'
+    );
+
+    if (!resposta.dados.ok){
+      throw new Error(
+        resposta.dados.erro ||
+        'Não foi possível carregar os eventos.'
+      );
+    }
+
+    homeEventos = resposta.dados.eventos || [];
+
+    renderizarCalendarioHome();
+    renderizarAgendaHome();
+
+  } catch(
   /* ===== SINCRONIZAÇÃO COM A NUVEM ===== */
 
 var URL_DADOS = URL_CONTA + '/dados';
@@ -7973,7 +10879,854 @@ $('btnSair').addEventListener('click', sairDaConta);
 /* INÍCIO */
 carregarSortable();
 restaurarSessao();
+/* ===== HOME GERAL - PARTE 2: NAVEGAÇÃO E LEMBRETES ===== */
 
+var homeLembretesConsultando = false;
+var homeLembretesIntervalo = null;
+var homeVisivel = false;
+
+/* =========================================================
+   CRIAR BOTÃO HOME
+   ========================================================= */
+
+function criarBotaoHomeGeral(){
+  if ($('navHomeGeral')) return;
+
+  var nav = document.querySelector('nav');
+
+  if (!nav) return;
+
+  var botao = document.createElement('button');
+
+  botao.id = 'navHomeGeral';
+  botao.type = 'button';
+  botao.className = 'nav-item';
+  botao.setAttribute('data-view', 'home');
+
+  botao.innerHTML =
+    '<span class="nav-ico">' +
+      '<svg viewBox="0 0 24 24" aria-hidden="true">' +
+        '<path d="M3 11.5 12 4l9 7.5"></path>' +
+        '<path d="M5 10v9a1 1 0 0 0 1 1h4v-5h4v5h4a1 1 0 0 0 1-1v-9"></path>' +
+      '</svg>' +
+    '</span>' +
+    '<span class="nav-rot">Home</span>';
+
+  botao.addEventListener(
+    'click',
+    function(){
+      abrirHomeGeral();
+    }
+  );
+
+  var primeiroBotao =
+    nav.querySelector('button[data-view]');
+
+  if (primeiroBotao){
+    nav.insertBefore(
+      botao,
+      primeiroBotao
+    );
+  } else {
+    nav.appendChild(botao);
+  }
+}
+
+criarBotaoHomeGeral();
+
+/* =========================================================
+   MOSTRAR E ESCONDER A HOME
+   ========================================================= */
+
+function marcarHomeNoMenu(aberta){
+  document.body.classList.toggle(
+    'home-aberta',
+    aberta
+  );
+
+  var botaoHome = $('navHomeGeral');
+
+  if (botaoHome){
+    botaoHome.classList.toggle(
+      'ativo',
+      aberta
+    );
+  }
+
+  if (aberta){
+    document
+      .querySelectorAll(
+        'nav button[data-view]'
+      )
+      .forEach(function(botao){
+        if (
+          botao.id !==
+          'navHomeGeral'
+        ){
+          botao.classList.remove(
+            'ativo'
+          );
+        }
+      });
+  }
+}
+
+function esconderHomeGeral(){
+  homeVisivel = false;
+
+  var tela = $('view-home');
+
+  if (tela){
+    tela.classList.add('oculto');
+  }
+
+  marcarHomeNoMenu(false);
+}
+
+function abrirHomeGeral(){
+  homeVisivel = true;
+
+  /*
+    Esconde todas as demais telas conhecidas.
+    A lista inclui telas antigas e as novas.
+  */
+  [
+    'hoje',
+    'entrada',
+    'projetos',
+    'ia',
+    'revisao',
+    'espaco'
+  ].forEach(function(nome){
+    var tela = $('view-' + nome);
+
+    if (tela){
+      tela.classList.add('oculto');
+    }
+  });
+
+  var home = $('view-home');
+
+  if (!home) return;
+
+  home.classList.remove('oculto');
+
+  marcarHomeNoMenu(true);
+
+  iniciarHome();
+  atualizarCabecalhoHome();
+
+  /*
+    Recarrega para incluir eventos criados
+    em outro dispositivo ou outra aba.
+  */
+  carregarEventosHome();
+  consultarLembretesHome();
+
+  window.scrollTo(0, 0);
+}
+
+/* =========================================================
+   INTEGRAR COM TROCAR TELA
+   ========================================================= */
+
+if (
+  typeof trocarTela === 'function'
+){
+
+  var trocarTelaAntesHome =
+    trocarTela;
+
+  trocarTela = function(nome){
+
+    if (nome === 'home'){
+      abrirHomeGeral();
+      return;
+    }
+
+    esconderHomeGeral();
+
+    trocarTelaAntesHome(nome);
+  };
+
+}
+
+/* =========================================================
+   ABRIR HOME APÓS O LOGIN
+   ========================================================= */
+
+if (
+  typeof abrirApp === 'function'
+){
+
+  var abrirAppAntesHome =
+    abrirApp;
+
+  abrirApp = function(usuarioLogado){
+
+    abrirAppAntesHome(
+      usuarioLogado
+    );
+
+    /*
+      O setTimeout garante que as funções anteriores
+      terminem de montar o menu e as telas.
+    */
+    setTimeout(
+      function(){
+        abrirHomeGeral();
+      },
+      0
+    );
+  };
+
+}
+
+/* =========================================================
+   EVENTOS CRIADOS NA HOME
+   ========================================================= */
+
+function atualizarHomeAposEvento(){
+  if (!homeVisivel) return;
+
+  carregarEventosHome();
+  consultarLembretesHome();
+}
+
+/* =========================================================
+   TEXTO DO LEMBRETE
+   ========================================================= */
+
+function homeTextoTipoEvento(tipo){
+  return tipo === 'profissional'
+    ? 'Profissional'
+    : 'Pessoal';
+}
+
+function homeTextoHorarioEvento(evento){
+  if (Number(evento.dia_inteiro)){
+    return 'Evento de dia inteiro';
+  }
+
+  var inicio = new Date(
+    evento.inicio
+  );
+
+  if (
+    Number.isNaN(
+      inicio.getTime()
+    )
+  ){
+    return '';
+  }
+
+  var hoje = new Date();
+
+  if (
+    homeMesmaData(
+      inicio,
+      hoje
+    )
+  ){
+    return (
+      'Hoje, às ' +
+      homeFormatarHora(evento.inicio)
+    );
+  }
+
+  var amanha = new Date(hoje);
+
+  amanha.setDate(
+    amanha.getDate() + 1
+  );
+
+  if (
+    homeMesmaData(
+      inicio,
+      amanha
+    )
+  ){
+    return (
+      'Amanhã, às ' +
+      homeFormatarHora(evento.inicio)
+    );
+  }
+
+  return (
+    homeDoisDigitos(
+      inicio.getDate()
+    ) +
+    '/' +
+    homeDoisDigitos(
+      inicio.getMonth() + 1
+    ) +
+    '/' +
+    inicio.getFullYear() +
+    ', às ' +
+    homeFormatarHora(evento.inicio)
+  );
+}
+
+function homeTextoAntecedencia(evento){
+  var agora = new Date();
+  var inicio = new Date(
+    evento.inicio
+  );
+
+  if (
+    Number.isNaN(
+      inicio.getTime()
+    )
+  ){
+    return '';
+  }
+
+  var minutos = Math.round(
+    (
+      inicio.getTime() -
+      agora.getTime()
+    ) /
+    60000
+  );
+
+  if (minutos > 60){
+    var horas = Math.round(
+      minutos / 60
+    );
+
+    return (
+      'Começa em aproximadamente ' +
+      horas +
+      (horas === 1
+        ? ' hora'
+        : ' horas')
+    );
+  }
+
+  if (minutos > 1){
+    return (
+      'Começa em ' +
+      minutos +
+      ' minutos'
+    );
+  }
+
+  if (minutos === 1){
+    return 'Começa em 1 minuto';
+  }
+
+  if (minutos >= 0){
+    return 'Começa agora';
+  }
+
+  return 'Evento em andamento';
+}
+
+/* =========================================================
+   RENDERIZAR POPUP DE LEMBRETE
+   ========================================================= */
+
+function renderizarLembreteHome(evento){
+  var caixa = $('homeLembretes');
+
+  if (!caixa || !evento) return;
+
+  /*
+    Evita duplicar o mesmo popup
+    durante consultas consecutivas.
+  */
+  if (
+    caixa.querySelector(
+      '[data-lembrete-evento="' +
+      evento.id +
+      '"]'
+    )
+  ){
+    return;
+  }
+
+  var lembrete =
+    document.createElement('article');
+
+  lembrete.className =
+    'home-lembrete ' +
+    evento.tipo;
+
+  lembrete.setAttribute(
+    'data-lembrete-evento',
+    evento.id
+  );
+
+  var topo =
+    document.createElement('div');
+
+  topo.className =
+    'home-lembrete-topo';
+
+  var identificacao =
+    document.createElement('div');
+
+  var tipo =
+    document.createElement('small');
+
+  tipo.textContent =
+    homeTextoTipoEvento(
+      evento.tipo
+    ).toUpperCase();
+
+  var titulo =
+    document.createElement('h3');
+
+  titulo.textContent =
+    evento.titulo;
+
+  identificacao.appendChild(tipo);
+  identificacao.appendChild(titulo);
+
+  var fechar =
+    document.createElement('button');
+
+  fechar.type = 'button';
+  fechar.textContent = '×';
+  fechar.title =
+    'Dispensar lembrete';
+
+  fechar.addEventListener(
+    'click',
+    function(){
+      dispensarLembreteHome(
+        evento.id,
+        lembrete
+      );
+    }
+  );
+
+  topo.appendChild(identificacao);
+  topo.appendChild(fechar);
+
+  var antecedencia =
+    document.createElement('p');
+
+  antecedencia.textContent =
+    homeTextoAntecedencia(
+      evento
+    );
+
+  var horario =
+    document.createElement('p');
+
+  horario.textContent =
+    homeTextoHorarioEvento(
+      evento
+    );
+
+  var acoes =
+    document.createElement('div');
+
+  acoes.className =
+    'home-lembrete-acoes';
+
+  var adiarCinco =
+    document.createElement('button');
+
+  adiarCinco.type = 'button';
+  adiarCinco.textContent =
+    'Adiar 5 min';
+
+  adiarCinco.addEventListener(
+    'click',
+    function(){
+      adiarLembreteHome(
+        evento.id,
+        5,
+        lembrete
+      );
+    }
+  );
+
+  var adiarQuinze =
+    document.createElement('button');
+
+  adiarQuinze.type = 'button';
+  adiarQuinze.textContent =
+    'Adiar 15 min';
+
+  adiarQuinze.addEventListener(
+    'click',
+    function(){
+      adiarLembreteHome(
+        evento.id,
+        15,
+        lembrete
+      );
+    }
+  );
+
+  var abrir =
+    document.createElement('button');
+
+  abrir.type = 'button';
+  abrir.className = 'principal';
+  abrir.textContent =
+    'Abrir evento';
+
+  abrir.addEventListener(
+    'click',
+    function(){
+      abrirEventoDoLembreteHome(
+        evento,
+        lembrete
+      );
+    }
+  );
+
+  acoes.appendChild(
+    adiarCinco
+  );
+
+  acoes.appendChild(
+    adiarQuinze
+  );
+
+  acoes.appendChild(
+    abrir
+  );
+
+  lembrete.appendChild(topo);
+  lembrete.appendChild(antecedencia);
+  lembrete.appendChild(horario);
+
+  if (evento.local){
+    var local =
+      document.createElement('p');
+
+    local.textContent =
+      evento.local;
+
+    lembrete.appendChild(local);
+  }
+
+  lembrete.appendChild(acoes);
+  caixa.appendChild(lembrete);
+
+  /*
+    Marca o popup como exibido.
+    Se o usuário adiar, a rota de adiamento
+    limpa esse estado e agenda um novo horário.
+  */
+  marcarLembreteExibidoHome(
+    evento.id
+  );
+}
+
+/* =========================================================
+   CONSULTAR LEMBRETES PENDENTES
+   ========================================================= */
+
+async function consultarLembretesHome(){
+  if (
+    homeLembretesConsultando
+  ){
+    return;
+  }
+
+  /*
+    Sem token não consultamos a API.
+  */
+  if (
+    typeof tokenAtual !== 'function' ||
+    !tokenAtual()
+  ){
+    return;
+  }
+
+  homeLembretesConsultando = true;
+
+  try {
+    var caminho =
+      '/lembretes?agora=' +
+      encodeURIComponent(
+        new Date().toISOString()
+      );
+
+    var resposta =
+      await apiEventosHome(
+        caminho,
+        'GET'
+      );
+
+    if (
+      resposta.status === 401
+    ){
+      return;
+    }
+
+    if (!resposta.dados.ok){
+      throw new Error(
+        resposta.dados.erro ||
+        'Não foi possível consultar os lembretes.'
+      );
+    }
+
+    var lembretes =
+      resposta.dados.lembretes || [];
+
+    lembretes
+      .slice(0, 3)
+      .forEach(function(evento){
+        renderizarLembreteHome(
+          evento
+        );
+      });
+
+  } catch(e){
+    /*
+      A consulta de lembretes é silenciosa
+      para não interromper o uso do app.
+    */
+    console.warn(
+      'Lembretes da Home:',
+      e.message
+    );
+
+  } finally {
+    homeLembretesConsultando = false;
+  }
+}
+
+/* =========================================================
+   MARCAR COMO EXIBIDO
+   ========================================================= */
+
+async function marcarLembreteExibidoHome(eventoId){
+  try {
+    await apiEventosHome(
+      '/lembretes/exibido',
+      'POST',
+      {
+        evento_id: eventoId
+      }
+    );
+  } catch(e){}
+}
+
+/* =========================================================
+   ADIAR LEMBRETE
+   ========================================================= */
+
+async function adiarLembreteHome(
+  eventoId,
+  minutos,
+  elemento
+){
+  if (elemento){
+    elemento.classList.add(
+      'carregando'
+    );
+  }
+
+  try {
+    var resposta =
+      await apiEventosHome(
+        '/lembretes/adiar',
+        'POST',
+        {
+          evento_id: eventoId,
+          minutos: minutos
+        }
+      );
+
+    if (!resposta.dados.ok){
+      throw new Error(
+        resposta.dados.erro ||
+        'Não foi possível adiar o lembrete.'
+      );
+    }
+
+    if (elemento){
+      elemento.remove();
+    }
+
+    if (
+      typeof toast === 'function'
+    ){
+      toast(
+        'Lembrete adiado por ' +
+        minutos +
+        ' minutos.',
+        false
+      );
+    }
+
+  } catch(e){
+    if (elemento){
+      elemento.classList.remove(
+        'carregando'
+      );
+    }
+
+    if (
+      typeof toast === 'function'
+    ){
+      toast(
+        e.message,
+        true
+      );
+    }
+  }
+}
+
+/* =========================================================
+   DISPENSAR LEMBRETE
+   ========================================================= */
+
+async function dispensarLembreteHome(
+  eventoId,
+  elemento
+){
+  if (elemento){
+    elemento.classList.add(
+      'carregando'
+    );
+  }
+
+  try {
+    var resposta =
+      await apiEventosHome(
+        '/lembretes/dispensar',
+        'POST',
+        {
+          evento_id: eventoId
+        }
+      );
+
+    if (!resposta.dados.ok){
+      throw new Error(
+        resposta.dados.erro ||
+        'Não foi possível dispensar o lembrete.'
+      );
+    }
+
+    if (elemento){
+      elemento.remove();
+    }
+
+  } catch(e){
+    if (elemento){
+      elemento.classList.remove(
+        'carregando'
+      );
+    }
+
+    if (
+      typeof toast === 'function'
+    ){
+      toast(
+        e.message,
+        true
+      );
+    }
+  }
+}
+
+/* =========================================================
+   ABRIR EVENTO A PARTIR DO POPUP
+   ========================================================= */
+
+function abrirEventoDoLembreteHome(
+  evento,
+  elemento
+){
+  if (!evento) return;
+
+  /*
+    Coloca o evento na lista local caso
+    o calendário esteja em outro mês.
+  */
+  if (!eventoHomePorId(evento.id)){
+    homeEventos.push(evento);
+  }
+
+  var dataEvento =
+    new Date(evento.inicio);
+
+  if (
+    !Number.isNaN(
+      dataEvento.getTime()
+    )
+  ){
+    homeDataSelecionada =
+      new Date(
+        dataEvento.getFullYear(),
+        dataEvento.getMonth(),
+        dataEvento.getDate()
+      );
+
+    homeMesExibido =
+      new Date(
+        dataEvento.getFullYear(),
+        dataEvento.getMonth(),
+        1
+      );
+  }
+
+  abrirHomeGeral();
+  renderizarCalendarioHome();
+  renderizarAgendaHome();
+
+  abrirEditarEventoHome(
+    evento.id
+  );
+
+  if (elemento){
+    elemento.remove();
+  }
+}
+
+/* =========================================================
+   INICIAR VERIFICAÇÃO AUTOMÁTICA
+   ========================================================= */
+
+function iniciarMonitorLembretesHome(){
+  if (homeLembretesIntervalo){
+    clearInterval(
+      homeLembretesIntervalo
+    );
+  }
+
+  consultarLembretesHome();
+
+  homeLembretesIntervalo =
+    setInterval(
+      consultarLembretesHome,
+      60000
+    );
+}
+
+/*
+  Verifica novamente quando o usuário volta
+  para a aba do NowFind.
+*/
+document.addEventListener(
+  'visibilitychange',
+  function(){
+    if (
+      document.visibilityState ===
+      'visible'
+    ){
+      consultarLembretesHome();
+    }
+  }
+);
+
+/*
+  Inicia depois que o JavaScript da página
+  terminar de montar os componentes.
+*/
+setTimeout(
+  iniciarMonitorLembretesHome,
+  1500
+);
 })();
 </script>
 </body>
