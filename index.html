@@ -2836,6 +2836,98 @@ body.home-aberta .oculto-home{
 }
 
 /* ===== AJUSTES 19 - FIM ===== */ 
+  /* ===== AJUSTES 20 - NAVEGAÇÃO LIMPA E CONFIGURAÇÕES GLOBAIS ===== */
+
+/* remove definitivamente os botões duplicados */
+#navHomeGeral,
+#navInicioComp,
+nav button[data-view="home"]{
+  display:none !important;
+}
+
+/* logotipo passa a ser o retorno discreto para a Home */
+.lateral-logo[data-home-ligada="1"]{
+  cursor:pointer;
+  border-radius:14px;
+  transition:
+    background .16s ease,
+    transform .16s ease;
+}
+
+.lateral-logo[data-home-ligada="1"]:hover{
+  background:
+    color-mix(
+      in srgb,
+      var(--nav-tx,#fff) 12%,
+      transparent
+    );
+  transform:translateY(-1px);
+}
+
+/* configurações independente do menu */
+.btn-config-global{
+  position:fixed;
+  z-index:180;
+  top:18px;
+  right:20px;
+  display:grid;
+  place-items:center;
+  width:44px;
+  height:44px;
+  padding:0;
+  border:1px solid var(--borda,#E6E9F2);
+  border-radius:15px;
+  background:var(--card,#fff);
+  color:var(--tx,#14172B);
+  cursor:pointer;
+  box-shadow:0 8px 24px rgba(0,0,0,.14);
+  transition:
+    transform .15s ease,
+    border-color .15s ease,
+    box-shadow .15s ease;
+}
+
+.btn-config-global:hover{
+  transform:translateY(-2px);
+  border-color:var(--azul);
+  box-shadow:0 12px 28px rgba(0,0,0,.19);
+}
+
+.btn-config-global svg{
+  width:21px;
+  height:21px;
+  fill:none;
+  stroke:currentColor;
+  stroke-width:1.8;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+}
+
+/* na Home, o botão também permanece disponível */
+body.home-aberta .btn-config-global{
+  display:grid;
+}
+
+/* não precisamos do botão de configuração duplicado dentro da Home */
+body.home-aberta #btnConfigHome{
+  display:none !important;
+}
+
+@media (max-width:899px){
+
+  .btn-config-global{
+    position:absolute;
+    top:15px;
+    right:14px;
+    width:40px;
+    height:40px;
+    border-radius:13px;
+  }
+
+}
+
+/* ===== AJUSTES 20 - FIM ===== */
+
 </style>
 </head>
 <body>
@@ -12603,6 +12695,151 @@ if (
 }
 
 /* ===== HOME GERAL - PARTE 1E - FIM ===== */
+ /* ===== HOME GERAL - PARTE 1F: LIMPEZA DA NAVEGAÇÃO ===== */
+
+function limparBotoesAntigosHome(){
+
+  var botaoHome =
+    $('navHomeGeral');
+
+  if (botaoHome){
+    botaoHome.remove();
+  }
+
+  var botaoInicio =
+    $('navInicioComp');
+
+  if (botaoInicio){
+    botaoInicio.remove();
+  }
+
+  document
+    .querySelectorAll(
+      'nav button[data-view="home"]'
+    )
+    .forEach(function(botao){
+      botao.remove();
+    });
+}
+
+function instalarRetornoPeloLogo(){
+
+  var logo =
+    document.querySelector(
+      '.lateral-logo'
+    );
+
+  if (
+    !logo ||
+    logo.getAttribute(
+      'data-home-ligada'
+    ) === '1'
+  ){
+    return;
+  }
+
+  logo.setAttribute(
+    'data-home-ligada',
+    '1'
+  );
+
+  logo.setAttribute(
+    'role',
+    'button'
+  );
+
+  logo.setAttribute(
+    'tabindex',
+    '0'
+  );
+
+  logo.title =
+    'Voltar à Home';
+
+  logo.addEventListener(
+    'click',
+    abrirHomeGeral
+  );
+
+  logo.addEventListener(
+    'keydown',
+    function(e){
+
+      if (
+        e.key === 'Enter' ||
+        e.key === ' '
+      ){
+        e.preventDefault();
+        abrirHomeGeral();
+      }
+    }
+  );
+}
+
+function criarConfiguracaoGlobal(){
+
+  if ($('btnConfigGlobal')){
+    return;
+  }
+
+  var botao =
+    document.createElement('button');
+
+  botao.id =
+    'btnConfigGlobal';
+
+  botao.type =
+    'button';
+
+  botao.className =
+    'btn-config-global';
+
+  botao.title =
+    'Configurações';
+
+  botao.setAttribute(
+    'aria-label',
+    'Abrir configurações'
+  );
+
+  botao.innerHTML =
+    '<svg viewBox="0 0 24 24" aria-hidden="true">' +
+      '<circle cx="12" cy="12" r="3"></circle>' +
+      '<path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6V21h-4v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H3v-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.6V3h4v.1a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.1v4H21a1.7 1.7 0 0 0-1.6 1Z"></path>' +
+    '</svg>';
+
+  botao.addEventListener(
+    'click',
+    function(){
+
+      if ($('btnConfig')){
+        $('btnConfig').click();
+        return;
+      }
+
+      if ($('modalConfig')){
+        if (
+          typeof aplicarConfig ===
+          'function'
+        ){
+          aplicarConfig();
+        }
+
+        mostrar('modalConfig');
+      }
+    }
+  );
+
+  document.body.appendChild(
+    botao
+  );
+}
+
+limparBotoesAntigosHome();
+instalarRetornoPeloLogo();
+criarConfiguracaoGlobal();
+
+/* ===== HOME GERAL - PARTE 1F - FIM ===== */ 
   /* ===== SINCRONIZAÇÃO COM A NUVEM ===== */
 
 var URL_DADOS = URL_CONTA + '/dados';
