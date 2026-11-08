@@ -3827,6 +3827,17 @@ body.home-aberta .oculto-home{
           Enviar
         </button>
 
+          </div>
+
+      <!-- BIBLIOTECA CENTRAL DE CONHECIMENTO -->
+      <div class="home-referencias-acesso">
+        <button
+          id="btnAdicionarReferencia"
+          type="button"
+          class="mini-btn"
+        >
+          + Adicionar referência
+        </button>
       </div>
 
     </section>
@@ -14054,6 +14065,137 @@ function escreverTexto(alvo, texto){
     }
   })();
   /* ===== AJUSTES 27 - FIM ===== */
+    /* ===== AJUSTES 28 - BIBLIOTECA DE CONHECIMENTO ===== */
+(function(){
+
+  const botao = do*ument.getElementById('btnAdicionar*eferencia');
+  if (!botao) return;*
+  const estilo = document.createE*ement('style');
+  estilo.textConte*t = `
+    .nf-ref-overlay{
+      p*sition:fixed;
+      inset:0;
+     *background:rgba(0,0,0,.65);
+      *ackdrop-filter:blur(8px);
+      di*play:flex;
+      align-items:cente*;
+      justify-content:center;
+  *   padding:20px;
+      z-index:999*9;
+    }
+
+    .nf-ref-janela{
+    * width:100%;
+      max-width:560px*
+      max-height:90vh;
+      over*low-y:auto;
+      background:var(-*card);
+      color:var(--tx);
+    * border:1px solid var(--borda);
+  *   border-radius:20px;
+      paddi*g:24px;
+      box-shadow:0 20px 60*x rgba(0,0,0,.25);
+    }
+
+    .nf-*ef-topo{
+      display:flex;
+     *align-items:center;
+      justify-*ontent:space-between;
+      gap:12*x;
+      margin-bottom:20px;
+    }*
+    .nf-ref-topo h2{
+      margin*0;
+      font-size:20px;
+      fon*-weight:700;
+    }
+
+    .nf-ref-fe*har{
+      border:0;
+      backgro*nd:transparent;
+      color:var(--*x);
+      font-size:26px;
+      cu*sor:pointer;
+    }
+
+    .nf-ref-ca*po{
+      display:flex;
+      flex*direction:column;
+      gap:7px;
+ *    margin-bottom:16px;
+    }
+
+   *.nf-ref-campo label{
+      font-si*e:13px;
+      font-weight:600;
+   *}
+
+    .nf-ref-campo input,
+    .n*-ref-campo textarea,
+    .nf-ref-c*mpo select{
+      width:100%;
+    * box-sizing:border-box;
+      padd*ng:12px;
+      border:1px solid va*(--borda);
+      border-radius:12p*;
+      background:var(--bg);
+    * color:var(--tx);
+      font:inher*t;
+    }
+
+    .nf-ref-campo textar*a{
+      min-height:110px;
+      r*size:vertical;
+    }
+
+    .nf-ref-*coes{
+      display:flex;
+      ju*tify-content:flex-end;
+      gap:1*px;
+      margin-top:20px;
+    }
+
+*   .nf-ref-acoes button{
+      pad*ing:11px 18px;
+      border-radius*11px;
+      cursor:pointer;
+      *ont-weight:600;
+    }
+
+    .nf-ref*salvar{
+      background:#2563eb;
+*     color:white;
+      border:0;
+*   }
+  `;
+
+  document.head.appendC*ild(estilo);
+
+  function abrirBibl*oteca(){
+
+    if (document.querySe*ector('.nf-ref-overlay')) return;
+*    const overlay = document.creat*Element('div');
+    overlay.classN*me = 'nf-ref-overlay';
+
+    overla*.innerHTML = `
+      <div class="n*-ref-janela" role="dialog"
+       *   aria-modal="true" aria-labelled*y="nfRefTitulo">
+
+        <div cla*s="nf-ref-topo">
+          <h2 id=*nfRefTitulo">Adicionar referência<*h2>
+          <button class="nf-re*-fechar" type="button"
+           *      aria-label="Fechar">×</butto*>
+        </div>
+
+        <div cla*s="nf-ref-campo">
+          <label*for="nfRefNome">Título da referênc*a</label>
+          <input id="nfR*fNome"
+                 placeholde*="Ex.: Ergonomia e fatores humanos*>
+        </div>
+
+        <div cla*s="nf-ref-campo">
+          <label*for="nfRefTipo">Tipo de referência*/label>
+          <select id="nfRe*
 carregarSortable();
 restaurarSessao();
 
