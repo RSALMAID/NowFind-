@@ -10315,7 +10315,2299 @@ if (typeof renderPainelHoje === 'function'){
 /* aplica de novo, agora com a paleta e a fonte novas */
 aplicarConfig();
   /* EVENTOS */
+/* ===== HOME GERAL - PARTE 1A: BASE DO CALENDÁRIO ===== */
 
+var URL_EVENTOS_HOME = URL_CONTA + '/eventos';
+
+var homeDataAtual = new Date();
+
+var homeMesExibido = new Date(
+  homeDataAtual.getFullYear(),
+  homeDataAtual.getMonth(),
+  1
+);
+
+var homeDataSelecionada = new Date(
+  homeDataAtual.getFullYear(),
+  homeDataAtual.getMonth(),
+  homeDataAtual.getDate()
+);
+
+var homeFiltroCalendario = 'todos';
+var homeEventos = [];
+var homeEventosCarregando = false;
+var homeEventoTipoSelecionado = 'pessoal';
+var homeIniciada = false;
+
+var HOME_MESES = [
+  'Janeiro',
+  'Fevereiro',
+  'Março',
+  'Abril',
+  'Maio',
+  'Junho',
+  'Julho',
+  'Agosto',
+  'Setembro',
+  'Outubro',
+  'Novembro',
+  'Dezembro'
+];
+
+var HOME_DIAS = [
+  'domingo',
+  'segunda-feira',
+  'terça-feira',
+  'quarta-feira',
+  'quinta-feira',
+  'sexta-feira',
+  'sábado'
+];
+
+function homeDoisDigitos(valor){
+  return String(valor).padStart(2, '0');
+}
+
+function homeDataLocalISO(data){
+  return [
+    data.getFullYear(),
+    homeDoisDigitos(data.getMonth() + 1),
+    homeDoisDigitos(data.getDate())
+  ].join('-');
+}
+
+function homeInicioDoDia(data){
+  return new Date(
+    data.getFullYear(),
+    data.getMonth(),
+    data.getDate(),
+    0,
+    0,
+    0,
+    0
+  );
+}
+
+function homeFimDoDia(data){
+  return new Date(
+    data.getFullYear(),
+    data.getMonth(),
+    data.getDate(),
+    23,
+    59,
+    59,
+    999
+  );
+}
+
+function homeInicioMes(data){
+  return new Date(
+    data.getFullYear(),
+    data.getMonth(),
+    1,
+    0,
+    0,
+    0,
+    0
+  );
+}
+
+function homeMesmaData(a, b){
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
+
+function homeInicioSemanaSegunda(data){
+  var d = new Date(data);
+  var dia = d.getDay();
+  var diferenca = dia === 0 ? -6 : 1 - dia;
+
+  d.setDate(d.getDate() + diferenca);
+  d.setHours(0, 0, 0, 0);
+
+  return d;
+}
+
+function homeFimSemanaDomingo(data){
+  var d = new Date(
+    homeInicioSemanaSegunda(data)
+  );
+
+  d.setDate(d.getDate() + 6);
+  d.setHours(23, 59, 59, 999);
+
+  return d;
+}
+
+function homeDataParaCampo(data){
+  return homeDataLocalISO(data);
+}
+
+function homeHoraParaCampo(data){
+  return (
+    homeDoisDigitos(data.getHours()) +
+    ':' +
+    homeDoisDigitos(data.getMinutes())
+  );
+}
+
+function homeDataHoraISO(
+  dataCampo,
+  horaCampo,
+  diaInteiro,
+  fim
+){
+  if (!dataCampo) return null;
+
+  var partes = dataCampo.split('-');
+
+  var ano = Number(partes[0]);
+  var mes = Number(partes[1]) - 1;
+  var dia = Number(partes[2]);
+
+  var hora = 0;
+  var minuto = 0;
+
+  if (!diaInteiro && horaCampo){
+    var horaPartes = horaCampo.split(':');
+
+    hora = Number(horaPartes[0]);
+    minuto = Number(horaPartes[1]);
+  }
+
+  if (diaInteiro && fim){
+    hora = 23;
+    minuto = 59;
+  }
+
+  var data = new Date(
+    ano,
+    mes,
+    dia,
+    hora,
+    minuto,
+    diaInteiro && fim ? 59 : 0,
+    diaInteiro && fim ? 999 : 0
+  );
+
+  return data.toISOString();
+}
+
+function homeFormatarHora(valor){
+  if (!valor) return '';
+
+  var data = new Date(valor);
+
+  if (Number.isNaN(data.getTime())){
+    return '';
+  }
+
+  return (
+    homeDoisDigitos(data.getHours()) +
+    ':' +
+    homeDoisDigitos(data.getMinutes())
+  );
+}
+
+function homeFormatarDataCompleta(data){
+  return (
+    HOME_DIAS[data.getDay()] +
+    ', ' +
+    data.getDate() +
+    ' de ' +
+    HOME_MESES[data.getMonth()].toLowerCase() +
+    ' de ' +
+    data.getFullYear()
+  );
+}
+
+function homePrimeiroNome(){
+  if (
+    typeof usuario === 'undefined' ||
+    !usuario ||
+    !usuario.nome
+  ){
+    return '';
+  }
+
+  return String(usuario.nome)
+    .trim()
+    .split(/\s+/)[0];
+}
+
+function atualizarCabecalhoHome(){
+  var agora = new Date();
+  var hora = agora.getHours();
+  var saudacao = 'Boa noite';
+
+  if (hora >= 5 && hora < 12){
+    saudacao = 'Bom dia';
+  } else if (hora >= 12 && hora < 18){
+    saudacao = 'Boa tarde';
+  }
+
+  var primeiroNome = homePrimeiroNome();
+
+  $('homeSaudacao').textContent =
+    saudacao +
+    (primeiroNome ? ', ' + primeiroNome : '');
+
+  $('homeDataCompleta').textContent =
+    homeFormatarDataCompleta(agora);
+}
+
+async function apiEventosHome(
+  caminho,
+  metodo,
+  corpo
+){
+  var resposta = await fetch(
+    URL_EVENTOS_HOME + caminho,
+    {
+      method: metodo || 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization':
+          'Bearer ' + tokenAtual()
+      },
+      body: corpo
+        ? JSON.stringify(corpo)
+        : undefined
+    }
+  );
+
+  var dadosResposta = {};
+
+  try {
+    dadosResposta =
+      await resposta.json();
+  } catch(e){}
+
+  return {
+    status: resposta.status,
+    dados: dadosResposta
+  };
+}
+
+/* ===== HOME GERAL - PARTE 1A - FIM ===== */
+  /* ===== HOME GERAL - PARTE 1B: CARREGAR E EXIBIR EVENTOS ===== */
+
+async function carregarEventosHome(){
+  if (homeEventosCarregando) return;
+
+  homeEventosCarregando = true;
+
+  var primeiroDia = homeInicioMes(
+    homeMesExibido
+  );
+
+  var inicioConsulta =
+    homeInicioSemanaSegunda(
+      primeiroDia
+    );
+
+  var ultimoDia = new Date(
+    homeMesExibido.getFullYear(),
+    homeMesExibido.getMonth() + 1,
+    0
+  );
+
+  var fimConsulta =
+    homeFimSemanaDomingo(
+      ultimoDia
+    );
+
+  /*
+    A API trabalha com período de fim exclusivo.
+    Portanto, avançamos para o começo do dia seguinte.
+  */
+  fimConsulta.setDate(
+    fimConsulta.getDate() + 1
+  );
+
+  fimConsulta.setHours(
+    0,
+    0,
+    0,
+    0
+  );
+
+  var caminho =
+    '?inicio=' +
+    encodeURIComponent(
+      inicioConsulta.toISOString()
+    ) +
+    '&fim=' +
+    encodeURIComponent(
+      fimConsulta.toISOString()
+    );
+
+  if (
+    homeFiltroCalendario === 'pessoal' ||
+    homeFiltroCalendario === 'profissional'
+  ){
+    caminho +=
+      '&tipo=' +
+      encodeURIComponent(
+        homeFiltroCalendario
+      );
+  }
+
+  try {
+    var resposta =
+      await apiEventosHome(
+        caminho,
+        'GET'
+      );
+
+    if (!resposta.dados.ok){
+      throw new Error(
+        resposta.dados.erro ||
+        'Não foi possível carregar os eventos.'
+      );
+    }
+
+    homeEventos =
+      resposta.dados.eventos || [];
+
+  } catch(e){
+    homeEventos = [];
+
+    if (
+      typeof toast === 'function'
+    ){
+      toast(
+        e.message,
+        true
+      );
+    }
+
+  } finally {
+    homeEventosCarregando = false;
+
+    renderizarCalendarioHome();
+    renderizarAgendaHome();
+  }
+}
+
+/* =========================================================
+   LOCALIZAR EVENTOS
+   ========================================================= */
+
+function eventoHomeNoDia(
+  evento,
+  data
+){
+  if (!evento) return false;
+
+  var inicio =
+    new Date(evento.inicio);
+
+  var fim =
+    new Date(evento.fim);
+
+  if (
+    Number.isNaN(inicio.getTime()) ||
+    Number.isNaN(fim.getTime())
+  ){
+    return false;
+  }
+
+  var inicioDia =
+    homeInicioDoDia(data);
+
+  var fimDia =
+    homeFimDoDia(data);
+
+  return (
+    inicio <= fimDia &&
+    fim >= inicioDia
+  );
+}
+
+function eventosHomeDoDia(data){
+  return homeEventos
+    .filter(function(evento){
+
+      if (
+        homeFiltroCalendario !== 'todos' &&
+        evento.tipo !==
+          homeFiltroCalendario
+      ){
+        return false;
+      }
+
+      return eventoHomeNoDia(
+        evento,
+        data
+      );
+    })
+    .sort(function(a, b){
+      return (
+        new Date(a.inicio) -
+        new Date(b.inicio)
+      );
+    });
+}
+
+function eventoHomePorId(id){
+  for (
+    var i = 0;
+    i < homeEventos.length;
+    i++
+  ){
+    if (
+      homeEventos[i].id === id
+    ){
+      return homeEventos[i];
+    }
+  }
+
+  return null;
+}
+
+/* =========================================================
+   CALENDÁRIO MENSAL
+   ========================================================= */
+
+function renderizarCalendarioHome(){
+  var grade =
+    $('homeCalendario');
+
+  if (!grade) return;
+
+  grade.innerHTML = '';
+
+  var tituloMes =
+    $('homeMesTitulo');
+
+  if (tituloMes){
+    tituloMes.textContent =
+      HOME_MESES[
+        homeMesExibido.getMonth()
+      ] +
+      ' ' +
+      homeMesExibido.getFullYear();
+  }
+
+  var primeiroDiaMes =
+    new Date(
+      homeMesExibido.getFullYear(),
+      homeMesExibido.getMonth(),
+      1
+    );
+
+  var inicioGrade =
+    homeInicioSemanaSegunda(
+      primeiroDiaMes
+    );
+
+  /*
+    Exibimos sempre seis semanas,
+    totalizando 42 dias.
+  */
+  for (var i = 0; i < 42; i++){
+    var data =
+      new Date(inicioGrade);
+
+    data.setDate(
+      inicioGrade.getDate() + i
+    );
+
+    grade.appendChild(
+      criarDiaCalendarioHome(data)
+    );
+  }
+}
+
+function criarDiaCalendarioHome(data){
+  var eventos =
+    eventosHomeDoDia(data);
+
+  var hoje =
+    new Date();
+
+  var botao =
+    document.createElement('button');
+
+  botao.type = 'button';
+  botao.className = 'cal-dia';
+
+  if (
+    data.getMonth() !==
+    homeMesExibido.getMonth()
+  ){
+    botao.classList.add('fora');
+  }
+
+  if (
+    homeMesmaData(
+      data,
+      hoje
+    )
+  ){
+    botao.classList.add('hoje');
+  }
+
+  if (
+    homeMesmaData(
+      data,
+      homeDataSelecionada
+    )
+  ){
+    botao.classList.add(
+      'selecionado'
+    );
+  }
+
+  botao.setAttribute(
+    'data-data',
+    homeDataLocalISO(data)
+  );
+
+  botao.setAttribute(
+    'aria-label',
+    homeFormatarDataCompleta(data) +
+    '. ' +
+    eventos.length +
+    ' evento(s).'
+  );
+
+  var numero =
+    document.createElement('span');
+
+  numero.className =
+    'cal-dia-numero';
+
+  numero.textContent =
+    data.getDate();
+
+  botao.appendChild(numero);
+
+  var lista =
+    document.createElement('span');
+
+  lista.className =
+    'cal-dia-eventos';
+
+  eventos
+    .slice(0, 3)
+    .forEach(function(evento){
+
+      var linha =
+        document.createElement('span');
+
+      linha.className =
+        'cal-evento ' +
+        evento.tipo;
+
+      var hora =
+        document.createElement('span');
+
+      hora.className =
+        'cal-evento-hora';
+
+      hora.textContent =
+        Number(evento.dia_inteiro)
+          ? ''
+          : homeFormatarHora(
+              evento.inicio
+            );
+
+      var titulo =
+        document.createElement('span');
+
+      titulo.className =
+        'cal-evento-titulo';
+
+      titulo.textContent =
+        evento.titulo || 'Evento';
+
+      linha.appendChild(hora);
+      linha.appendChild(titulo);
+      lista.appendChild(linha);
+    });
+
+  if (eventos.length > 3){
+    var mais =
+      document.createElement('span');
+
+    mais.className =
+      'cal-evento-mais';
+
+    mais.textContent =
+      '+' +
+      (eventos.length - 3) +
+      ' evento(s)';
+
+    lista.appendChild(mais);
+  }
+
+  botao.appendChild(lista);
+
+  botao.addEventListener(
+    'click',
+    function(){
+
+      homeDataSelecionada =
+        new Date(
+          data.getFullYear(),
+          data.getMonth(),
+          data.getDate()
+        );
+
+      renderizarCalendarioHome();
+      renderizarAgendaHome();
+    }
+  );
+
+  /*
+    Dois cliques no dia abrirão a janela
+    de evento depois que instalarmos a Parte 1C.
+  */
+  botao.addEventListener(
+    'dblclick',
+    function(){
+
+      if (
+        typeof abrirNovoEventoHome ===
+        'function'
+      ){
+        abrirNovoEventoHome(data);
+      }
+    }
+  );
+
+  return botao;
+}
+
+/* =========================================================
+   AGENDA DO DIA
+   ========================================================= */
+
+function renderizarAgendaHome(){
+  var lista =
+    $('homeAgendaLista');
+
+  if (!lista) return;
+
+  lista.innerHTML = '';
+
+  var titulo =
+    $('homeAgendaData');
+
+  if (titulo){
+    titulo.textContent =
+      homeFormatarDataCompleta(
+        homeDataSelecionada
+      );
+  }
+
+  var eventos =
+    eventosHomeDoDia(
+      homeDataSelecionada
+    );
+
+  if (!eventos.length){
+    var vazio =
+      document.createElement('div');
+
+    vazio.className =
+      'home-vazio';
+
+    vazio.textContent =
+      'Nenhum evento para este dia.';
+
+    lista.appendChild(vazio);
+    return;
+  }
+
+  eventos.forEach(function(evento){
+    lista.appendChild(
+      criarItemAgendaHome(evento)
+    );
+  });
+}
+
+function criarItemAgendaHome(evento){
+  var botao =
+    document.createElement('button');
+
+  botao.type = 'button';
+
+  botao.className =
+    'agenda-evento ' +
+    evento.tipo;
+
+  var hora =
+    document.createElement('span');
+
+  hora.className =
+    'agenda-evento-hora';
+
+  hora.textContent =
+    Number(evento.dia_inteiro)
+      ? 'Dia todo'
+      : homeFormatarHora(
+          evento.inicio
+        );
+
+  var barra =
+    document.createElement('span');
+
+  barra.className =
+    'agenda-evento-barra';
+
+  var info =
+    document.createElement('span');
+
+  info.className =
+    'agenda-evento-info';
+
+  var titulo =
+    document.createElement('strong');
+
+  titulo.textContent =
+    evento.titulo || 'Evento';
+
+  var detalhe =
+    document.createElement('small');
+
+  var partes = [];
+
+  partes.push(
+    evento.tipo === 'profissional'
+      ? 'Profissional'
+      : 'Pessoal'
+  );
+
+  if (evento.local){
+    partes.push(evento.local);
+  }
+
+  detalhe.textContent =
+    partes.join(' · ');
+
+  info.appendChild(titulo);
+  info.appendChild(detalhe);
+
+  botao.appendChild(hora);
+  botao.appendChild(barra);
+  botao.appendChild(info);
+
+  botao.addEventListener(
+    'click',
+    function(){
+
+      if (
+        typeof abrirEditarEventoHome ===
+        'function'
+      ){
+        abrirEditarEventoHome(
+          evento.id
+        );
+      }
+    }
+  );
+
+  return botao;
+}
+
+/* ===== HOME GERAL - PARTE 1B - FIM ===== */
+/* ===== HOME GERAL - PARTE 1C: NAVEGAÇÃO E JANELA DO EVENTO ===== */
+
+/* =========================================================
+   FILTROS DO CALENDÁRIO
+   ========================================================= */
+
+function aplicarFiltroCalendarioHome(filtro){
+
+  if (
+    filtro !== 'todos' &&
+    filtro !== 'pessoal' &&
+    filtro !== 'profissional'
+  ){
+    filtro = 'todos';
+  }
+
+  homeFiltroCalendario = filtro;
+
+  document
+    .querySelectorAll('[data-cal-filtro]')
+    .forEach(function(botao){
+
+      botao.classList.toggle(
+        'sel',
+        botao.getAttribute(
+          'data-cal-filtro'
+        ) === filtro
+      );
+
+    });
+
+  carregarEventosHome();
+}
+
+/* =========================================================
+   MUDAR O MÊS
+   ========================================================= */
+
+function mesAnteriorHome(){
+
+  homeMesExibido = new Date(
+    homeMesExibido.getFullYear(),
+    homeMesExibido.getMonth() - 1,
+    1
+  );
+
+  homeDataSelecionada = new Date(
+    homeMesExibido.getFullYear(),
+    homeMesExibido.getMonth(),
+    1
+  );
+
+  carregarEventosHome();
+}
+
+function mesSeguinteHome(){
+
+  homeMesExibido = new Date(
+    homeMesExibido.getFullYear(),
+    homeMesExibido.getMonth() + 1,
+    1
+  );
+
+  homeDataSelecionada = new Date(
+    homeMesExibido.getFullYear(),
+    homeMesExibido.getMonth(),
+    1
+  );
+
+  carregarEventosHome();
+}
+
+function voltarHojeHome(){
+
+  var hoje = new Date();
+
+  homeMesExibido = new Date(
+    hoje.getFullYear(),
+    hoje.getMonth(),
+    1
+  );
+
+  homeDataSelecionada = new Date(
+    hoje.getFullYear(),
+    hoje.getMonth(),
+    hoje.getDate()
+  );
+
+  carregarEventosHome();
+}
+
+/* =========================================================
+   AVISO DA JANELA DO EVENTO
+   ========================================================= */
+
+function homeMostrarAvisoEvento(
+  texto,
+  erro
+){
+
+  var aviso =
+    $('eventoHomeMsg');
+
+  if (!aviso){
+
+    if (
+      typeof toast === 'function'
+    ){
+      toast(texto, erro);
+    }
+
+    return;
+  }
+
+  aviso.textContent = texto;
+
+  aviso.classList.remove(
+    'oculto'
+  );
+
+  aviso.style.borderLeftColor =
+    erro
+      ? '#E5202E'
+      : '#22B573';
+}
+
+function homeLimparAvisoEvento(){
+
+  var aviso =
+    $('eventoHomeMsg');
+
+  if (!aviso) return;
+
+  aviso.textContent = '';
+
+  aviso.classList.add(
+    'oculto'
+  );
+}
+
+/* =========================================================
+   TIPO PESSOAL OU PROFISSIONAL
+   ========================================================= */
+
+function selecionarTipoEventoHome(tipo){
+
+  homeEventoTipoSelecionado =
+    tipo === 'profissional'
+      ? 'profissional'
+      : 'pessoal';
+
+  document
+    .querySelectorAll(
+      '[data-evento-tipo]'
+    )
+    .forEach(function(botao){
+
+      botao.classList.toggle(
+        'sel',
+        botao.getAttribute(
+          'data-evento-tipo'
+        ) ===
+        homeEventoTipoSelecionado
+      );
+
+    });
+}
+
+/* =========================================================
+   DIA INTEIRO
+   ========================================================= */
+
+function atualizarCamposDiaInteiroHome(){
+
+  var diaInteiro =
+    $('eventoHomeDiaInteiro')
+      .checked;
+
+  document
+    .querySelectorAll(
+      '.evento-campo-hora'
+    )
+    .forEach(function(campo){
+
+      campo.classList.toggle(
+        'oculto',
+        diaInteiro
+      );
+
+    });
+}
+
+/* =========================================================
+   OPÇÕES PERSONALIZADAS
+   ========================================================= */
+
+function atualizarLembretePersonalizadoHome(){
+
+  var personalizado =
+    $('eventoHomeLembrete')
+      .value ===
+    'personalizado';
+
+  $('eventoLembretePersonalizado')
+    .classList.toggle(
+      'oculto',
+      !personalizado
+    );
+}
+
+function atualizarRepeticaoPersonalizadaHome(){
+
+  var personalizada =
+    $('eventoHomeRepeticao')
+      .value ===
+    'personalizada';
+
+  $('eventoRepeticaoPersonalizada')
+    .classList.toggle(
+      'oculto',
+      !personalizada
+    );
+}
+
+/* =========================================================
+   NOVO EVENTO
+   ========================================================= */
+
+function abrirNovoEventoHome(data){
+
+  var base = data
+    ? new Date(data)
+    : new Date(
+        homeDataSelecionada
+      );
+
+  base.setHours(
+    9,
+    0,
+    0,
+    0
+  );
+
+  var fim = new Date(base);
+
+  fim.setHours(
+    base.getHours() + 1
+  );
+
+  $('eventoHomeTituloJanela')
+    .textContent =
+    'Novo evento';
+
+  $('eventoHomeId').value = '';
+
+  $('eventoHomeNome').value = '';
+
+  /*
+    Se a pessoa estiver no ambiente Profissional,
+    o novo evento já abre como Profissional.
+    Nos demais casos, abre como Pessoal.
+  */
+  selecionarTipoEventoHome(
+    typeof ambiente !== 'undefined' &&
+    ambiente === 'profissional'
+      ? 'profissional'
+      : 'pessoal'
+  );
+
+  $('eventoHomeDiaInteiro')
+    .checked = false;
+
+  $('eventoHomeDataInicio')
+    .value =
+    homeDataParaCampo(base);
+
+  $('eventoHomeHoraInicio')
+    .value =
+    homeHoraParaCampo(base);
+
+  $('eventoHomeDataFim')
+    .value =
+    homeDataParaCampo(fim);
+
+  $('eventoHomeHoraFim')
+    .value =
+    homeHoraParaCampo(fim);
+
+  $('eventoHomeLocal')
+    .value = '';
+
+  $('eventoHomeDescricao')
+    .value = '';
+
+  $('eventoHomeLembrete')
+    .value = '30';
+
+  $('eventoHomeRepeticao')
+    .value = 'nenhuma';
+
+  $('eventoHomeLembreteNumero')
+    .value = '45';
+
+  $('eventoHomeLembreteUnidade')
+    .value = '1';
+
+  $('eventoHomeRepetirCada')
+    .value = '1';
+
+  $('eventoHomeRepetirUnidade')
+    .value = 'semanas';
+
+  $('eventoHomeRepetirAte')
+    .value = '';
+
+  atualizarCamposDiaInteiroHome();
+
+  atualizarLembretePersonalizadoHome();
+
+  atualizarRepeticaoPersonalizadaHome();
+
+  esconder(
+    'btnExcluirEventoHome'
+  );
+
+  homeLimparAvisoEvento();
+
+  mostrar(
+    'modalEventoHome'
+  );
+
+  setTimeout(
+    function(){
+
+      $('eventoHomeNome')
+        .focus();
+
+    },
+    120
+  );
+}
+
+/* =========================================================
+   EDITAR EVENTO
+   ========================================================= */
+
+function abrirEditarEventoHome(id){
+
+  var evento =
+    eventoHomePorId(id);
+
+  if (!evento){
+    return;
+  }
+
+  var inicio =
+    new Date(evento.inicio);
+
+  var fim =
+    new Date(evento.fim);
+
+  if (
+    Number.isNaN(
+      inicio.getTime()
+    ) ||
+    Number.isNaN(
+      fim.getTime()
+    )
+  ){
+    homeMostrarAvisoEvento(
+      'As datas deste evento não são válidas.',
+      true
+    );
+
+    return;
+  }
+
+  $('eventoHomeTituloJanela')
+    .textContent =
+    'Editar evento';
+
+  $('eventoHomeId')
+    .value =
+    evento.id;
+
+  $('eventoHomeNome')
+    .value =
+    evento.titulo || '';
+
+  selecionarTipoEventoHome(
+    evento.tipo
+  );
+
+  $('eventoHomeDiaInteiro')
+    .checked =
+    Boolean(
+      Number(
+        evento.dia_inteiro
+      )
+    );
+
+  $('eventoHomeDataInicio')
+    .value =
+    homeDataParaCampo(inicio);
+
+  $('eventoHomeHoraInicio')
+    .value =
+    homeHoraParaCampo(inicio);
+
+  $('eventoHomeDataFim')
+    .value =
+    homeDataParaCampo(fim);
+
+  $('eventoHomeHoraFim')
+    .value =
+    homeHoraParaCampo(fim);
+
+  $('eventoHomeLocal')
+    .value =
+    evento.local || '';
+
+  $('eventoHomeDescricao')
+    .value =
+    evento.descricao || '';
+
+  $('eventoHomeLembrete')
+    .value =
+    evento.lembrete_minutos === null ||
+    evento.lembrete_minutos === undefined
+      ? ''
+      : String(
+          evento.lembrete_minutos
+        );
+
+  $('eventoHomeRepeticao')
+    .value =
+    evento.repeticao ||
+    'nenhuma';
+
+  /*
+    Caso o valor não esteja entre as opções padrão,
+    ele será considerado personalizado.
+  */
+  if (
+    evento.lembrete_minutos !== null &&
+    evento.lembrete_minutos !== undefined &&
+    ![
+      '0',
+      '5',
+      '10',
+      '15',
+      '30',
+      '60',
+      '120',
+      '1440'
+    ].includes(
+      String(
+        evento.lembrete_minutos
+      )
+    )
+  ){
+    $('eventoHomeLembrete')
+      .value =
+      'personalizado';
+
+    $('eventoHomeLembreteNumero')
+      .value =
+      String(
+        evento.lembrete_minutos
+      );
+
+    $('eventoHomeLembreteUnidade')
+      .value = '1';
+  }
+
+  atualizarCamposDiaInteiroHome();
+
+  atualizarLembretePersonalizadoHome();
+
+  atualizarRepeticaoPersonalizadaHome();
+
+  mostrar(
+    'btnExcluirEventoHome'
+  );
+
+  homeLimparAvisoEvento();
+
+  mostrar(
+    'modalEventoHome'
+  );
+
+  setTimeout(
+    function(){
+
+      $('eventoHomeNome')
+        .focus();
+
+    },
+    120
+  );
+}
+
+/* =========================================================
+   FECHAR EVENTO
+   ========================================================= */
+
+function fecharEventoHome(){
+
+  esconder(
+    'modalEventoHome'
+  );
+
+  homeLimparAvisoEvento();
+}
+
+/* =========================================================
+   ABRIR AMBIENTES PELA HOME
+   ========================================================= */
+
+function abrirAmbientePelaHome(tipo){
+
+  if (
+    tipo !== 'pessoal' &&
+    tipo !== 'profissional' &&
+    tipo !== 'compartilhado'
+  ){
+    return;
+  }
+
+  if (
+    typeof trocarAmbiente ===
+    'function'
+  ){
+    trocarAmbiente(tipo);
+    return;
+  }
+
+  ambiente = tipo;
+
+  if (
+    typeof renderizar ===
+    'function'
+  ){
+    renderizar();
+  }
+
+  if (
+    typeof trocarTela ===
+    'function'
+  ){
+    trocarTela(
+      tipo === 'compartilhado'
+        ? 'espaco'
+        : 'hoje'
+    );
+  }
+}
+
+/* =========================================================
+   INICIAR CALENDÁRIO
+   ========================================================= */
+
+function iniciarHome(){
+
+  if (homeIniciada){
+    atualizarCabecalhoHome();
+    carregarEventosHome();
+    return;
+  }
+
+  homeIniciada = true;
+
+  atualizarCabecalhoHome();
+
+  renderizarCalendarioHome();
+
+  renderizarAgendaHome();
+
+  carregarEventosHome();
+}
+
+/* =========================================================
+   LIGAÇÕES DE NAVEGAÇÃO
+   ========================================================= */
+
+$('btnMesAnterior')
+  .addEventListener(
+    'click',
+    mesAnteriorHome
+  );
+
+$('btnMesSeguinte')
+  .addEventListener(
+    'click',
+    mesSeguinteHome
+  );
+
+$('btnMesAtual')
+  .addEventListener(
+    'click',
+    voltarHojeHome
+  );
+
+$('btnHomeHoje')
+  .addEventListener(
+    'click',
+    voltarHojeHome
+  );
+
+$('btnNovoEventoHome')
+  .addEventListener(
+    'click',
+    function(){
+
+      abrirNovoEventoHome(
+        homeDataSelecionada
+      );
+
+    }
+  );
+
+$('btnEventoAgenda')
+  .addEventListener(
+    'click',
+    function(){
+
+      abrirNovoEventoHome(
+        homeDataSelecionada
+      );
+
+    }
+  );
+
+document
+  .querySelectorAll(
+    '[data-cal-filtro]'
+  )
+  .forEach(function(botao){
+
+    botao.addEventListener(
+      'click',
+      function(){
+
+        aplicarFiltroCalendarioHome(
+          botao.getAttribute(
+            'data-cal-filtro'
+          )
+        );
+
+      }
+    );
+
+  });
+
+document
+  .querySelectorAll(
+    '[data-evento-tipo]'
+  )
+  .forEach(function(botao){
+
+    botao.addEventListener(
+      'click',
+      function(){
+
+        selecionarTipoEventoHome(
+          botao.getAttribute(
+            'data-evento-tipo'
+          )
+        );
+
+      }
+    );
+
+  });
+
+document
+  .querySelectorAll(
+    '[data-home-ambiente]'
+  )
+  .forEach(function(botao){
+
+    botao.addEventListener(
+      'click',
+      function(){
+
+        abrirAmbientePelaHome(
+          botao.getAttribute(
+            'data-home-ambiente'
+          )
+        );
+
+      }
+    );
+
+  });
+
+$('eventoHomeDiaInteiro')
+  .addEventListener(
+    'change',
+    atualizarCamposDiaInteiroHome
+  );
+
+$('eventoHomeLembrete')
+  .addEventListener(
+    'change',
+    atualizarLembretePersonalizadoHome
+  );
+
+$('eventoHomeRepeticao')
+  .addEventListener(
+    'change',
+    atualizarRepeticaoPersonalizadaHome
+  );
+
+$('btnFecharEventoHome')
+  .addEventListener(
+    'click',
+    fecharEventoHome
+  );
+
+$('modalEventoHome')
+  .addEventListener(
+    'click',
+    function(e){
+
+      if (
+        e.target ===
+        $('modalEventoHome')
+      ){
+        fecharEventoHome();
+      }
+
+    }
+  );
+
+/* ===== HOME GERAL - PARTE 1C - FIM ===== */  
+  /* ===== HOME GERAL - PARTE 1D: SALVAR E EXCLUIR EVENTOS ===== */
+
+/* =========================================================
+   LEMBRETE DO EVENTO
+   ========================================================= */
+
+function obterLembreteMinutosHome(){
+
+  var valor =
+    $('eventoHomeLembrete').value;
+
+  if (valor === ''){
+    return null;
+  }
+
+  if (valor !== 'personalizado'){
+    return Number(valor);
+  }
+
+  var numero = Number(
+    $('eventoHomeLembreteNumero').value
+  );
+
+  var unidade = Number(
+    $('eventoHomeLembreteUnidade').value
+  );
+
+  if (
+    !Number.isInteger(numero) ||
+    numero < 1
+  ){
+    throw new Error(
+      'Informe uma antecedência válida.'
+    );
+  }
+
+  var total = numero * unidade;
+
+  if (total > 525600){
+    throw new Error(
+      'O lembrete pode ter no máximo 1 ano de antecedência.'
+    );
+  }
+
+  return total;
+}
+
+/* =========================================================
+   REPETIÇÃO DO EVENTO
+   ========================================================= */
+
+function obterRepeticaoConfigHome(){
+
+  var repeticao =
+    $('eventoHomeRepeticao').value;
+
+  if (repeticao !== 'personalizada'){
+    return null;
+  }
+
+  var intervalo = Number(
+    $('eventoHomeRepetirCada').value
+  );
+
+  var unidade =
+    $('eventoHomeRepetirUnidade').value;
+
+  var ate =
+    $('eventoHomeRepetirAte').value;
+
+  if (
+    !Number.isInteger(intervalo) ||
+    intervalo < 1
+  ){
+    throw new Error(
+      'Informe um intervalo válido para a repetição.'
+    );
+  }
+
+  return {
+    intervalo: intervalo,
+    unidade: unidade,
+    ate: ate || null
+  };
+}
+
+/* =========================================================
+   MONTAR E VALIDAR EVENTO
+   ========================================================= */
+
+function montarEventoHome(){
+
+  var titulo =
+    $('eventoHomeNome')
+      .value
+      .trim();
+
+  var diaInteiro =
+    $('eventoHomeDiaInteiro')
+      .checked;
+
+  var dataInicio =
+    $('eventoHomeDataInicio')
+      .value;
+
+  var horaInicio =
+    $('eventoHomeHoraInicio')
+      .value;
+
+  var dataFim =
+    $('eventoHomeDataFim')
+      .value;
+
+  var horaFim =
+    $('eventoHomeHoraFim')
+      .value;
+
+  if (!titulo){
+    throw new Error(
+      'Digite o título do evento.'
+    );
+  }
+
+  if (
+    titulo.length > 200
+  ){
+    throw new Error(
+      'O título pode ter no máximo 200 caracteres.'
+    );
+  }
+
+  if (
+    homeEventoTipoSelecionado !== 'pessoal' &&
+    homeEventoTipoSelecionado !== 'profissional'
+  ){
+    throw new Error(
+      'Escolha se o evento é Pessoal ou Profissional.'
+    );
+  }
+
+  if (
+    !dataInicio ||
+    !dataFim
+  ){
+    throw new Error(
+      'Informe as datas de início e término.'
+    );
+  }
+
+  if (
+    !diaInteiro &&
+    (
+      !horaInicio ||
+      !horaFim
+    )
+  ){
+    throw new Error(
+      'Informe os horários de início e término.'
+    );
+  }
+
+  var inicio =
+    homeDataHoraISO(
+      dataInicio,
+      horaInicio,
+      diaInteiro,
+      false
+    );
+
+  var fim =
+    homeDataHoraISO(
+      dataFim,
+      horaFim,
+      diaInteiro,
+      true
+    );
+
+  if (
+    !inicio ||
+    !fim
+  ){
+    throw new Error(
+      'Não foi possível interpretar a data do evento.'
+    );
+  }
+
+  if (
+    new Date(fim).getTime() <=
+    new Date(inicio).getTime()
+  ){
+    throw new Error(
+      'O término precisa ser posterior ao início.'
+    );
+  }
+
+  var local =
+    $('eventoHomeLocal')
+      .value
+      .trim();
+
+  var descricao =
+    $('eventoHomeDescricao')
+      .value
+      .trim();
+
+  if (
+    local.length > 300
+  ){
+    throw new Error(
+      'O local pode ter no máximo 300 caracteres.'
+    );
+  }
+
+  if (
+    descricao.length > 20000
+  ){
+    throw new Error(
+      'A descrição ficou grande demais.'
+    );
+  }
+
+  return {
+    id:
+      $('eventoHomeId').value ||
+      null,
+
+    titulo: titulo,
+
+    tipo:
+      homeEventoTipoSelecionado,
+
+    inicio: inicio,
+
+    fim: fim,
+
+    dia_inteiro:
+      diaInteiro,
+
+    local: local,
+
+    descricao: descricao,
+
+    lembrete_minutos:
+      obterLembreteMinutosHome(),
+
+    repeticao:
+      $('eventoHomeRepeticao')
+        .value,
+
+    repeticao_config:
+      obterRepeticaoConfigHome()
+  };
+}
+
+/* =========================================================
+   SALVAR EVENTO
+   ========================================================= */
+
+async function salvarEventoHome(){
+
+  homeLimparAvisoEvento();
+
+  var evento;
+
+  try {
+
+    evento =
+      montarEventoHome();
+
+  } catch(e){
+
+    homeMostrarAvisoEvento(
+      e.message,
+      true
+    );
+
+    return;
+  }
+
+  var botao =
+    $('btnSalvarEventoHome');
+
+  botao.disabled = true;
+  botao.textContent =
+    'Salvando...';
+
+  try {
+
+    var resposta =
+      await apiEventosHome(
+        '/salvar',
+        'POST',
+        evento
+      );
+
+    if (!resposta.dados.ok){
+
+      throw new Error(
+        resposta.dados.erro ||
+        'Não foi possível salvar o evento.'
+      );
+    }
+
+    var eventoSalvo =
+      resposta.dados.evento;
+
+    fecharEventoHome();
+
+    if (eventoSalvo){
+
+      var dataEvento =
+        new Date(
+          eventoSalvo.inicio
+        );
+
+      if (
+        !Number.isNaN(
+          dataEvento.getTime()
+        )
+      ){
+
+        homeDataSelecionada =
+          new Date(
+            dataEvento.getFullYear(),
+            dataEvento.getMonth(),
+            dataEvento.getDate()
+          );
+
+        homeMesExibido =
+          new Date(
+            dataEvento.getFullYear(),
+            dataEvento.getMonth(),
+            1
+          );
+      }
+    }
+
+    await carregarEventosHome();
+
+    if (
+      typeof toast === 'function'
+    ){
+
+      toast(
+        resposta.dados.criado
+          ? 'Evento criado.'
+          : 'Evento atualizado.',
+        false
+      );
+    }
+
+  } catch(e){
+
+    homeMostrarAvisoEvento(
+      e.message,
+      true
+    );
+
+  } finally {
+
+    botao.disabled = false;
+
+    botao.textContent =
+      'Salvar evento';
+  }
+}
+
+/* =========================================================
+   EXCLUIR EVENTO
+   ========================================================= */
+
+async function excluirEventoHome(){
+
+  var eventoId =
+    $('eventoHomeId').value;
+
+  if (!eventoId){
+    return;
+  }
+
+  var evento =
+    eventoHomePorId(
+      eventoId
+    );
+
+  var nomeEvento =
+    evento &&
+    evento.titulo
+      ? evento.titulo
+      : 'este evento';
+
+  if (
+    !confirm(
+      'Excluir o evento "' +
+      nomeEvento +
+      '"?'
+    )
+  ){
+    return;
+  }
+
+  var botao =
+    $('btnExcluirEventoHome');
+
+  botao.disabled = true;
+
+  botao.textContent =
+    'Excluindo...';
+
+  try {
+
+    var resposta =
+      await apiEventosHome(
+        '/excluir',
+        'POST',
+        {
+          id: eventoId
+        }
+      );
+
+    if (!resposta.dados.ok){
+
+      throw new Error(
+        resposta.dados.erro ||
+        'Não foi possível excluir o evento.'
+      );
+    }
+
+    fecharEventoHome();
+
+    await carregarEventosHome();
+
+    if (
+      typeof toast === 'function'
+    ){
+
+      toast(
+        'Evento excluído.',
+        false
+      );
+    }
+
+  } catch(e){
+
+    homeMostrarAvisoEvento(
+      e.message,
+      true
+    );
+
+  } finally {
+
+    botao.disabled = false;
+
+    botao.textContent =
+      'Excluir evento';
+  }
+}
+
+/* =========================================================
+   BOTÕES SALVAR E EXCLUIR
+   ========================================================= */
+
+$('btnSalvarEventoHome')
+  .addEventListener(
+    'click',
+    salvarEventoHome
+  );
+
+$('btnExcluirEventoHome')
+  .addEventListener(
+    'click',
+    excluirEventoHome
+  );
+
+/* =========================================================
+   TECLADO DA JANELA DE EVENTO
+   ========================================================= */
+
+document.addEventListener(
+  'keydown',
+  function(e){
+
+    var janela =
+      $('modalEventoHome');
+
+    if (
+      !janela ||
+      janela.classList.contains(
+        'oculto'
+      )
+    ){
+      return;
+    }
+
+    if (e.key === 'Escape'){
+
+      fecharEventoHome();
+
+      return;
+    }
+
+    if (
+      e.key === 'Enter' &&
+      (
+        e.ctrlKey ||
+        e.metaKey
+      )
+    ){
+
+      e.preventDefault();
+
+      salvarEventoHome();
+    }
+  }
+);
+
+/* ===== HOME GERAL - PARTE 1D - FIM ===== */
+  /* ===== HOME GERAL - PARTE 1E: NAVEGAÇÃO DA HOME ===== */
+
+var homeVisivel = false;
+
+/* =========================================================
+   CRIAR BOTÃO HOME
+   ========================================================= */
+
+function criarBotaoHomeGeral(){
+
+  if ($('navHomeGeral')){
+    return;
+  }
+
+  var nav =
+    document.querySelector('nav');
+
+  if (!nav){
+    return;
+  }
+
+  var botao =
+    document.createElement('button');
+
+  botao.id =
+    'navHomeGeral';
+
+  botao.type =
+    'button';
+
+  botao.className =
+    'nav-item';
+
+  botao.setAttribute(
+    'data-view',
+    'home'
+  );
+
+  botao.innerHTML =
+    '<span class="nav-ico">' +
+      '<svg viewBox="0 0 24 24" aria-hidden="true">' +
+        '<path d="M3 11.5 12 4l9 7.5"></path>' +
+        '<path d="M5 10v9a1 1 0 0 0 1 1h4v-5h4v5h4a1 1 0 0 0 1-1v-9"></path>' +
+      '</svg>' +
+    '</span>' +
+    '<span class="nav-rot">Home</span>';
+
+  botao.addEventListener(
+    'click',
+    abrirHomeGeral
+  );
+
+  var primeiroBotao =
+    nav.querySelector(
+      'button[data-view]'
+    );
+
+  if (primeiroBotao){
+
+    nav.insertBefore(
+      botao,
+      primeiroBotao
+    );
+
+  } else {
+
+    nav.appendChild(
+      botao
+    );
+  }
+}
+
+/* =========================================================
+   MARCAR HOME NO MENU
+   ========================================================= */
+
+function marcarHomeNoMenu(aberta){
+
+  document.body.classList.toggle(
+    'home-aberta',
+    aberta
+  );
+
+  document
+    .querySelectorAll(
+      'nav button[data-view]'
+    )
+    .forEach(function(botao){
+
+      botao.classList.toggle(
+        'ativo',
+        aberta &&
+        botao.id ===
+          'navHomeGeral'
+      );
+
+    });
+}
+
+/* =========================================================
+   ESCONDER HOME
+   ========================================================= */
+
+function esconderHomeGeral(){
+
+  homeVisivel = false;
+
+  var home =
+    $('view-home');
+
+  if (home){
+
+    home.classList.add(
+      'oculto'
+    );
+  }
+
+  marcarHomeNoMenu(false);
+}
+
+/* =========================================================
+   ABRIR HOME
+   ========================================================= */
+
+function abrirHomeGeral(){
+
+  var home =
+    $('view-home');
+
+  if (!home){
+    return;
+  }
+
+  homeVisivel = true;
+
+  [
+    'hoje',
+    'entrada',
+    'projetos',
+    'ia',
+    'revisao',
+    'espaco'
+  ].forEach(function(nome){
+
+    var tela =
+      $('view-' + nome);
+
+    if (tela){
+
+      tela.classList.add(
+        'oculto'
+      );
+    }
+  });
+
+  home.classList.remove(
+    'oculto'
+  );
+
+  marcarHomeNoMenu(true);
+
+  iniciarHome();
+
+  atualizarCabecalhoHome();
+
+  window.scrollTo(
+    0,
+    0
+  );
+}
+
+/* =========================================================
+   INTEGRAR COM TROCAR TELA
+   ========================================================= */
+
+if (
+  typeof trocarTela ===
+  'function'
+){
+
+  var trocarTelaAntesHome =
+    trocarTela;
+
+  trocarTela = function(nome){
+
+    if (nome === 'home'){
+
+      abrirHomeGeral();
+
+      return;
+    }
+
+    esconderHomeGeral();
+
+    trocarTelaAntesHome(
+      nome
+    );
+  };
+}
+
+/* =========================================================
+   ABRIR HOME APÓS LOGIN
+   ========================================================= */
+
+if (
+  typeof abrirApp ===
+  'function'
+){
+
+  var abrirAppAntesHome =
+    abrirApp;
+
+  abrirApp = function(
+    usuarioLogado
+  ){
+
+    abrirAppAntesHome(
+      usuarioLogado
+    );
+
+    /*
+      Aguarda o aplicativo terminar
+      de montar as telas e o menu.
+    */
+    setTimeout(
+      abrirHomeGeral,
+      0
+    );
+  };
+}
+
+/* =========================================================
+   CRIAR O BOTÃO
+   ========================================================= */
+
+criarBotaoHomeGeral();
+
+/* ===== HOME GERAL - PARTE 1E - FIM ===== */
   /* ===== SINCRONIZAÇÃO COM A NUVEM ===== */
 
 var URL_DADOS = URL_CONTA + '/dados';
