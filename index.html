@@ -13089,6 +13089,240 @@ $('btnSair').addEventListener('click', sairDaConta);
     }
   })();
   /* ===== AJUSTES 21 - FIM ===== */
+    /* ===== LEMBRETES - VERIFICADOR ===== */
+  (function(){
+    var CHAVE_VISTOS = 'nowfind_lembretes_vistos';
+    var cacheEventos = [];
+    var vistos = {};
+    var adiados = {};
+    try {
+      vistos = JSON.parse(localStorage.getItem(CHAVE_VISTOS) || '{}') || {};
+    } catch(e){
+      vistos = {};
+    }
+
+    function salvarVistos(){
+      var limite = Date.now() - 3 * 86400000;
+      Object.keys(vistos).forEach(function(k){
+        if (vistos[k] < limite) delete vistos[k];
+      });
+      try {
+        localStorage.setItem(CHAVE_VISTOS, JSON.stringify(vistos));
+      } catch(e){}
+    }
+
+    function textoFaltam(min){
+      if (min < 60) return min + ' min';
+      if (min < 1440){
+        var h = Math.floor(min / 60);
+        var m = min % 60;
+        return h + ' h' + (m ? ' ' + m + ' min' : '');
+      }
+      var d = Math.round(min / 1440);
+      return d + (d === 1 ? ' dia' : ' dias');
+    }
+
+    function listaEventos(){
+      var mapa = {};
+      var fontes = [cacheEventos];
+      if (typeof homeEventos !== 'undefined' && homeEventos){
+        fontes.push(homeEventos);
+      }
+      fontes.forEach(function(lista){
+        lista.forEach(function(ev){
+          if (ev && ev.id){
+            mapa[ev.id + '|' + ev.inicio] = ev;
+          }
+        });
+      });
+      return Object.keys(mapa).map(function(k){
+        return mapa[k];
+      });
+    }
+
+    function removerCartao(card){
+      if (card && card.parentNode){
+        card.parentNode.removeChild(card);
+      }
+    }
+
+    function criarBotao(texto, principal, aoClicar){
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = texto;
+      if (principal) b.className = 'principal';
+      b.addEventListener('click', aoClicar);
+      return b;
+    }
+
+    function mostrarLembrete(ev, chave){
+      var area = $('homeLembretes');
+      if (!area) return;
+      var jaNaTela = false;
+      Array.prototype.forEach.call(area.children, function(c){
+        if (c.getAttribute('data-chave') === chave) jaNaTela = true;
+      });
+      if (jaNaTela) return;
+
+      vistos[chave] = Date.now();
+      salvarVistos();
+
+      var inicio = new Date(ev.inicio);
+      var minutos = Math.round((inicio.getTime() - Date.now()) / 60000);
+      var hora = inicio.toLocaleTimeString('pt-BR', {
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+      var diaInteiro = Boolean(Number(ev.dia_inteiro));
+      var quando;
+      if (diaInteiro){
+        quando = 'Dia inteiro';
+      } else if (minutos > 0){
+        quando = 'Às ' + hora + ' · em ' + textoFaltam(minutos);
+      } else {
+        quando = 'Começou às ' + hora;
+      }
+      if (ev.local) quando += ' · ' + ev.local;
+
+      var profissional = ev.tipo === 'profissional';
+      var card = document.createElement('div');
+      card.className = 'home-lembrete ' +
+        (profissional ? 'profissional' : 'pessoal');
+      card.setAttribute('role', 'alert');
+      card.setAttribute('data-chave', chave);
+
+      var topo = document.createElement('div');
+      topo.className = 'home-lembrete-topo';
+      var rotulo = document.createElement('small');
+      rotulo.textContent = 'LEMBRETE · ' +
+        (profissional ? 'PROFISSIONAL' : 'PESSOAL');
+      var fechar = document.createElement('button');
+      fechar.type = 'button';
+      fechar.setAttribute('aria-label', 'Fechar lembrete');
+      fechar.textContent = '×';
+      fechar.addEventListener('click', function(){
+        removerCartao(card);
+      });
+      topo.appendChild(rotulo);
+      topo.appendChild(fechar);
+
+      var titulo = document.createElement('h3');
+      titulo.textContent = ev.titulo || 'Evento';
+      var texto = document.createElement('p');
+      texto.textContent = quando;
+
+      var acoes = document.createElement('div');
+      acoes.className = 'home-lembrete-acoes';
+      acoes.appendChild(criarBotao('Ok', true, function(){
+        removerCartao(card);
+      }));
+      acoes.appendChild(criarBotao('Adiar 5 min', false, function(){
+        adiados[chave] = Date.now() + 5 * 60000;
+        removerCartao(card);
+      }));
+      acoes.appendChild(criarBotao('Abrir', false, function(){
+        if (
+          typeof homeEventos !== 'undefined' &&
+          typeof eventoHomePorId === 'function' &&
+          !eventoHomePorId(ev.id)
+        ){
+          homeEventos.push(ev);
+        }
+        if (typeof abrirEditarEventoHome === 'function'){
+          abrirEditarEventoHome(ev.id);
+        }
+        removerCartao(card);
+      }));
+
+      card.appendChild(topo);
+      card.appendChild(titulo);
+      card.appendChild(texto);
+      card.appendChild(acoes);
+      area.appendChild(card);
+
+      try {
+        if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+      } catch(e){}
+      try {
+        if (
+          'Notification' in window &&
+          Notification.permission === 'granted'
+        ){
+          new Notification(ev.titulo || 'Lembrete', { body: quando });
+        }
+      } catch(e){}
+    }
+
+    function verificar(){
+      var agora = Date.now();
+      listaEventos().forEach(function(ev){
+        if (
+          ev.lembrete_minutos === null ||
+          ev.lembrete_minutos === undefined ||
+          ev.lembrete_minutos === ''
+        ){
+          return;
+        }
+        var inicio = new Date(ev.inicio).getTime();
+        var fim = new Date(ev.fim).getTime();
+        var antes = Number(ev.lembrete_minutos);
+        if (isNaN(inicio) || isNaN(antes)) return;
+        if (isNaN(fim) || fim < inicio) fim = inicio;
+        var chave = ev.id + '|' + ev.inicio + '|' + antes;
+        var disparo = inicio - antes * 60000;
+
+        if (adiados[chave]){
+          if (agora >= adiados[chave] && agora < fim){
+            delete adiados[chave];
+            mostrarLembrete(ev, chave);
+          }
+          return;
+        }
+        if (vistos[chave]) return;
+        if (agora >= disparo && agora < fim){
+          mostrarLembrete(ev, chave);
+        }
+      });
+    }
+
+    async function carregar(){
+      if (
+        !tokenAtual() ||
+        typeof usuario === 'undefined' ||
+        !usuario
+      ){
+        return;
+      }
+      var de = new Date(Date.now() - 12 * 3600000);
+      var ate = new Date(Date.now() + 35 * 86400000);
+      try {
+        var r = await apiEventosHome(
+          '?inicio=' + encodeURIComponent(de.toISOString()) +
+          '&fim=' + encodeURIComponent(ate.toISOString()),
+          'GET'
+        );
+        if (r.dados && r.dados.ok){
+          cacheEventos = r.dados.eventos || [];
+        }
+      } catch(e){}
+      verificar();
+    }
+
+    /* depois de salvar ou carregar eventos na Início, verifica na hora */
+    var carregarEventosHomeBase = carregarEventosHome;
+    carregarEventosHome = async function(){
+      await carregarEventosHomeBase.apply(this, arguments);
+      verificar();
+    };
+
+    setInterval(verificar, 15000);
+    setInterval(carregar, 120000);
+    document.addEventListener('visibilitychange', function(){
+      if (!document.hidden) carregar();
+    });
+    setTimeout(carregar, 2500);
+  })();
+  /* ===== LEMBRETES - FIM ===== */
 carregarSortable();
 restaurarSessao();
 
