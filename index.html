@@ -1037,6 +1037,33 @@ nav.nav-comp #btnNovoProjetoLateral{display:none !important}
 
 .ce-titulo{display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
 /* ===== AJUSTES 14 - FIM ===== */ 
+  /* ===== AJUSTES 15 - TAREFAS SEM PROJETO ===== */
+.btn-semproj{display:none !important;align-items:center;justify-content:space-between;gap:10px;cursor:pointer;font-weight:600}
+.btn-semproj .sp-n{min-width:22px;height:22px;padding:0 7px;border-radius:8px;display:inline-grid;place-items:center;font-size:12px;font-weight:700}
+
+/* celular: abaixo do seletor Pessoal | Profissional | Compartilhado */
+.btn-semproj.semproj-topo{display:flex !important;width:100%;max-width:420px;margin:-8px 0 16px;padding:11px 14px;font-size:14px;border:1px solid var(--borda,#E6E9F2);background:var(--card,#fff);color:var(--tx,#14172B);border-radius:14px}
+.semproj-topo .sp-n{background:var(--azul);color:var(--on-acento,#fff)}
+.btn-semproj.semproj-topo.ativo{background:var(--grad-acento,var(--azul));color:var(--on-acento,#fff);border-color:transparent}
+.semproj-topo.ativo .sp-n{background:rgba(255,255,255,.25)}
+
+/* computador: abaixo do seletor do menu lateral */
+@media (min-width:900px){
+  .btn-semproj.semproj-topo{display:none !important}
+  body[class] nav .btn-semproj.semproj-lat{display:flex !important;order:-2;width:auto;margin:-10px 2px 18px;padding:10px 12px;font-size:13px;border-radius:12px;background:transparent;color:var(--nav-tx,#fff)}
+  nav .semproj-lat .sp-n{background:var(--nav-pill,#fff);color:var(--nav-pill-tx,#14172B)}
+  body[class] nav .btn-semproj.semproj-lat.ativo{background:var(--nav-pill,#fff);color:var(--nav-pill-tx,#14172B)}
+  body[class] nav .semproj-lat.ativo .sp-n{background:var(--nav-pill-tx,#14172B);color:var(--nav-pill,#fff)}
+}
+body[class] .btn-semproj.semproj-oculto,
+body[class] nav .btn-semproj.semproj-oculto{display:none !important}
+
+/* início do Compartilhado no celular: os dois botões lado a lado, abaixo do título */
+@media (max-width:700px){
+  .hub-acoes{width:100%}
+  .hub-acoes .btn-prim{flex:1;padding:12px 10px}
+}
+/* ===== AJUSTES 15 - FIM ===== */
 </style>
 </head>
 <body>
@@ -7367,7 +7394,104 @@ carregarEspacos = async function(){
   await carregarEspacosBase();
   if (ambiente === 'compartilhado') renderLateral();
 };
-/* EVENTOS */
+
+/* ===== PARTE 4: TAREFAS SEM PROJETO EM BOTÃO PRÓPRIO, SEM CARTÃO "NOVO PROJETO" ===== */
+
+/* o rótulo antigo "Sem projeto" vira "Tarefas sem projeto" */
+nomeProj = function(id, d){
+  return id === 'avulsas' ? 'Tarefas sem projeto' : (d.nome || 'Projeto');
+};
+
+/* no Pessoal e no Profissional a grade só lista projetos de verdade */
+var idsOrdenadosNuvem = idsOrdenados;
+idsOrdenados = function(){
+  var ids = idsOrdenadosNuvem();
+  return modoLocal() ? ids.filter(function(i){ return i !== 'avulsas'; }) : ids;
+};
+
+/* a grade não repete o cartão "＋ Novo projeto": o botão do topo já cria */
+var renderHomeP3 = renderHome;
+renderHome = function(){
+  renderHomeP3();
+  var g = $('gradeProj');
+  g.querySelectorAll('.proj-card.nova').forEach(function(c){ c.remove(); });
+  if (espCarregado && !g.children.length){
+    g.appendChild(el('div', 'vazio', 'Nenhum projeto ainda. Use o botão ＋ Projeto para criar o primeiro.'));
+  }
+};
+
+/* ---------- botão "Tarefas sem projeto", logo abaixo do seletor de ambiente ---------- */
+
+function contarSemProjeto(){
+  var proj = {};
+  (dados.projetos || []).forEach(function(p){
+    if ((p.tipo || 'pessoal') === ambiente) proj[p.id] = true;
+  });
+  return (dados.itens || []).filter(function(i){
+    if ((i.tipo || 'pessoal') !== ambiente) return false;
+    if (!STATUS_ESP.some(function(s){ return s[0] === i.status; })) return false;
+    return !(i.projetoId && proj[i.projetoId]);
+  }).length;
+}
+
+function atualizarSemProjeto(){
+  var comp = ambiente === 'compartilhado';
+  var n = comp ? 0 : contarSemProjeto();
+  var v = $('view-espaco');
+  var aberto = !comp && v && !v.classList.contains('oculto') && projEspAberto === 'avulsas';
+  document.querySelectorAll('.btn-semproj').forEach(function(b){
+    b.classList.toggle('semproj-oculto', comp);
+    b.classList.toggle('ativo', !!aberto);
+    var c = b.querySelector('.sp-n');
+    c.textContent = n;
+    c.classList.toggle('oculto', !n);
+  });
+  if (!comp && v && !v.classList.contains('oculto')){
+    var navP = document.querySelector('nav [data-view="projetos"]');
+    if (navP) navP.classList.toggle('ativo', !aberto);
+  }
+  var det = document.querySelector('#abasProj button[data-aba="detalhes"]');
+  if (det) det.style.display = (projEspAberto === 'avulsas') ? 'none' : '';
+}
+
+function abrirSemProjeto(){
+  if (ambiente === 'compartilhado') return;
+  trocarTela('espaco');
+  abrirProjEsp('avulsas', 'quadro');
+}
+
+(function(){
+  function criar(cls){
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'btn-semproj ' + cls;
+    b.innerHTML = '<span class="sp-rot">📋 Tarefas sem projeto</span><span class="sp-n oculto">0</span>';
+    b.addEventListener('click', abrirSemProjeto);
+    return b;
+  }
+  if (document.querySelector('.btn-semproj')) return;
+  var topo = $('seletorAmbiente');
+  if (topo) topo.parentNode.insertBefore(criar('semproj-topo'), topo.nextSibling);
+  var lat = document.querySelector('nav .amb-lateral');
+  if (lat) lat.parentNode.insertBefore(criar('semproj-lat'), lat.nextSibling);
+})();
+
+var renderEspP3 = renderEsp;
+renderEsp = function(){
+  renderEspP3();
+  atualizarSemProjeto();
+};
+
+var renderLateralP3 = renderLateral;
+renderLateral = function(){
+  renderLateralP3();
+  atualizarSemProjeto();
+};
+
+/* ---------- início do Compartilhado: os dois botões iguais ---------- */
+
+$('btnHubProj').className = 'btn-prim';
+  /* EVENTOS */
   /* ===== SINCRONIZAÇÃO COM A NUVEM ===== */
 
 var URL_DADOS = URL_CONTA + '/dados';
