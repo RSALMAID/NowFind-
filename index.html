@@ -3072,6 +3072,97 @@ body.home-aberta .oculto-home{
     }
   }
   /* ===== AJUSTES 22 - FIM ===== */
+      /* ===== AJUSTES 24 - BARRA PRETA FOSCA ===== */
+  @media (display-mode: window-controls-overlay){
+    html{
+      --barra-h:54px !important;
+    }
+    #barraApp{
+      height:54px !important;
+      padding:0 18px !important;
+      gap:14px !important;
+      background:#0E0E10 !important;
+      border-bottom:1px solid rgba(255,255,255,.07) !important;
+      font-family:inherit !important;
+    }
+    #barraApp::after{
+      content:"";
+      position:absolute;
+      left:0;
+      right:0;
+      bottom:-1px;
+      height:1px;
+      background:linear-gradient(90deg,rgba(0,0,255,0),rgba(70,70,255,.75),rgba(255,214,0,.55),rgba(255,214,0,0));
+      pointer-events:none;
+    }
+    #barraApp .barra-logo{
+      width:32px !important;
+      height:32px !important;
+      border-radius:11px !important;
+      background:linear-gradient(145deg,#2A2AFF,#12127A) !important;
+      color:#FFD600 !important;
+      font-size:17px !important;
+      font-weight:900 !important;
+      box-shadow:0 0 0 1px rgba(255,255,255,.14),0 6px 18px rgba(0,0,255,.40) !important;
+    }
+    #barraApp .barra-nome{
+      color:#FFFFFF !important;
+      font-size:16px !important;
+      font-weight:800 !important;
+      letter-spacing:.01em !important;
+    }
+    #barraApp .barra-sep{
+      width:1px;
+      height:22px;
+      background:rgba(255,255,255,.14);
+    }
+    #barraApp .barra-inicio{
+      -webkit-app-region:no-drag;
+      app-region:no-drag;
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      height:34px;
+      padding:0 14px 0 11px;
+      border:1px solid rgba(255,255,255,.10);
+      border-radius:999px;
+      background:rgba(255,255,255,.06);
+      color:#F2F3F8;
+      font:inherit;
+      font-size:13px;
+      font-weight:700;
+      cursor:pointer;
+      transition:background .15s ease,border-color .15s ease,transform .15s ease;
+    }
+    #barraApp .barra-inicio:hover{
+      background:rgba(255,255,255,.13);
+      border-color:rgba(255,255,255,.22);
+      transform:translateY(-1px);
+    }
+    #barraApp .barra-inicio:active{
+      transform:scale(.97);
+    }
+    #barraApp .barra-inicio svg{
+      width:17px;
+      height:17px;
+      fill:none;
+      stroke:currentColor;
+      stroke-width:1.9;
+      stroke-linecap:round;
+      stroke-linejoin:round;
+    }
+    #barraApp .barra-frase{
+      color:rgba(255,255,255,.48) !important;
+      font-size:13px !important;
+      font-weight:500 !important;
+    }
+  }
+  @media (display-mode: window-controls-overlay) and (max-width:900px){
+    #barraApp .barra-frase{
+      display:none !important;
+    }
+  }
+  /* ===== AJUSTES 24 - FIM ===== */
   </style>
 </head>
 <body>
@@ -13453,6 +13544,37 @@ $('btnSair').addEventListener('click', sairDaConta);
     setInterval(ajustarTopo, 400);
   })();
   /* ===== AJUSTES 22 - FIM ===== */
+      /* ===== AJUSTES 24 - BARRA PRETA FOSCA ===== */
+  (function(){
+    var barra = document.getElementById('barraApp');
+    if (!barra) return;
+    barra.innerHTML =
+      '<span class="barra-logo">N</span>' +
+      '<span class="barra-nome">NowFind</span>' +
+      '<span class="barra-sep"></span>' +
+      '<button type="button" class="barra-inicio" id="barraInicio" title="Voltar ao Início" aria-label="Início">' +
+        '<svg viewBox="0 0 24 24" aria-hidden="true">' +
+          '<path d="M3 11.5 12 4l9 7.5"></path>' +
+          '<path d="M5 10v9a1 1 0 0 0 1 1h4v-5h4v5h4a1 1 0 0 0 1-1v-9"></path>' +
+        '</svg>' +
+        '<span>Início</span>' +
+      '</button>' +
+      '<span class="barra-frase">Tire da cabeça. Coloque em movimento.</span>';
+    var botao = document.getElementById('barraInicio');
+    if (botao){
+      botao.addEventListener('click', function(){
+        if (typeof abrirHomeGeral === 'function') abrirHomeGeral();
+      });
+    }
+    var meta = document.querySelector('meta[name="theme-color"]');
+    if (!meta){
+      meta = document.createElement('meta');
+      meta.setAttribute('name', 'theme-color');
+      document.head.appendChild(meta);
+    }
+    meta.setAttribute('content', '#0E0E10');
+  })();
+  /* ===== AJUSTES 24 - FIM ===== */
 carregarSortable();
 restaurarSessao();
 
