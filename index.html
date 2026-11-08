@@ -2055,18 +2055,25 @@ nav .nav-rot{display:inline;margin:0;font-size:inherit}
 .chat-msg.ia .chat-balao a:hover {
   color: #93c5fd !important;
 }
-    /* REEXIBE OS BOTÕES DOS CARTÕES DA HOME */
+/* REEXIBE OS BOTÕES DOS CARTÕES DA HOME */
 body.na-home section.home-card header.home-card-topo #btnMesAnterior,
 body.na-home section.home-card header.home-card-topo #btnMesAtual,
 body.na-home section.home-card header.home-card-topo #btnMesSeguinte,
 body.na-home section.home-card header.home-card-topo #btnEventoAgenda,
 body.na-home section.home-card header.home-card-topo #btnNovaNotaHome,
-body.na-home section.home-card header.home-card-topo #btnLimparChatHome {
+body.na-home section.home-card header.home-card-topo #btnLimparChatHome,
+body.na-home section.home-card header.home-card-topo #btnAdicionarReferencia {
   display: inline-flex !important;
   align-items: center;
   justify-content: center;
   visibility: visible !important;
   opacity: 1 !important;
+}
+
+.home-ia-acoes {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
     /* FORMATAÇÃO DAS RESPOSTAS DA IA */
 .chat-msg.ia .chat-balao > div:not(.chat-modelo) {
@@ -3780,11 +3787,22 @@ body.home-aberta .oculto-home{
           <h2>IA NowFind</h2>
         </div>
 
-        <button
-          id="btnLimparChatHome"
-          class="mini-btn"
-          type="button"
-        >
+        <div class="home-ia-acoes">
+          <button
+            id="btnAdicionarReferencia"
+            class="mini-btn"
+            type="button"
+          >
+            📚 Referências
+          </button>
+          <button
+            id="btnLimparChatHome"
+            class="mini-btn"
+            type="button"
+          >
+            Limpar
+          </button>
+        </div>
           Limpar
         </button>
 
@@ -3842,16 +3860,7 @@ body.home-aberta .oculto-home{
 
           </div>
 
-      <!-- BIBLIOTECA CENTRAL DE CONHECIMENTO -->
-      <div class="home-referencias-acesso">
-        <button
-          id="btnAdicionarReferencia"
-          type="button"
-          class="mini-btn"
-        >
-          + Adicionar referência
-        </button>
-      </div>
+
 
     </section>
 
@@ -14083,131 +14092,135 @@ function escreverTexto(alvo, texto){
   const botao = document.getElementById('btnAdicionarReferencia');
   if (!botao) return;
 
+  function baseAPI() {
+    let base = String(typeof URL_EVENTOS_HOME !== 'undefined' ? URL_EVENTOS_HOME : '');
+    const i = base.indexOf('/api/conta');
+    return i >= 0 ? base.substring(0, i) : base.replace(/\/+$/, '');
+  }
+
+  function token() {
+    return typeof tokenAtual === 'function' ? tokenAtual() : '';
+  }
+
+  async function chamar(caminho, metodo, corpo) {
+    const r = await fetch(baseAPI() + caminho, {
+      method: metodo,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + token()
+      },
+      body: corpo ? JSON.stringify(corpo) : undefined
+    });
+    let d = {};
+    try { d = await r.json(); } catch (e) {}
+    if (!d.ok) throw new Error(d.erro || ('Erro ' + r.status));
+    return d;
+  }
+
   const estilo = document.createElement('style');
   estilo.textContent = `
-    .nf-ref-overlay {
-      position: fixed;
-      inset: 0;
-      z-index: 99999;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
-      background: rgba(0,0,0,.65);
-      backdrop-filter: blur(8px);
-    }
-
-    .nf-ref-janela {
-      width: 100%;
-      max-width: 560px;
-      max-height: 90vh;
-      overflow-y: auto;
-      box-sizing: border-box;
-      padding: 24px;
-      border-radius: 20px;
-      background: var(--card);
-      color: var(--tx);
-      border: 1px solid var(--borda);
-      box-shadow: 0 20px 60px rgba(0,0,0,.25);
-    }
-
-    .nf-ref-topo {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      margin-bottom: 20px;
-    }
-
-    .nf-ref-topo h2 {
-      margin: 0;
-      font-size: 20px;
-    }
-
-    .nf-ref-fechar {
-      border: 0;
-      background: transparent;
-      color: var(--tx);
-      font-size: 26px;
-      cursor: pointer;
-    }
-
-    .nf-ref-campo {
-      display: flex;
-      flex-direction: column;
-      gap: 7px;
-      margin-bottom: 16px;
-    }
-
-    .nf-ref-campo label {
-      font-size: 13px;
-      font-weight: 600;
-    }
-
-    .nf-ref-campo input,
-    .nf-ref-campo textarea,
-    .nf-ref-campo select {
-      width: 100%;
-      box-sizing: border-box;
-      padding: 12px;
-      border: 1px solid var(--borda);
-      border-radius: 12px;
-      background: var(--bg);
-      color: var(--tx);
-      font: inherit;
-    }
-
-    .nf-ref-campo textarea {
-      min-height: 120px;
-      resize: vertical;
-    }
-
-    .nf-ref-acoes {
-      display: flex;
-      justify-content: flex-end;
-      gap: 10px;
-      margin-top: 20px;
-    }
-
-    .nf-ref-acoes button {
-      padding: 11px 18px;
-      border-radius: 11px;
-      cursor: pointer;
-      font-weight: 600;
-    }
-
-    .nf-ref-salvar {
-      background: #2563eb;
-      color: white;
-      border: 0;
-    }
+    .nf-ref-overlay { position: fixed; inset: 0; z-index: 99999; display: flex;
+      align-items: center; justify-content: center; padding: 20px;
+      background: rgba(0,0,0,.65); backdrop-filter: blur(8px); }
+    .nf-ref-janela { width: 100%; max-width: 580px; max-height: 90vh; overflow-y: auto;
+      box-sizing: border-box; padding: 24px; border-radius: 20px; background: var(--card);
+      color: var(--tx); border: 1px solid var(--borda); box-shadow: 0 20px 60px rgba(0,0,0,.25); }
+    .nf-ref-topo { display: flex; align-items: center; justify-content: space-between;
+      gap: 12px; margin-bottom: 20px; }
+    .nf-ref-topo h2 { margin: 0; font-size: 20px; }
+    .nf-ref-fechar { border: 0; background: transparent; color: var(--tx);
+      font-size: 26px; cursor: pointer; }
+    .nf-ref-campo { display: flex; flex-direction: column; gap: 7px; margin-bottom: 16px; }
+    .nf-ref-campo label { font-size: 13px; font-weight: 600; }
+    .nf-ref-campo input, .nf-ref-campo textarea, .nf-ref-campo select {
+      width: 100%; box-sizing: border-box; padding: 12px; border: 1px solid var(--borda);
+      border-radius: 12px; background: var(--bg); color: var(--tx); font: inherit; }
+    .nf-ref-campo textarea { min-height: 120px; resize: vertical; }
+    .nf-ref-acoes { display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px; }
+    .nf-ref-acoes button { padding: 11px 18px; border-radius: 11px; cursor: pointer; font-weight: 600; }
+    .nf-ref-salvar { background: #2563eb; color: white; border: 0; }
+    .nf-ref-salvar:disabled { opacity: .6; cursor: wait; }
+    .nf-ref-status { min-height: 18px; margin-top: 10px; font-size: 13px; }
+    .nf-ref-status.erro { color: #f87171; }
+    .nf-ref-status.ok { color: #4ade80; }
+    .nf-ref-lista-titulo { margin: 24px 0 10px; padding-top: 16px;
+      border-top: 1px solid var(--borda); font-size: 14px; font-weight: 700; }
+    .nf-ref-item { display: flex; align-items: center; justify-content: space-between;
+      gap: 10px; padding: 10px 12px; margin-bottom: 8px; border: 1px solid var(--borda);
+      border-radius: 12px; font-size: 13px; }
+    .nf-ref-item span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .nf-ref-item button { flex-shrink: 0; border: 0; background: transparent;
+      color: #f87171; cursor: pointer; font-size: 12px; }
   `;
-
   document.head.appendChild(estilo);
+
+  const icones = { texto: '📝', link: '🔗', arquivo: '📄' };
+
+  async function carregarLista(overlay) {
+    const lista = overlay.querySelector('#nfRefLista');
+    lista.textContent = 'Carregando...';
+    try {
+      const d = await chamar('/api/conta/referencias', 'GET');
+      lista.textContent = '';
+      if (!d.referencias.length) {
+        lista.textContent = 'Nenhuma referência salva ainda.';
+        return;
+      }
+      d.referencias.forEach(function (ref) {
+        const item = document.createElement('div');
+        item.className = 'nf-ref-item';
+        const nome = document.createElement('span');
+        nome.textContent = (icones[ref.tipo] || '📝') + ' ' + ref.titulo;
+        const excluir = document.createElement('button');
+        excluir.type = 'button';
+        excluir.textContent = 'Excluir';
+        excluir.addEventListener('click', async function () {
+          if (!confirm('Excluir a referência "' + ref.titulo + '"?')) return;
+          try {
+            await chamar('/api/conta/referencias/excluir', 'POST', { id: ref.id });
+            carregarLista(overlay);
+          } catch (e) { alert(e.message); }
+        });
+        item.appendChild(nome);
+        item.appendChild(excluir);
+        lista.appendChild(item);
+      });
+    } catch (e) {
+      lista.textContent = 'Não consegui carregar: ' + e.message;
+    }
+  }
+
+  async function lerArquivo(arquivo) {
+    const r = await fetch(baseAPI() + '/api/arquivo', {
+      method: 'POST',
+      headers: {
+        'Content-Type': arquivo.type || 'application/octet-stream',
+        'X-NowFind-Nome': encodeURIComponent(arquivo.name)
+      },
+      body: await arquivo.arrayBuffer()
+    });
+    let d = {};
+    try { d = await r.json(); } catch (e) {}
+    if (!d.ok || !d.texto) throw new Error(d.erro || 'Não consegui ler o arquivo.');
+    return d.texto;
+  }
 
   function abrirBiblioteca() {
     if (document.querySelector('.nf-ref-overlay')) return;
+    if (!token()) { alert('Entre na sua conta para usar as referências.'); return; }
 
     const overlay = document.createElement('div');
     overlay.className = 'nf-ref-overlay';
-
     overlay.innerHTML = `
-      <div class="nf-ref-janela"
-           role="dialog"
-           aria-modal="true"
-           aria-labelledby="nfRefTitulo">
-
+      <div class="nf-ref-janela" role="dialog" aria-modal="true" aria-labelledby="nfRefTitulo">
         <div class="nf-ref-topo">
-          <h2 id="nfRefTitulo">Adicionar referência</h2>
-          <button type="button"
-                  class="nf-ref-fechar"
-                  aria-label="Fechar">×</button>
+          <h2 id="nfRefTitulo">Biblioteca de referências</h2>
+          <button type="button" class="nf-ref-fechar" aria-label="Fechar">×</button>
         </div>
 
         <div class="nf-ref-campo">
           <label for="nfRefNome">Título da referência</label>
-          <input id="nfRefNome"
-                 placeholder="Ex.: Ergonomia e fatores humanos">
+          <input id="nfRefNome" placeholder="Ex.: NR-17 Ergonomia">
         </div>
 
         <div class="nf-ref-campo">
@@ -14221,85 +14234,250 @@ function escreverTexto(alvo, texto){
 
         <div class="nf-ref-campo" id="nfRefAreaTexto">
           <label for="nfRefTexto">Conteúdo</label>
-          <textarea id="nfRefTexto"
-                    placeholder="Cole ou escreva o conhecimento..."></textarea>
+          <textarea id="nfRefTexto" placeholder="Cole ou escreva o conhecimento..."></textarea>
         </div>
 
-        <div class="nf-ref-campo" id="nfRefAreaLink"
-             style="display:none">
+        <div class="nf-ref-campo" id="nfRefAreaLink" style="display:none">
           <label for="nfRefLink">Endereço do site</label>
-          <input id="nfRefLink"
-                 type="url"
-                 placeholder="https://...">
+          <input id="nfRefLink" type="url" placeholder="https://...">
         </div>
 
-        <div class="nf-ref-campo" id="nfRefAreaArquivo"
-             style="display:none">
+        <div class="nf-ref-campo" id="nfRefAreaArquivo" style="display:none">
           <label for="nfRefArquivo">Selecionar documento</label>
-          <input id="nfRefArquivo"
-                 type="file"
-                 accept=".pdf,.doc,.docx,.txt,.md">
+          <input id="nfRefArquivo" type="file" accept=".pdf,.doc,.docx,.txt,.md,.xlsx,.csv">
         </div>
 
         <div class="nf-ref-acoes">
-          <button type="button" class="nf-ref-cancelar">
-            Cancelar
-          </button>
-
-          <button type="button" class="nf-ref-salvar">
-            Salvar referência
-          </button>
+          <button type="button" class="nf-ref-cancelar">Fechar</button>
+          <button type="button" class="nf-ref-salvar">Salvar referência</button>
         </div>
+        <div class="nf-ref-status" aria-live="polite"></div>
+
+        <div class="nf-ref-lista-titulo">Referências salvas</div>
+        <div id="nfRefLista"></div>
       </div>
     `;
-
     document.body.appendChild(overlay);
 
-    const fechar = function () {
-      overlay.remove();
-    };
-
-    overlay.querySelector('.nf-ref-fechar')
-      .addEventListener('click', fechar);
-
-    overlay.querySelector('.nf-ref-cancelar')
-      .addEventListener('click', fechar);
-
-    overlay.addEventListener('click', function (e) {
-      if (e.target === overlay) fechar();
-    });
-
-    overlay.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape') fechar();
-    });
+    const fechar = function () { overlay.remove(); };
+    overlay.querySelector('.nf-ref-fechar').addEventListener('click', fechar);
+    overlay.querySelector('.nf-ref-cancelar').addEventListener('click', fechar);
+    overlay.addEventListener('click', function (e) { if (e.target === overlay) fechar(); });
+    overlay.addEventListener('keydown', function (e) { if (e.key === 'Escape') fechar(); });
 
     const tipo = overlay.querySelector('#nfRefTipo');
-
     tipo.addEventListener('change', function () {
-      overlay.querySelector('#nfRefAreaTexto').style.display =
-        tipo.value === 'texto' ? '' : 'none';
-
-      overlay.querySelector('#nfRefAreaLink').style.display =
-        tipo.value === 'link' ? '' : 'none';
-
-      overlay.querySelector('#nfRefAreaArquivo').style.display =
-        tipo.value === 'arquivo' ? '' : 'none';
+      overlay.querySelector('#nfRefAreaTexto').style.display = tipo.value === 'texto' ? '' : 'none';
+      overlay.querySelector('#nfRefAreaLink').style.display = tipo.value === 'link' ? '' : 'none';
+      overlay.querySelector('#nfRefAreaArquivo').style.display = tipo.value === 'arquivo' ? '' : 'none';
     });
 
-    overlay.querySelector('.nf-ref-salvar')
-      .addEventListener('click', function () {
-        alert(
-          'A janela está funcionando. ' +
-          'O armazenamento será conectado ao banco D1.'
-        );
-      });
+    const status = overlay.querySelector('.nf-ref-status');
+    const salvar = overlay.querySelector('.nf-ref-salvar');
 
+    salvar.addEventListener('click', async function () {
+      const titulo = overlay.querySelector('#nfRefNome').value.trim();
+      const t = tipo.value;
+      status.className = 'nf-ref-status';
+
+      if (!titulo) {
+        status.className = 'nf-ref-status erro';
+        status.textContent = 'Dê um título à referência.';
+        return;
+      }
+
+      salvar.disabled = true;
+      status.textContent = t === 'arquivo' ? 'Lendo o documento...' : 'Salvando...';
+
+      try {
+        const corpo = { titulo: titulo, tipo: t };
+
+        if (t === 'texto') {
+          corpo.conteudo = overlay.querySelector('#nfRefTexto').value.trim();
+          if (!corpo.conteudo) throw new Error('Escreva o conteúdo da referência.');
+        }
+        if (t === 'link') {
+          corpo.url = overlay.querySelector('#nfRefLink').value.trim();
+          if (!corpo.url) throw new Error('Informe o link.');
+        }
+        if (t === 'arquivo') {
+          const arq = overlay.querySelector('#nfRefArquivo').files[0];
+          if (!arq) throw new Error('Selecione um documento.');
+          corpo.conteudo = await lerArquivo(arq);
+          status.textContent = 'Salvando...';
+        }
+
+        await chamar('/api/conta/referencias/salvar', 'POST', corpo);
+
+        status.className = 'nf-ref-status ok';
+        status.textContent = 'Referência salva na biblioteca.';
+        overlay.querySelector('#nfRefNome').value = '';
+        overlay.querySelector('#nfRefTexto').value = '';
+        overlay.querySelector('#nfRefLink').value = '';
+        overlay.querySelector('#nfRefArquivo').value = '';
+        carregarLista(overlay);
+      } catch (e) {
+        status.className = 'nf-ref-status erro';
+        status.textContent = e.message;
+      } finally {
+        salvar.disabled = false;
+      }
+    });
+
+    carregarLista(overlay);
     overlay.querySelector('#nfRefNome').focus();
   }
 
   botao.addEventListener('click', abrirBiblioteca);
 })();
 /* ===== AJUSTES 28 - FIM ===== */
+    /* ===== AJUSTES 29 - PESQUISA DE CONHECIMENTO NOS PROJETOS ===== */
+(function () {
+  const abas = document.getElementById('abasProj');
+  if (!abas || document.getElementById('nfConhecimentoProj')) return;
+
+  function baseAPI() {
+    let base = String(typeof URL_EVENTOS_HOME !== 'undefined' ? URL_EVENTOS_HOME : '');
+    const i = base.indexOf('/api/conta');
+    return i >= 0 ? base.substring(0, i) : base.replace(/\/+$/, '');
+  }
+
+  function token() {
+    return typeof tokenAtual === 'function' ? tokenAtual() : '';
+  }
+
+  const estilo = document.createElement('style');
+  estilo.textContent = `
+    .nf-con { margin: 14px 0; padding: 14px; border: 1px solid var(--borda);
+      border-radius: 16px; background: var(--card); color: var(--tx); }
+    .nf-con-linha { display: flex; gap: 8px; }
+    .nf-con-linha input { flex: 1; min-width: 0; padding: 11px 14px;
+      border: 1px solid var(--borda); border-radius: 12px;
+      background: var(--bg); color: var(--tx); font: inherit; font-size: 14px; }
+    .nf-con-linha button { flex-shrink: 0; padding: 0 16px; border: 0;
+      border-radius: 12px; background: #2563eb; color: white;
+      font-weight: 600; cursor: pointer; }
+    .nf-con-linha button:disabled { opacity: .6; cursor: wait; }
+    .nf-con-resposta { margin-top: 12px; font-size: 14px; line-height: 1.7;
+      overflow-wrap: anywhere; }
+    .nf-con-resposta:empty { display: none; }
+    .nf-con-resposta p { margin: 0 0 8px; }
+    .nf-con-resposta a { color: #60a5fa; text-decoration: underline; }
+    .nf-con-erro { color: #f87171; }
+    .nf-con-modelo { margin-top: 10px; padding-top: 8px;
+      border-top: 1px solid var(--borda); font-size: 11px; opacity: .7; }
+  `;
+  document.head.appendChild(estilo);
+
+  const caixa = document.createElement('div');
+  caixa.id = 'nfConhecimentoProj';
+  caixa.className = 'nf-con';
+  caixa.innerHTML = `
+    <form class="nf-con-linha">
+      <label for="nfConPergunta" style="position:absolute;left:-9999px">
+        Pesquisar conhecimento
+      </label>
+      <input id="nfConPergunta" type="text" autocomplete="off"
+             placeholder="🔎 Pesquisar conhecimento na biblioteca...">
+      <button type="submit">Pesquisar</button>
+    </form>
+    <div class="nf-con-resposta" aria-live="polite"></div>
+  `;
+  abas.parentNode.insertBefore(caixa, abas);
+
+  const form = caixa.querySelector('form');
+  const campo = caixa.querySelector('#nfConPergunta');
+  const botao = caixa.querySelector('button');
+  const saida = caixa.querySelector('.nf-con-resposta');
+
+  function escrever(texto) {
+    saida.textContent = '';
+    String(texto || '').split('\n').forEach(function (linha) {
+      const l = linha.trim();
+      if (!l) return;
+      const p = document.createElement('p');
+      const limpa = l.replace(/^#{1,4}\s+/, '').replace(/\*\*/g, '');
+      limpa.split(/(https?:\/\/[^\s<>"')]+)/g).forEach(function (parte) {
+        if (!parte) return;
+        if (/^https?:\/\//i.test(parte)) {
+          const a = document.createElement('a');
+          a.href = parte.replace(/[.,;!?]+$/, '');
+          a.target = '_blank';
+          a.rel = 'noopener noreferrer';
+          a.textContent = parte;
+          p.appendChild(a);
+        } else {
+          p.appendChild(document.createTextNode(parte));
+        }
+      });
+      saida.appendChild(p);
+    });
+  }
+
+  form.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    const pergunta = campo.value.trim();
+    if (!pergunta) return;
+
+    if (!token()) {
+      saida.innerHTML = '<p class="nf-con-erro">Entre na sua conta para pesquisar.</p>';
+      return;
+    }
+
+    const tituloEl = document.getElementById('projTitulo');
+    const espacoEl = document.getElementById('projEspaco');
+
+    botao.disabled = true;
+    saida.innerHTML = '<p>Pesquisando na biblioteca...</p>';
+
+    try {
+      const r = await fetch(baseAPI() + '/api/conta/ia/conhecimento', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + token()
+        },
+        body: JSON.stringify({
+          pergunta: pergunta,
+          projeto: tituloEl ? tituloEl.textContent.trim() : '',
+          objetivo: espacoEl ? 'Ambiente: ' + espacoEl.textContent.trim() : ''
+        })
+      });
+
+      let d = {};
+      try { d = await r.json(); } catch (erro) {}
+
+      if (!d.ok) throw new Error(d.erro || ('Erro ' + r.status));
+
+      escrever(d.resposta);
+
+      if (d.modelo) {
+        const m = document.createElement('div');
+        m.className = 'nf-con-modelo';
+        m.textContent = String(d.modelo).split('/').pop().toUpperCase();
+        saida.appendChild(m);
+      }
+    } catch (erro) {
+      saida.textContent = '';
+      const p = document.createElement('p');
+      p.className = 'nf-con-erro';
+      p.textContent = erro.message;
+      saida.appendChild(p);
+    } finally {
+      botao.disabled = false;
+    }
+  });
+
+  /* Limpa a pesquisa ao trocar de projeto */
+  const titulo = document.getElementById('projTitulo');
+  if (titulo) {
+    new MutationObserver(function () {
+      campo.value = '';
+      saida.textContent = '';
+    }).observe(titulo, { childList: true, characterData: true, subtree: true });
+  }
+})();
+/* ===== AJUSTES 29 - FIM ===== */
 carregarSortable();
 restaurarSessao();
 
