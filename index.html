@@ -1021,6 +1021,22 @@ label.resp-opcao input{width:auto;padding:0;margin:0;border-radius:4px}
 .sec-pessoas{font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--texto,#6B7090);margin:16px 0 8px;text-transform:uppercase}
 .sec-pessoas small{font-weight:500;letter-spacing:0;text-transform:none}
 /* ===== AJUSTES 13 - FIM ===== */
+ /* ===== AJUSTES 14 - MENU DO COMPARTILHADO E PROJETOS NOS 3 AMBIENTES ===== */
+body[class] nav .so-comp{display:none !important}
+body[class] nav.nav-comp .so-comp{display:flex !important}
+body[class] nav.nav-comp button[data-view]{display:none !important}
+nav.nav-comp #btnNovoProjetoLateral{display:none !important}
+
+#view-espaco.local #btnVoltarHub,
+#view-espaco.local #btnPessoas,
+#view-espaco.local #btnSoMinhas,
+#view-espaco.local .esp-seta{display:none !important}
+#view-espaco.local .esp-troca{pointer-events:none}
+#view-espaco.local.proj-aberto .esp-barra,
+#view-espaco.local.proj-aberto .status-esp{display:none !important}
+
+.ce-titulo{display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+/* ===== AJUSTES 14 - FIM ===== */ 
 </style>
 </head>
 <body>
@@ -6953,6 +6969,404 @@ function atualizarEspacoAberto(){
 }
 setInterval(atualizarEspacoAberto, 30000);
 document.addEventListener('visibilitychange', atualizarEspacoAberto);
+  
+/* ===== PARTE 3: PROJETOS IGUAIS NOS 3 AMBIENTES, ARRASTE E MENU DO COMPARTILHADO ===== */
+
+var modoAnterior = null;
+var localAmb = null;
+
+function modoLocal(){
+  return ambiente !== 'compartilhado';
+}
+
+/* ---------- arraste: a biblioteca carrega sozinha ---------- */
+
+var sortableCarregando = false;
+var sortableFila = [];
+
+function garantirSortable(cb){
+  if (window.Sortable){ cb(); return; }
+  sortableFila.push(cb);
+  if (sortableCarregando) return;
+  sortableCarregando = true;
+  var s = document.createElement('script');
+  s.src = 'https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js';
+  s.onload = function(){
+    var fila = sortableFila;
+    sortableFila = [];
+    fila.forEach(function(f){ f(); });
+  };
+  s.onerror = function(){
+    sortableCarregando = false;
+    sortableFila = [];
+    toast('Não consegui carregar o arraste. Use o botão ▸ do cartão.', true);
+  };
+  document.head.appendChild(s);
+}
+
+ativarArrastar = function(){
+  garantirSortable(function(){
+    document.querySelectorAll('#aba-quadro .cards-esp').forEach(function(area){
+      if (area._arrastavel) return;
+      area._arrastavel = true;
+      Sortable.create(area, {
+        group: 'esp',
+        animation: 150,
+        delay: 160,
+        delayOnTouchOnly: true,
+        touchStartThreshold: 5,
+        filter: 'button,input',
+        preventOnFilter: false,
+        ghostClass: 'sortable-ghost',
+        onEnd: function(evt){
+          var id = evt.item.getAttribute('data-id');
+          var novo = evt.to.getAttribute('data-status');
+          if (!id || !novo || novo === evt.from.getAttribute('data-status')) return;
+          moverTarefa(id, novo);
+        }
+      });
+    });
+  });
+};
+
+/* ---------- Pessoal e Profissional: os dados do app viram "projetos" ---------- */
+
+function paraTarefaLocal(i){
+  return {
+    id: i.id,
+    texto: i.texto || '',
+    descricao: '',
+    status: i.status,
+    prazo: prazoValido(i.prazo) ? i.prazo : null,
+    prioridade: i.urgente ? 'urgente' : (i.importante ? 'importante' : 'geral'),
+    responsaveis: [],
+    criadoEm: i.criadoEm || '',
+    atualizadoEm: i.atualizadoEm || i.criadoEm || ''
+  };
+}
+
+function reconstruirLocal(){
+  var amb = ambiente;
+  var mapa = {};
+  (dados.projetos || []).forEach(function(p){
+    if ((p.tipo || 'pessoal') !== amb) return;
+    mapa[p.id] = { versao: 0, dados: { id: p.id, nome: p.nome, objetivo: p.objetivo || '', tarefas: [], removidas: [] } };
+  });
+  mapa.avulsas = { versao: 0, dados: { id: 'avulsas', nome: 'Sem projeto', objetivo: '', tarefas: [], removidas: [] } };
+  (dados.itens || []).forEach(function(i){
+    if ((i.tipo || 'pessoal') !== amb) return;
+    if (!STATUS_ESP.some(function(s){ return s[0] === i.status; })) return;
+    var alvo = (i.projetoId && mapa[i.projetoId]) ? mapa[i.projetoId] : mapa.avulsas;
+    alvo.dados.tarefas.push(paraTarefaLocal(i));
+  });
+  projEsp = mapa;
+  espCarregado = true;
+  espDoCache = '__local';
+  if (projEspAberto && !projEsp[projEspAberto]) projEspAberto = null;
+}
+
+function entrarLocal(){
+  if (modoAnterior !== 'local' || localAmb !== ambiente){
+    limparEstadoEspaco();
+    localAmb = ambiente;
+  }
+  soMinhas = false;
+  $('btnSoMinhas').classList.remove('sel');
+  $('btnSoMinhas').textContent = 'Só as minhas';
+  espacos = [{ id: '__local', nome: ambiente === 'profissional' ? 'Profissional' : 'Pessoal',
+               dono_id: meuId(), papel: 'dono', tipo: 'espaco' }];
+  espacoAtual = '__local';
+  espNaHub = false;
+  espMembros = [];
+  projEspAberto = null;
+  reconstruirLocal();
+  renderEsp();
+}
+
+function aoMostrarEspaco(){
+  if (modoLocal()){
+    entrarLocal();
+    modoAnterior = 'local';
+    return;
+  }
+  var mudou = modoAnterior !== 'nuvem';
+  if (modoAnterior === 'local'){
+    limparEstadoEspaco();
+    espacos = [];
+  }
+  modoAnterior = 'nuvem';
+  renderEsp();
+  if (mudou || !espacos.length) carregarEspacos();
+}
+
+/* ---------- a tela mostra o "Compartilhado" e também os "Projetos" ---------- */
+
+trocarTela = function(nome){
+  var tela = nome;
+  if (nome === 'projetos') tela = 'espaco';
+  if (ambiente === 'compartilhado' && (nome === 'hoje' || nome === 'entrada')) tela = 'espaco';
+  ['hoje', 'entrada', 'projetos', 'ia', 'revisao', 'espaco'].forEach(function(v){
+    var e = $('view-' + v);
+    if (e) e.classList.toggle('oculto', v !== tela);
+  });
+  document.querySelectorAll('nav [data-view]').forEach(function(b){
+    b.classList.toggle('ativo', b.getAttribute('data-view') === nome);
+  });
+  window.scrollTo(0, 0);
+  if (tela === 'espaco') aoMostrarEspaco();
+};
+
+/* ---------- mesma tela, dados diferentes ---------- */
+
+var renderEspNuvem = renderEsp;
+renderEsp = function(){
+  var local = modoLocal();
+  $('view-espaco').classList.toggle('local', local);
+  renderEspNuvem();
+  var hub = !local && espNaHub;
+  $('view-espaco').classList.toggle('proj-aberto', !!(projEspAberto && projEsp[projEspAberto]));
+  if (!hub && local){
+    $('espNomeAtual').textContent = 'Projetos';
+    $('espPapel').textContent = ambiente.toUpperCase();
+    $('espAvatar').textContent = 'P';
+  }
+  if (!espCarregado) statusEsp('Carregando...');
+  else if ($('statusEsp').textContent === 'Carregando...') statusEsp('');
+  var ni = $('navInicioComp');
+  if (ni) ni.classList.toggle('ativo', hub);
+};
+
+var cardTarefaNuvem = cardTarefa;
+cardTarefa = function(pid, t, mostrarStatus){
+  var c = cardTarefaNuvem(pid, t, mostrarStatus);
+  if (modoLocal()){
+    var p = c.querySelector('.ce-rodape .pilha');
+    if (p) p.remove();
+  }
+  return c;
+};
+
+var renderHomeNuvem = renderHome;
+renderHome = function(){
+  renderHomeNuvem();
+  if (modoLocal()){
+    document.querySelectorAll('#gradeProj .pc-pessoas .pilha').forEach(function(p){ p.remove(); });
+  }
+};
+
+var renderPainelNuvem = renderPainelProj;
+renderPainelProj = function(){
+  renderPainelNuvem();
+  if (modoLocal()){
+    document.querySelectorAll('#aba-painel .painel-bloco').forEach(function(b){
+      var h = b.querySelector('h4');
+      if (h && h.textContent.indexOf('Carga') === 0) b.remove();
+    });
+  }
+};
+
+/* a aba "Referências" vira "Arquivos do projeto" no Pessoal e no Profissional */
+var abrirDetalheOriginal = (typeof abrirDetalhe === 'function') ? abrirDetalhe : null;
+
+function ajustarAbas(){
+  var ref = document.querySelector('#abasProj button:not([data-aba])');
+  if (!ref) return;
+  var pode = modoLocal() && abrirDetalheOriginal && projEspAberto && projEspAberto !== 'avulsas';
+  ref.disabled = !pode;
+  ref.innerHTML = pode ? '📎 Arquivos do projeto' : '📎 Referências <em>em breve</em>';
+  ref.onclick = pode ? function(){ abrirDetalheOriginal(projEspAberto); } : null;
+}
+
+var renderProjetoNuvem = renderProjeto;
+renderProjeto = function(){
+  renderProjetoNuvem();
+  if (modoLocal()) $('projEspaco').textContent = ambiente.toUpperCase();
+  ajustarAbas();
+};
+
+/* clicar num projeto (menu lateral, Hoje) abre o projeto nesta tela */
+abrirDetalhe = function(id){
+  if (!id) return;
+  if (ambiente === 'compartilhado'){
+    if (abrirDetalheOriginal) abrirDetalheOriginal(id);
+    return;
+  }
+  trocarTela('projetos');
+  reconstruirLocal();
+  if (projEsp[id]) abrirProjEsp(id, 'quadro');
+};
+
+irParaColuna = function(){ trocarTela('projetos'); };
+
+/* ---------- ações no Pessoal e no Profissional ---------- */
+
+var moverTarefaNuvem = moverTarefa;
+moverTarefa = function(tid, status){
+  if (!modoLocal()){ moverTarefaNuvem(tid, status); return; }
+  if (typeof mover === 'function'){
+    mover(tid, status);
+  } else {
+    var it = (dados.itens || []).filter(function(x){ return x.id === tid; })[0];
+    if (!it) return;
+    it.status = status;
+    it.atualizadoEm = agora();
+    salvarDados();
+  }
+  reconstruirLocal();
+  renderEsp();
+};
+
+var criarTarefaRapidaNuvem = criarTarefaRapida;
+criarTarefaRapida = function(pid, titulo){
+  if (!modoLocal()){ criarTarefaRapidaNuvem(pid, titulo); return; }
+  dados.itens.unshift({
+    id: String(Date.now()) + Math.floor(Math.random() * 1000),
+    texto: titulo, tipo: ambiente, projetoId: pid === 'avulsas' ? null : pid,
+    origem: 'texto', status: 'afazer', urgente: false, importante: false,
+    prazo: null, criadoEm: agora()
+  });
+  salvarDados();
+  reconstruirLocal();
+  renderEsp();
+};
+
+var abrirTarefaNuvem = abrirTarefaEsp;
+abrirTarefaEsp = function(tid, pid){
+  if (!modoLocal()){ abrirTarefaNuvem(tid, pid); return; }
+  if (tid){ abrirCaptura(tid); return; }
+  if (pid === 'avulsas'){
+    compAberto = pid;
+    renderEsp();
+    return;
+  }
+  abrirCaptura(null, pid);
+};
+
+var criarProjNuvem = criarProjEsp;
+criarProjEsp = function(nome){
+  if (!modoLocal()) return criarProjNuvem(nome);
+  var id = 'p' + Date.now();
+  dados.projetos.unshift({ id: id, nome: nome, tipo: ambiente, objetivo: '', criadoEm: agora() });
+  salvarDados();
+  reconstruirLocal();
+  toast('Projeto criado.', false);
+  abrirProjEsp(id, 'quadro');
+};
+
+var salvarDetalhesNuvem = salvarDetalhes;
+salvarDetalhes = function(){
+  if (!modoLocal()){ salvarDetalhesNuvem(); return; }
+  if (projEspAberto === 'avulsas'){ toast('"Sem projeto" não tem detalhes. Crie um projeto.', true); return; }
+  var p = (dados.projetos || []).filter(function(x){ return x.id === projEspAberto; })[0];
+  if (!p) return;
+  var nome = $('peInNome').value.trim();
+  if (!nome){ alert('Dê um nome ao projeto.'); return; }
+  p.nome = nome;
+  p.objetivo = edObj.obter();
+  p.atualizadoEm = agora();
+  salvarDados();
+  reconstruirLocal();
+  mostrarAba('painel');
+};
+
+/* o botão já estava ligado à função antiga: troca pela nova */
+$('btnSalvarDetalhes').removeEventListener('click', salvarDetalhesNuvem);
+$('btnSalvarDetalhes').addEventListener('click', function(){ salvarDetalhes(); });
+
+var excluirProjNuvem = excluirProjEsp;
+excluirProjEsp = function(id){
+  if (!modoLocal()) return excluirProjNuvem(id);
+  var p = (dados.projetos || []).filter(function(x){ return x.id === id; })[0];
+  if (!p) return;
+  if (!confirm('Excluir o projeto "' + p.nome + '"? As tarefas dele continuam, em "Sem projeto".')) return;
+  dados.projetos = dados.projetos.filter(function(x){ return x.id !== id; });
+  dados.itens.forEach(function(i){ if (i.projetoId === id) i.projetoId = null; });
+  salvarDados();
+  projEspAberto = null;
+  reconstruirLocal();
+  renderEsp();
+  toast('Projeto excluído.', false);
+};
+
+var gravarProjNuvem = gravarProjEsp;
+gravarProjEsp = function(id){
+  if (!modoLocal()){ gravarProjNuvem(id); return; }
+  reconstruirLocal();
+  renderEsp();
+};
+
+/* tudo que o app redesenha também atualiza esta tela */
+var renderizarSemTela = renderizar;
+renderizar = function(){
+  renderizarSemTela();
+  var v = $('view-espaco');
+  if (modoLocal() && v && !v.classList.contains('oculto')){
+    reconstruirLocal();
+    renderEsp();
+  }
+};
+
+/* ---------- Compartilhado: o menu mostra espaços e projetos avulsos ---------- */
+
+(function(){
+  var nav = document.querySelector('nav');
+  if (!nav || $('navInicioComp')) return;
+  var b = document.createElement('button');
+  b.id = 'navInicioComp';
+  b.type = 'button';
+  b.className = 'so-comp';
+  b.innerHTML = '⌂<span>Início</span>';
+  b.addEventListener('click', function(){
+    trocarTela('espaco');
+    irHub();
+  });
+  var mais = $('btnMais');
+  if (mais && mais.parentNode === nav) nav.insertBefore(b, mais);
+  else nav.appendChild(b);
+})();
+
+var renderLateralBase = renderLateral;
+renderLateral = function(){
+  renderLateralBase();
+  var comp = ambiente === 'compartilhado';
+  var nav = document.querySelector('nav');
+  if (nav) nav.classList.toggle('nav-comp', comp);
+  var tit = document.querySelector('.lateral-projetos .lateral-titulo');
+  var box = $('listaProjetosLateral');
+  if (tit) tit.textContent = comp ? 'ESPAÇOS E PROJETOS' : 'MEUS PROJETOS';
+  if (!comp || !box) return;
+
+  box.innerHTML = '';
+  if (!espacos.length){
+    box.appendChild(el('div', 'lateral-titulo', 'Nada por aqui ainda.'));
+  }
+  espacos.forEach(function(e){
+    var l = el('div', 'lat-proj' + (e.tipo === 'projeto' ? '' : ' pro'));
+    l.appendChild(el('i'));
+    l.appendChild(el('span', null, e.nome));
+    l.appendChild(el('small', null, e.tipo === 'projeto' ? 'avulso' : 'espaço'));
+    l.addEventListener('click', function(){
+      trocarTela('espaco');
+      entrarEspaco(e.id);
+    });
+    box.appendChild(l);
+  });
+  var novoEsp = el('button', 'lateral-link', '＋ Novo espaço');
+  novoEsp.type = 'button';
+  novoEsp.addEventListener('click', function(){ trocarTela('espaco'); $('btnHubEsp').click(); });
+  var novoProj = el('button', 'lateral-link', '＋ Novo projeto avulso');
+  novoProj.type = 'button';
+  novoProj.addEventListener('click', function(){ trocarTela('espaco'); $('btnHubProj').click(); });
+  box.appendChild(novoEsp);
+  box.appendChild(novoProj);
+};
+
+/* a lista do menu acompanha o que for carregado na nuvem */
+var carregarEspacosBase = carregarEspacos;
+carregarEspacos = async function(){
+  await carregarEspacosBase();
+  if (ambiente === 'compartilhado') renderLateral();
+};
 /* EVENTOS */
   /* ===== SINCRONIZAÇÃO COM A NUVEM ===== */
 
