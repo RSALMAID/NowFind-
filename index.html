@@ -2055,6 +2055,19 @@ nav .nav-rot{display:inline;margin:0;font-size:inherit}
 .chat-msg.ia .chat-balao a:hover {
   color: #93c5fd !important;
 }
+    /* REEXIBE OS BOTÕES DOS CARTÕES DA HOME */
+body.na-home section.home-card header.home-card-topo #btnMesAnterior,
+body.na-home section.home-card header.home-card-topo #btnMesAtual,
+body.na-home section.home-card header.home-card-topo #btnMesSeguinte,
+body.na-home section.home-card header.home-card-topo #btnEventoAgenda,
+body.na-home section.home-card header.home-card-topo #btnNovaNotaHome,
+body.na-home section.home-card header.home-card-topo #btnLimparChatHome {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
     /* FORMATAÇÃO DAS RESPOSTAS DA IA */
 .chat-msg.ia .chat-balao > div:not(.chat-modelo) {
   margin-bottom: 10px;
