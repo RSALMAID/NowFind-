@@ -1064,6 +1064,47 @@ body[class] nav .btn-semproj.semproj-oculto{display:none !important}
   .hub-acoes .btn-prim{flex:1;padding:12px 10px}
 }
 /* ===== AJUSTES 15 - FIM ===== */
+  /* ===== AJUSTES 16 - TELA DE CORES, MENU MODERNO, CORES IGUAIS ===== */
+
+/* tela de cores: quadradinhos em vez de lista com bolinhas */
+.paleta{display:grid;grid-template-columns:repeat(auto-fill,minmax(68px,1fr));gap:14px 10px;margin:8px 0 6px}
+.sw{display:flex;flex-direction:column;align-items:center;gap:7px;border:none;background:transparent;color:inherit;padding:0;cursor:pointer;min-width:0}
+.sw-cor{position:relative;display:block;width:100%;aspect-ratio:1/1;border-radius:20px;overflow:hidden;box-shadow:inset 0 0 0 1px rgba(128,128,150,.38),0 3px 8px rgba(0,0,0,.14);transition:transform .15s,box-shadow .15s}
+.sw-cor.cor::before{content:"";position:absolute;inset:0;background:linear-gradient(155deg,rgba(255,255,255,.38),rgba(255,255,255,0) 52%)}
+.sw-cor.fundo{background:var(--sw-bg)}
+.sw-cor.fundo::before{content:"";position:absolute;inset:15% 13%;border-radius:11px;background:var(--sw-col)}
+.sw-cor.fundo::after{content:"";position:absolute;left:25%;right:25%;top:31%;height:30%;border-radius:7px;background:var(--sw-card);border:1.5px solid var(--sw-borda)}
+.sw:hover .sw-cor{transform:translateY(-3px)}
+.sw.sel .sw-cor{box-shadow:0 0 0 3px var(--card,#fff),0 0 0 6px var(--azul),0 8px 18px rgba(0,0,0,.22)}
+.sw-ok{display:none;position:absolute;right:6px;bottom:6px;z-index:2;width:22px;height:22px;border-radius:50%;background:#fff;color:#111;font-size:12px;font-weight:800;place-items:center;box-shadow:0 2px 6px rgba(0,0,0,.35)}
+.sw.sel .sw-ok{display:grid}
+.sw-nome{font-size:11px;font-weight:600;line-height:1.2;text-align:center;color:var(--tx,#14172B);overflow-wrap:anywhere}
+
+/* menu: botões modernos */
+body[class] nav button.nav-item{display:flex;align-items:center;gap:12px;border:none;border-radius:16px;background:transparent;font-weight:600;transition:background .15s,transform .15s,box-shadow .15s}
+nav .nav-ico{display:grid;place-items:center;flex:none;transition:background .15s,transform .15s}
+nav .nav-ico svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+nav .nav-ico .ico-ia{width:22px;height:22px;margin:0;vertical-align:0}
+nav .nav-rot{display:inline;margin:0;font-size:inherit}
+@media (min-width:900px){
+  body[class] nav button.nav-item{justify-content:flex-start;padding:8px 12px 8px 8px;font-size:15px;color:var(--nav-tx,#fff);opacity:1}
+  nav .nav-ico{width:36px;height:36px;border-radius:12px;background:color-mix(in srgb,var(--nav-tx,#fff) 15%,transparent)}
+  body[class] nav button.nav-item:hover{background:color-mix(in srgb,var(--nav-tx,#fff) 12%,transparent)}
+  nav button.nav-item:hover .nav-ico{transform:scale(1.07)}
+  body[class] nav button.nav-item.ativo{background:var(--nav-pill,#fff);color:var(--nav-pill-tx,#14110A);box-shadow:0 10px 24px rgba(0,0,0,.24)}
+  nav button.nav-item.ativo .nav-ico{background:var(--grad-acento,var(--azul));color:var(--on-acento,#fff);box-shadow:0 4px 10px color-mix(in srgb,var(--azul) 40%,transparent)}
+}
+@media (max-width:899px){
+  body[class] nav button.nav-item{flex-direction:column;gap:3px;padding:2px 6px;font-size:10px;color:var(--texto)}
+  nav .nav-ico{width:48px;height:30px;border-radius:15px;background:transparent}
+  body[class] nav button.nav-item.ativo{background:transparent;color:var(--tx);box-shadow:none}
+  nav button.nav-item.ativo .nav-ico{background:var(--grad-acento,var(--azul));color:var(--on-acento,#fff)}
+}
+
+/* Compartilhado: a mesma cor e letra no menu e nos cartões */
+.lat-proj i.lat-av{display:grid;place-items:center;width:24px;height:24px;border-radius:8px;color:#fff;font-size:12px;font-weight:700;font-style:normal;box-shadow:none}
+.vazio-grade{grid-column:1/-1;text-align:left;padding:6px 2px}
+/* ===== AJUSTES 16 - FIM ===== */
 </style>
 </head>
 <body>
@@ -5243,25 +5284,95 @@ async function organizarArquivoComIA(arquivo){
 
 /* CONFIGURAÇÕES VISUAIS */
 
-var ACENTOS = {
-  azul:       { a:'#0000ff', b:'#333399', t:'#ffffff' },
-  vermelho:   { a:'#FF0A2B', b:'#B8001A', t:'#ffffff' },
-  rosa:       { a:'#FF2E93', b:'#C2006B', t:'#ffffff' },
-  grena:      { a:'#9B1B30', b:'#5C0D1B', t:'#ffffff' },
-  vinho:      { a:'#722F37', b:'#3D1118', t:'#ffffff' },
-  uva:        { a:'#6F2DA8', b:'#3F1366', t:'#ffffff' },
-  roxoescuro: { a:'#4A1D96', b:'#2A0F5C', t:'#ffffff' },
-  roxo:       { a:'#8B3DFF', b:'#5B1FC9', t:'#ffffff' },
-  laranja:    { a:'#F97316', b:'#C2410C', t:'#ffffff' },
-  amarelo:    { a:'#FFD600', b:'#C99700', t:'#1A1400' },
-  verde:      { a:'#00B86B', b:'#007A48', t:'#ffffff' },
-  militar:    { a:'#556B2F', b:'#2F3D18', t:'#ffffff' },
-  preto:      { a:'#111114', b:'#000000', t:'#ffffff' },
-  grafite:    { a:'#37474f', b:'#263238', t:'#ffffff' }
+/* uma paleta só: as mesmas cores servem para "Cor principal" e para "Fundo" */
+var PALETA = {
+  branco: { n:"Branco", a:null, b:null, bg:"#FFFFFF", col:"#F4F6FB", card:"#FFFFFF", borda:"#E6E9F2", esc:0, texto:"#696B77" },
+  fosco: { n:"Preto fosco", a:"#2B2B2B", b:"#151515", bg:"#121212", col:"#1B1B1B", card:"#262626", borda:"#3C3C3C", esc:1, texto:"#8E8F93" },
+  preto: { n:"Preto fechado", a:"#111114", b:"#000000", bg:"#000000", col:"#0A0A0A", card:"#141414", borda:"#2B2B2B", esc:1, texto:"#7D7E81" },
+  grafite: { n:"Grafite", a:"#37474F", b:"#263238", bg:"#151A1D", col:"#1E262B", card:"#28333A", borda:"#415560", esc:1, texto:"#979DA4" },
+  celeste: { n:"Celeste pastel", a:"#9AD1F5", b:"#5FA8DC", bg:"#E8F4FD", col:"#CDE8FA", card:"#F5FAFE", borda:"#9FCFEF", esc:0, texto:"#5C606F" },
+  azul: { n:"Azul", a:"#0000FF", b:"#333399", bg:"#1C1C82", col:"#26269A", card:"#333399", borda:"#5A5AC8", esc:1, texto:"#ABACD6" },
+  indigo: { n:"Índigo", a:"#4F46E5", b:"#312E81", bg:"#14104A", col:"#1D1766", card:"#2A2285", borda:"#4B42C4", esc:1, texto:"#A09ECA" },
+  marinho: { n:"Azul marinho", a:"#1F4E8C", b:"#0A1B38", bg:"#0A1B38", col:"#11294D", card:"#1A3A66", borda:"#2C4F82", esc:1, texto:"#99A7BE" },
+  petroleo: { n:"Azul petróleo", a:"#0F6B7A", b:"#062C33", bg:"#062C33", col:"#0A3E48", card:"#0F5562", borda:"#1D7686", esc:1, texto:"#B0C5CE" },
+  verdefluor: { n:"Verde fluorescente", a:"#39FF14", b:"#12B800", bg:"#E9FFD9", col:"#C6FF9E", card:"#F6FFEE", borda:"#7EE04B", esc:0, texto:"#656B71" },
+  verdevivo: { n:"Verde vivo", a:"#3DDC84", b:"#12A150", bg:"#C9F3D3", col:"#9BE5B0", card:"#EAFBEF", borda:"#63CC83", esc:0, texto:"#505762" },
+  verde: { n:"Verde", a:"#00B86B", b:"#007A48", bg:"#06281A", col:"#0B3A26", card:"#115236", borda:"#1F7A52", esc:1, texto:"#A7BDBA" },
+  militar: { n:"Verde militar", a:"#556B2F", b:"#2F3D18", bg:"#1E2713", col:"#2B371B", card:"#3A4A25", borda:"#566C3B", esc:1, texto:"#ADB4AC" },
+  amarelo: { n:"Amarelo", a:"#FFD600", b:"#C99700", bg:"#FFF8CC", col:"#FFEC85", card:"#FFFCE6", borda:"#E6C619", esc:0, texto:"#69696E" },
+  laranja: { n:"Laranja", a:"#F97316", b:"#C2410C", bg:"#FFEFD9", col:"#FFD3A3", card:"#FFF8EE", borda:"#F2A04A", esc:0, texto:"#5F5F69" },
+  vermelhoclaro: { n:"Vermelho claro", a:"#F58A96", b:"#D9566A", bg:"#FDECEC", col:"#F8D2D6", card:"#FFF7F7", borda:"#EBB0B8", esc:0, texto:"#5F5F6C" },
+  vermelho: { n:"Vermelho", a:"#FF0A2B", b:"#B8001A", bg:"#5C0A14", col:"#800F1E", card:"#A8162B", borda:"#E04058", esc:1, texto:"#E0C4CF" },
+  grena: { n:"Grená", a:"#9B1B30", b:"#5C0D1B", bg:"#7A1B2D", col:"#92293D", card:"#AD3E52", borda:"#C9667A", esc:1, texto:"#EEF0F8" },
+  vinho: { n:"Vinho", a:"#722F37", b:"#3D1118", bg:"#6B2D44", col:"#84405A", card:"#9D5571", borda:"#BB7893", esc:1, texto:"#EEF0F8" },
+  pink: { n:"Pink", a:"#FF8FC7", b:"#E0559D", bg:"#FFE8F3", col:"#FFC9E3", card:"#FFF5FA", borda:"#F29BC7", esc:0, texto:"#565565" },
+  rosa: { n:"Rosa", a:"#FF2E93", b:"#C2006B", bg:"#FFD9E8", col:"#FFB3D1", card:"#FFEEF5", borda:"#F06AA6", esc:0, texto:"#4C4B5B" },
+  rosachoque: { n:"Rosa choque", a:"#FF00A8", b:"#9C0073", bg:"#4D0A33", col:"#6E0F49", card:"#8F1760", borda:"#C23A8D", esc:1, texto:"#D3B3CD" },
+  uva: { n:"Uva", a:"#6F2DA8", b:"#3F1366", bg:"#280E42", col:"#381660", card:"#4A2080", borda:"#7040A8", esc:1, texto:"#AC9DC8" },
+  roxo: { n:"Roxo", a:"#8B3DFF", b:"#5B1FC9", bg:"#2A1160", col:"#3B1A85", card:"#4D24A8", borda:"#7A4FD6", esc:1, texto:"#BAAFDE" },
+  roxoescuro: { n:"Roxo escuro", a:"#4A1D96", b:"#2A0F5C", bg:"#1E0B33", col:"#2B1049", card:"#3C1A66", borda:"#5C2F96", esc:1, texto:"#A092B8" }
 };
 
-var CLAROS = ['branco','vermelhoclaro','verdevivo'];
-var ESCUROS = ['royal','petroleo','marinho','militar','roxoescuro','fosco','preto','grena','vinho'];
+var ORDEM_PALETA = ['branco','fosco','preto','grafite','celeste','azul','indigo','marinho','petroleo','verdefluor','verdevivo','verde','militar','amarelo','laranja','vermelhoclaro','vermelho','grena','vinho','pink','rosa','rosachoque','uva','roxo','roxoescuro'];
+
+var ACENTOS = {};
+var CLAROS = [];
+var ESCUROS = [];
+ORDEM_PALETA.forEach(function(k){
+  var p = PALETA[k];
+  if (p.a) ACENTOS[k] = { a: p.a, b: p.b };
+  (p.esc ? ESCUROS : CLAROS).push(k);
+});
+
+/* fontes: as de sistema aparecem direto; as do Google carregam sob demanda */
+var FONTES = [
+  ['padrao','Padrão',null,null],
+  ['arredondada','Arredondada','ui-rounded,"SF Pro Rounded","Trebuchet MS",sans-serif',null],
+  ['classica','Clássica','Georgia,"Times New Roman",serif',null],
+  ['tecnica','Técnica','"SF Mono","Cascadia Code",Consolas,monospace',null],
+  ['limpa','Limpa','"Helvetica Neue",Helvetica,Arial,sans-serif',null],
+  ['comic','Comic Sans','"Comic Sans MS","Comic Sans","Comic Neue","Chalkboard SE",cursive','Comic Neue:wght@400;700'],
+  ['palatino','Palatino','"Palatino Linotype",Palatino,"Book Antiqua","URW Palladio L",serif',null],
+  ['inter','Inter','"Inter",ui-sans-serif,system-ui,sans-serif','Inter:wght@400;500;600;700'],
+  ['manrope','Manrope','"Manrope",ui-sans-serif,sans-serif','Manrope:wght@400;500;600;700'],
+  ['lexend','Lexend','"Lexend",ui-sans-serif,sans-serif','Lexend:wght@400;500;600;700'],
+  ['urbanist','Urbanist','"Urbanist",ui-sans-serif,sans-serif','Urbanist:wght@400;500;600;700'],
+  ['figtree','Figtree','"Figtree",ui-sans-serif,sans-serif','Figtree:wght@400;500;600;700'],
+  ['rubik','Rubik','"Rubik",ui-sans-serif,sans-serif','Rubik:wght@400;500;600;700'],
+  ['worksans','Work Sans','"Work Sans",ui-sans-serif,sans-serif','Work Sans:wght@400;500;600;700'],
+  ['raleway','Raleway','"Raleway",ui-sans-serif,sans-serif','Raleway:wght@400;500;600;700'],
+  ['jakarta','Jakarta','"Plus Jakarta Sans",ui-sans-serif,sans-serif','Plus Jakarta Sans:wght@400;500;600;700'],
+  ['poppins','Poppins','"Poppins",ui-sans-serif,sans-serif','Poppins:wght@400;500;600;700'],
+  ['outfit','Outfit','"Outfit",ui-sans-serif,sans-serif','Outfit:wght@400;500;600;700'],
+  ['sora','Sora','"Sora",ui-sans-serif,sans-serif','Sora:wght@400;500;600;700'],
+  ['grotesk','Space Grotesk','"Space Grotesk",ui-sans-serif,sans-serif','Space Grotesk:wght@400;500;600;700'],
+  ['dmsans','DM Sans','"DM Sans",ui-sans-serif,sans-serif','DM Sans:wght@400;500;600;700'],
+  ['nunito','Nunito','"Nunito",ui-sans-serif,sans-serif','Nunito:wght@400;500;600;700'],
+  ['montserrat','Montserrat','"Montserrat",ui-sans-serif,sans-serif','Montserrat:wght@400;500;600;700'],
+  ['quicksand','Quicksand','"Quicksand",ui-sans-serif,sans-serif','Quicksand:wght@400;500;600;700'],
+  ['comfortaa','Comfortaa','"Comfortaa",ui-sans-serif,sans-serif','Comfortaa:wght@400;500;600;700'],
+  ['playfair','Playfair Display','"Playfair Display",Georgia,serif','Playfair Display:wght@400;500;600;700'],
+  ['lora','Lora','"Lora",Georgia,serif','Lora:wght@400;500;600;700'],
+  ['merriweather','Merriweather','"Merriweather",Georgia,serif','Merriweather:wght@400;700'],
+  ['jetbrains','JetBrains Mono','"JetBrains Mono",Consolas,monospace','JetBrains Mono:wght@400;500;600;700'],
+  ['caveat','Caveat (manuscrita)','"Caveat","Segoe Print",cursive','Caveat:wght@400;700']
+];
+var FONTES_MAP = {};
+FONTES.forEach(function(f){ FONTES_MAP[f[0]] = { id: f[0], nome: f[1], stack: f[2], g: f[3] }; });
+
+var fontesCarregadas = {};
+function carregarFonte(f){
+  if (!f || !f.g || fontesCarregadas[f.g]) return;
+  fontesCarregadas[f.g] = true;
+  var l = document.createElement('link');
+  l.rel = 'stylesheet';
+  l.href = 'https://fonts.googleapis.com/css2?family=' + f.g.replace(/ /g, '+') + '&display=swap';
+  document.head.appendChild(l);
+}
+
+function carregarTodasFontes(){
+  FONTES.forEach(function(f){ carregarFonte(FONTES_MAP[f[0]]); });
+}
 
 var GRUPOS_CFG = [
   ['cfgAcento','acento'],
@@ -5285,14 +5396,8 @@ function lerConfig(){
   dados.configs = dados.configs || {};
   if(!dados.configs[amb]){
     var base = Object.assign({}, padrao, dados.config || {});
-    if(amb === 'profissional'){
-      base.tema = 'marinho';
-      base.acento = 'azul';
-    }
-    if(amb === 'compartilhado'){
-      base.tema = 'petroleo';
-      base.acento = 'amarelo';
-    }
+    if(amb === 'profissional'){ base.tema = 'marinho'; base.acento = 'azul'; }
+    if(amb === 'compartilhado'){ base.tema = 'petroleo'; base.acento = 'amarelo'; }
     dados.configs[amb] = base;
   }
   var c = dados.configs[amb];
@@ -5300,10 +5405,13 @@ function lerConfig(){
     if(!c[k]) c[k] = padrao[k];
   });
   if(c.tema === 'escuro') c.tema = 'fosco';
-  if(CLAROS.indexOf(c.tema) < 0 && ESCUROS.indexOf(c.tema) < 0) c.tema = 'branco';
+  if(c.tema === 'royal') c.tema = 'azul';
+  if(!PALETA[c.tema]) c.tema = 'branco';
   if(!ACENTOS[c.acento]) c.acento = 'azul';
+  if(!FONTES_MAP[c.fonte]) c.fonte = 'padrao';
   return c;
 }
+
 function luz(hex){
   var h = hex.replace('#','');
   var v = [0,2,4].map(function(i){
@@ -5324,10 +5432,69 @@ function textoSobre(c1, c2){
   return branco >= escuro ? '#ffffff' : '#14110A';
 }
 
+function aplicarFonte(id){
+  var f = FONTES_MAP[id];
+  if(!f || !f.stack){ document.body.style.removeProperty('font-family'); return; }
+  carregarFonte(f);
+  document.body.style.fontFamily = f.stack;
+}
+
+/* tela de escolha: quadradinhos coloridos, em vez de lista com bolinhas */
+function montarPaletas(){
+  [['cfgAcento','cor'],['cfgTema','fundo']].forEach(function(par){
+    var caixa = $(par[0]);
+    if(!caixa) return;
+    caixa.className = 'paleta';
+    caixa.innerHTML = '';
+    ORDEM_PALETA.forEach(function(k){
+      var p = PALETA[k];
+      if(par[1] === 'cor' && !p.a) return;
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'sw';
+      b.setAttribute('data-v', k);
+      b.title = p.n;
+      var cor = document.createElement('span');
+      cor.className = 'sw-cor ' + par[1];
+      if(par[1] === 'cor'){
+        cor.style.background = 'linear-gradient(135deg,' + p.a + ',' + p.b + ')';
+      } else {
+        cor.style.setProperty('--sw-bg', p.bg);
+        cor.style.setProperty('--sw-col', p.col);
+        cor.style.setProperty('--sw-card', p.card);
+        cor.style.setProperty('--sw-borda', p.borda);
+      }
+      var ok = document.createElement('b');
+      ok.className = 'sw-ok';
+      ok.textContent = '✓';
+      cor.appendChild(ok);
+      var nome = document.createElement('span');
+      nome.className = 'sw-nome';
+      nome.textContent = p.n;
+      b.appendChild(cor);
+      b.appendChild(nome);
+      caixa.appendChild(b);
+    });
+  });
+  var cf = $('cfgFonte');
+  if(cf){
+    cf.innerHTML = '';
+    FONTES.forEach(function(f){
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.setAttribute('data-v', f[0]);
+      b.textContent = f[1];
+      if(f[2]) b.style.fontFamily = f[2];
+      cf.appendChild(b);
+    });
+  }
+}
+
 function aplicarConfig(){
 
   var c = lerConfig();
-  var cor = ACENTOS[c.acento];
+  var cor = PALETA[c.acento];
+  var fundo = PALETA[c.tema];
   var raiz = document.documentElement.style;
 
   raiz.setProperty('--azul', cor.a);
@@ -5339,14 +5506,22 @@ function aplicarConfig(){
   raiz.setProperty('--nav-pill', txNav);
   raiz.setProperty('--nav-pill-tx', txNav === '#ffffff' ? cor.b : '#ffffff');
 
-  var escuro = ESCUROS.indexOf(c.tema) >= 0;
-
   document.body.className =
-    'tema-' + c.tema +
-    (escuro ? ' tema-escuro' : '') +
+    'tema-' + (c.tema === 'azul' ? 'royal' : c.tema) +
+    (fundo.esc ? ' tema-escuro' : '') +
     ' acab-' + c.acabamento +
     ' fonte-' + c.fonte +
     ' estilo-' + c.estilo;
+
+  var st = document.body.style;
+  st.setProperty('--bg', fundo.bg);
+  st.setProperty('--coluna', fundo.col);
+  st.setProperty('--card', fundo.card);
+  st.setProperty('--borda', fundo.borda);
+  st.setProperty('--tx', fundo.esc ? '#EEF0F8' : '#14172B');
+  st.setProperty('--texto', fundo.texto);
+
+  aplicarFonte(c.fonte);
 
   var meta = document.querySelector('meta[name="theme-color"]');
   if(meta) meta.setAttribute('content', cor.a);
@@ -5361,6 +5536,8 @@ function aplicarConfig(){
 
 }
 
+montarPaletas();
+
 GRUPOS_CFG.forEach(function(par){
   var caixa = $(par[0]);
   if(!caixa) return;
@@ -5374,21 +5551,7 @@ GRUPOS_CFG.forEach(function(par){
 });
 
 $('btnConfig').addEventListener('click', function(){
-  aplicarConfig();
-  mostrar('modalConfig');
-});
-
-$('btnFecharConfig').addEventListener('click', function(){
-  esconder('modalConfig');
-});
-
-$('btnRestaurarConfig').addEventListener('click', function(){
-  lerConfig();
-  dados.configs[ambienteAtual()] = configPadrao();
-  salvarDados();
-  aplicarConfig();
-});
-$('btnConfig').addEventListener('click', function(){
+  carregarTodasFontes();
   aplicarConfig();
   mostrar('modalConfig');
 });
@@ -7491,6 +7654,110 @@ renderLateral = function(){
 /* ---------- início do Compartilhado: os dois botões iguais ---------- */
 
 $('btnHubProj').className = 'btn-prim';
+  
+/* ===== PARTE 5: MENU MODERNO, CORES IGUAIS, SEM BOTÕES REDUNDANTES, SEM ESTRELAS ===== */
+
+/* ---------- menu lateral e barra de baixo: botões modernos ---------- */
+
+var ICONES_NAV = {
+  hoje: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>',
+  projetos: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="5" height="16" rx="1.6"/><rect x="9.5" y="4" width="5" height="10" rx="1.6"/><rect x="16" y="4" width="5" height="13" rx="1.6"/></svg>',
+  revisao: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3.5"/><path d="M3 10h18M8 3v4M16 3v4M9 15.5l2 2 4-4"/></svg>',
+  ia: '<i class="ico-ia"></i>',
+  inicio: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v9a1 1 0 0 0 1 1h4v-5h4v5h4a1 1 0 0 0 1-1v-9"/></svg>'
+};
+var ROTULOS_NAV = { hoje: 'Hoje', projetos: 'Projetos', revisao: 'Planejar', ia: 'IA' };
+
+function modernizarNav(){
+  document.querySelectorAll('nav button[data-view]').forEach(function(b){
+    var v = b.getAttribute('data-view');
+    if (!ICONES_NAV[v] || b.classList.contains('nav-item')) return;
+    b.classList.add('nav-item');
+    b.innerHTML = '<span class="nav-ico">' + ICONES_NAV[v] + '</span><span class="nav-rot">' + (ROTULOS_NAV[v] || '') + '</span>';
+  });
+  var ini = $('navInicioComp');
+  if (ini && !ini.classList.contains('nav-item')){
+    ini.classList.add('nav-item');
+    ini.innerHTML = '<span class="nav-ico">' + ICONES_NAV.inicio + '</span><span class="nav-rot">Início</span>';
+  }
+}
+modernizarNav();
+
+/* ---------- Compartilhado: sem cartões de "novo" no início ---------- */
+
+function vazioGrade(texto){
+  var d = el('div', 'vazio vazio-grade', texto);
+  return d;
+}
+
+var renderHubP4 = renderHub;
+renderHub = function(){
+  renderHubP4();
+  var ge = $('hubEspacos');
+  var gp = $('hubProjetos');
+  [ge, gp].forEach(function(g){
+    g.querySelectorAll('.proj-card.nova').forEach(function(c){ c.remove(); });
+  });
+  if (!ge.children.length) ge.appendChild(vazioGrade('Nenhum espaço ainda. Use o botão ＋ Espaço.'));
+  if (!gp.children.length) gp.appendChild(vazioGrade('Nenhum projeto avulso ainda. Use o botão ＋ Projeto avulso.'));
+};
+
+/* ---------- Compartilhado: o menu não repete os botões de criar, e a cor é a mesma dos cartões ---------- */
+
+var renderLateralP4 = renderLateral;
+renderLateral = function(){
+  renderLateralP4();
+  if (ambiente !== 'compartilhado') return;
+  var box = $('listaProjetosLateral');
+  if (!box) return;
+  box.querySelectorAll('button.lateral-link').forEach(function(b){ b.remove(); });
+  box.querySelectorAll('.lat-proj').forEach(function(l, i){
+    var e = espacos[i];
+    var ic = l.querySelector('i');
+    if (!e || !ic) return;
+    ic.className = 'lat-av';
+    ic.style.background = corDe(e.id);
+    ic.textContent = inicial(e.nome);
+  });
+};
+
+/* o ícone de dentro do espaço também usa a cor do espaço */
+var renderEspP4 = renderEsp;
+renderEsp = function(){
+  renderEspP4();
+  var esp = espacoSelecionado();
+  var av = $('espAvatar');
+  if (av) av.style.background = (ambiente === 'compartilhado' && esp && !espNaHub) ? corDe(esp.id) : '';
+};
+
+/* ---------- sem estrelas nos cartões, nem pastinhas no Hoje ---------- */
+
+var cardTarefaP4 = cardTarefa;
+cardTarefa = function(pid, t, mostrarStatus){
+  var c = cardTarefaP4(pid, t, mostrarStatus);
+  c.querySelectorAll('.ce-prio').forEach(function(p){
+    if (p.title === 'Importante') p.remove();
+  });
+  return c;
+};
+
+if (typeof renderPainelHoje === 'function'){
+  var renderPainelHojeP4 = renderPainelHoje;
+  renderPainelHoje = function(){
+    renderPainelHojeP4();
+    var raiz = $('painelHoje');
+    if (!raiz) return;
+    raiz.querySelectorAll('.linha-hoje b, .linha-hoje small').forEach(function(n){
+      n.textContent = n.textContent.replace(/⭐\s*/g, '').replace(/📁\s*/g, '');
+    });
+    raiz.querySelectorAll('h3').forEach(function(h){
+      h.textContent = h.textContent.replace(/📁\s*/g, '');
+    });
+  };
+}
+
+/* aplica de novo, agora com a paleta e a fonte novas */
+aplicarConfig();
   /* EVENTOS */
   /* ===== SINCRONIZAÇÃO COM A NUVEM ===== */
 
