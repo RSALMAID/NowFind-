@@ -2866,6 +2866,136 @@ body.home-aberta .oculto-home{
     margin:0 2px 18px
 
 </style>
+    /* ===== AJUSTES 21 - NAVEGAÇÃO FINAL ===== */
+  /* ambientes só existem no Início */
+  #seletorAmbiente,
+  nav .amb-lateral{
+    display:none !important;
+  }
+  /* configuração flutuante removida */
+  .btn-config-global{
+    display:none !important;
+  }
+  /* configurações fixas no topo do Início */
+  body.home-aberta #btnConfigHome{
+    display:inline-flex !important;
+    align-items:center;
+    gap:6px;
+  }
+  body.home-aberta #btnConfig{
+    display:none !important;
+  }
+  /* tarefas sem projeto (celular) */
+  body[class] .btn-semproj.semproj-topo{
+    margin:0 0 16px !important;
+  }
+  /* botão voltar: escondido por padrão */
+  #btnVoltarHome{
+    display:none;
+  }
+  .btn-voltar-home-topo{
+    display:none;
+  }
+  /* computador */
+  @media (min-width:900px){
+    body[class] nav #btnVoltarHome{
+      display:flex !important;
+      flex:none;
+      align-items:center;
+      gap:12px;
+      width:100%;
+      margin:0 0 16px;
+      padding:8px 14px 8px 8px;
+      border:none;
+      border-radius:16px;
+      background:var(--nav-pill,#fff);
+      color:var(--nav-pill-tx,#14110A);
+      font-size:15px;
+      font-weight:700;
+      text-align:left;
+      opacity:1;
+      cursor:pointer;
+      box-shadow:0 10px 24px rgba(0,0,0,.24);
+      transition:transform .15s ease,box-shadow .15s ease;
+    }
+    body[class] nav #btnVoltarHome:hover{
+      background:var(--nav-pill,#fff);
+      transform:translateY(-2px);
+      box-shadow:0 14px 28px rgba(0,0,0,.30);
+    }
+    body[class] nav #btnVoltarHome:active{
+      transform:scale(.98);
+    }
+    #btnVoltarHome .voltar-ico{
+      display:grid;
+      place-items:center;
+      flex:none;
+      width:36px;
+      height:36px;
+      border-radius:12px;
+      background:var(--grad-acento,var(--azul));
+      color:var(--on-acento,#fff);
+      box-shadow:0 4px 10px color-mix(in srgb,var(--azul) 40%,transparent);
+      transition:transform .15s ease;
+    }
+    #btnVoltarHome .voltar-ico svg{
+      width:20px;
+      height:20px;
+      fill:none;
+      stroke:currentColor;
+      stroke-width:2.2;
+      stroke-linecap:round;
+      stroke-linejoin:round;
+    }
+    #btnVoltarHome:hover .voltar-ico{
+      transform:translateX(-3px);
+    }
+    #btnVoltarHome .voltar-rot{
+      display:block;
+      font-size:15px;
+      line-height:1.2;
+    }
+    /* Tarefas sem projeto: logo depois de IA */
+    body[class] nav .btn-semproj.semproj-lat{
+      order:0 !important;
+      margin:8px 2px 6px !important;
+    }
+  }
+  /* celular */
+  @media (max-width:899px){
+    body:not(.home-aberta) .btn-voltar-home-topo{
+      display:inline-flex;
+      align-items:center;
+      gap:4px;
+      padding:8px 12px;
+      border:1px solid var(--borda,#E6E9F2);
+      border-radius:12px;
+      background:var(--card,#fff);
+      color:var(--tx,#14172B);
+      font-size:13px;
+      font-weight:700;
+      cursor:pointer;
+    }
+    body:not(.home-aberta) header .marca small{
+      display:none;
+    }
+  }
+  @media (max-width:760px){
+    body.home-aberta #btnConfigHome{
+      justify-content:center;
+      width:40px;
+      height:40px;
+      padding:0 !important;
+      border-radius:12px;
+      font-size:0 !important;
+    }
+    body.home-aberta #btnConfigHome::before{
+      content:"⚙";
+      font-size:19px;
+      line-height:1;
+    }
+  }
+  /* ===== AJUSTES 21 - FIM ===== */
 </head>
 <body>
 
@@ -12915,6 +13045,52 @@ $('btnFecharPerfil').addEventListener('click', function(){ esconder('modalPerfil
 $('btnSair').addEventListener('click', sairDaConta);
 
 /* INÍCIO */
+    /* ===== AJUSTES 21 - NAVEGAÇÃO FINAL ===== */
+  (function(){
+    /* remove versões anteriores e o botão de configuração flutuante */
+    ['btnVoltarHome','btnVoltarHomeTopo','btnConfigGlobal'].forEach(function(id){
+      var antigo = $(id);
+      if (antigo) antigo.remove();
+    });
+    /* logo da barra continua voltando ao Início */
+    var logo = document.querySelector('nav .lateral-logo');
+    if (logo){
+      logo.title = 'Voltar ao Início';
+      var botaoLateral = document.createElement('button');
+      botaoLateral.id = 'btnVoltarHome';
+      botaoLateral.type = 'button';
+      botaoLateral.title = 'Voltar ao Início';
+      botaoLateral.innerHTML =
+        '<span class="voltar-ico">' +
+          '<svg viewBox="0 0 24 24" aria-hidden="true">' +
+            '<path d="M19 12H5M11 6l-6 6 6 6"></path>' +
+          '</svg>' +
+        '</span>' +
+        '<span class="voltar-rot">Voltar ao Início</span>';
+      botaoLateral.addEventListener('click', abrirHomeGeral);
+      logo.insertAdjacentElement('afterend', botaoLateral);
+      /* ordem da barra: logo, Voltar ao Início, menu, Tarefas sem projeto */
+      logo.style.order = '-2';
+      botaoLateral.style.order = '-1';
+    }
+    var semProjeto = document.querySelector('nav .btn-semproj.semproj-lat');
+    if (semProjeto){
+      semProjeto.style.order = '0';
+    }
+    /* celular: botão no cabeçalho */
+    var marca = document.querySelector('header .marca');
+    if (marca){
+      var botaoTopo = document.createElement('button');
+      botaoTopo.id = 'btnVoltarHomeTopo';
+      botaoTopo.type = 'button';
+      botaoTopo.className = 'btn-voltar-home-topo';
+      botaoTopo.title = 'Voltar ao Início';
+      botaoTopo.textContent = '‹ Início';
+      botaoTopo.addEventListener('click', abrirHomeGeral);
+      marca.insertBefore(botaoTopo, marca.firstChild);
+    }
+  })();
+  /* ===== AJUSTES 21 - FIM ===== */
 carregarSortable();
 restaurarSessao();
 
