@@ -13814,36 +13814,80 @@ $('btnSair').addEventListener('click', sairDaConta);
       return m.toUpperCase();
     }
 
-    function escreverTexto(alvo, texto){
-      alvo.textContent = '';
-      String(texto || '').split('\n').forEach(function(linha){
-        var l = linha.trim();
-        var bloco = document.createElement('div');
-        if (!l){
-          bloco.className = 'chat-esp';
-          alvo.appendChild(bloco);
-          return;
-        }
-        var titulo = /^#{1,4}\s+/.test(l);
-        l = l.replace(/^#{1,4}\s+/, '');
-        if (/^[-•*]\s+/.test(l)){
-          l = l.replace(/^[-•*]\s+/, '');
-          bloco.className = 'chat-item';
-        }
-        l.split(/\*\*(.+?)\*\*/).forEach(function(parte, i){
-          if (!parte) return;
-          if (i % 2 === 1 || titulo){
-            var forte = document.createElement('strong');
-            forte.textContent = parte;
-            bloco.appendChild(forte);
-          } else {
-            bloco.appendChild(document.createTextNode(parte));
+function escreverTexto(alvo, texto){
+  alvo.textContent = '';
+
+  function adicionarComLinks(destino, conteudo, negrito){
+    var partes = String(conteudo || '').split(
+      /(https?:\/\/[^\s<>"']+)/g
+    );
+
+    partes.forEach(function(parte){
+      if (!parte) return;
+
+      if (/^https?:\/\//i.test(parte)){
+        var url = parte.replace(/[.,;!?]+$/, '');
+
+        try {
+          var link = document.createElement('a');
+          link.href = new URL(url).href;
+          link.target = '_blank';
+          link.rel = 'noopener noreferrer';
+          link.textContent = url;
+          link.style.color = '#60a5fa';
+          link.style.textDecoration = 'underline';
+          link.style.overflowWrap = 'anywhere';
+
+          destino.appendChild(link);
+
+          if (url.length < parte.length){
+            destino.appendChild(
+              document.createTextNode(parte.slice(url.length))
+            );
           }
-        });
-        alvo.appendChild(bloco);
-      });
+        } catch(e){
+          destino.appendChild(
+            document.createTextNode(parte)
+          );
+        }
+      } else if (negrito){
+        var forte = document.createElement('strong');
+        forte.textContent = parte;
+        destino.appendChild(forte);
+      } else {
+        destino.appendChild(
+          document.createTextNode(parte)
+        );
+      }
+    });
+  }
+
+  String(texto || '').split('\n').forEach(function(linha){
+    var l = linha.trim();
+    var bloco = document.createElement('div');
+
+    if (!l){
+      bloco.className = 'chat-esp';
+      alvo.appendChild(bloco);
+      return;
     }
 
+    var titulo = /^#{1,4}\s+/.test(l);
+    l = l.replace(/^#{1,4}\s+/, '');
+
+    if (/^[-•*]\s+/.test(l)){
+      l = l.replace(/^[-•*]\s+/, '');
+      bloco.className = 'chat-item';
+    }
+
+    l.split(/\*\*(.+?)\*\*/).forEach(function(parte, i){
+      if (!parte) return;
+      adicionarComLinks(bloco, parte, i % 2 === 1 || titulo);
+    });
+
+    alvo.appendChild(bloco);
+  });
+}
     function adicionar(papel, texto, modelo, erro){
       var msg = document.createElement('div');
       msg.className = 'chat-msg ' + (papel === 'usuario' ? 'usuario' : 'ia');
