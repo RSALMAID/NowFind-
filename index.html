@@ -14478,6 +14478,91 @@ function escreverTexto(alvo, texto){
   }
 })();
 /* ===== AJUSTES 29 - FIM ===== */
+    /* ===== AJUSTES 30 - CLIMA DA HOME ===== */
+(function () {
+  const temp = document.getElementById('homeClimaTemperatura');
+  const desc = document.getElementById('homeClimaDescricao');
+  if (!temp || !desc) return;
+
+  const cartao = temp.closest('.home-card') || temp.parentNode.parentNode;
+
+  const LAT = -22.9068;
+  const LON = -43.1729;
+
+  const codigos = {
+    0: ['Céu limpo', '☀️'],
+    1: ['Poucas nuvens', '🌤️'],
+    2: ['Parcialmente nublado', '⛅'],
+    3: ['Nublado', '☁️'],
+    45: ['Neblina', '🌫️'], 48: ['Neblina', '🌫️'],
+    51: ['Garoa fraca', '🌦️'], 53: ['Garoa', '🌦️'], 55: ['Garoa forte', '🌦️'],
+    61: ['Chuva fraca', '🌧️'], 63: ['Chuva', '🌧️'], 65: ['Chuva forte', '🌧️'],
+    80: ['Pancadas de chuva', '🌦️'], 81: ['Pancadas de chuva', '🌧️'],
+    82: ['Pancadas fortes', '⛈️'],
+    95: ['Trovoadas', '⛈️'], 96: ['Trovoadas com granizo', '⛈️'],
+    99: ['Trovoadas com granizo', '⛈️']
+  };
+
+  /* Preenche o valor que fica junto do rótulo (Máxima, Mínima, Chuva, Umidade) */
+  function preencher(rotulo, valor) {
+    const todos = cartao.querySelectorAll('*');
+    for (const el of todos) {
+      if (el.children.length === 0 && el.textContent.trim() === rotulo) {
+        const caixa = el.parentNode;
+        const filhos = [...caixa.children].filter(f => f !== el);
+        if (filhos.length) {
+          filhos[filhos.length - 1].textContent = valor;
+        }
+        return;
+      }
+    }
+  }
+
+  function trocarIcone(icone) {
+    const todos = cartao.querySelectorAll('*');
+    for (const el of todos) {
+      if (el.children.length === 0 && /^[☀️🌤️⛅☁️🌫️🌦️🌧️⛈️]+$/u.test(el.textContent.trim())) {
+        el.textContent = icone;
+        return;
+      }
+    }
+  }
+
+  async function carregarClima() {
+    try {
+      const url =
+        'https://api.open-meteo.com/v1/forecast' +
+        '?latitude=' + LAT + '&longitude=' + LON +
+        '&current=temperature_2m,relative_humidity_2m,weather_code' +
+        '&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max' +
+        '&timezone=America%2FSao_Paulo&forecast_days=1';
+
+      const r = await fetch(url);
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const d = await r.json();
+
+      const atual = d.current || {};
+      const dia = d.daily || {};
+      const info = codigos[atual.weather_code] || ['Tempo variável', '🌤️'];
+
+      temp.textContent = Math.round(atual.temperature_2m) + '°';
+      desc.textContent = info[0];
+      trocarIcone(info[1]);
+
+      preencher('Máxima', Math.round(dia.temperature_2m_max[0]) + '°');
+      preencher('Mínima', Math.round(dia.temperature_2m_min[0]) + '°');
+      preencher('Chuva', (dia.precipitation_probability_max[0] ?? 0) + '%');
+      preencher('Umidade', Math.round(atual.relative_humidity_2m) + '%');
+    } catch (e) {
+      desc.textContent = 'Clima indisponível';
+      console.error('Erro ao carregar clima:', e);
+    }
+  }
+
+  carregarClima();
+  setInterval(carregarClima, 30 * 60 * 1000);
+})();
+/* ===== AJUSTES 30 - FIM ===== */
 carregarSortable();
 restaurarSessao();
 
