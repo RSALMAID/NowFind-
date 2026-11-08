@@ -2792,6 +2792,50 @@ body.home-aberta #navHomeGeral{
 }
 
 /* ===== AJUSTES 18 - FIM ===== */
+ /* ===== AJUSTES 19 - HOME INICIAL SEM BARRA LATERAL ===== */
+
+body.home-aberta nav{
+  display:none !important;
+}
+
+body.home-aberta .app{
+  padding-left:0 !important;
+}
+
+body.home-aberta main{
+  width:100%;
+  max-width:none;
+  margin:0;
+  padding:24px clamp(16px,4vw,56px);
+}
+
+body.home-aberta #view-home{
+  max-width:1720px;
+  margin:0 auto;
+}
+
+body.home-aberta .oculto-home{
+  display:none !important;
+}
+
+/* espaço adicional no celular, pois a barra inferior não existe na Home */
+@media (max-width:899px){
+
+  body.home-aberta .app{
+    padding-bottom:0 !important;
+  }
+
+  body.home-aberta main{
+    padding:18px 14px 28px;
+  }
+
+  body.home-aberta #view-home{
+    padding-bottom:20px;
+  }
+
+}
+
+/* ===== AJUSTES 19 - FIM ===== */ 
 </style>
 </head>
 <body>
@@ -2871,9 +2915,13 @@ body.home-aberta #navHomeGeral{
 
     <div class="home-cab-acoes">
 
-      <button id="btnHomeHoje" class="chip-filtro" type="button">
-        Hoje
-      </button>
+    <button
+  id="btnConfigHome"
+  class="chip-filtro"
+  type="button"
+>
+  ⚙ Configurações
+</button>
 
       <button id="btnNovoEventoHome" class="btn-prim" type="button">
         ＋ Evento
@@ -11720,10 +11768,22 @@ $('btnMesAtual')
     voltarHojeHome
   );
 
-$('btnHomeHoje')
+$('btnConfigHome')
   .addEventListener(
     'click',
-    voltarHojeHome
+    function(){
+
+      if ($('btnConfig')){
+        $('btnConfig').click();
+        return;
+      }
+
+      if ($('modalConfig')){
+        aplicarConfig();
+        mostrar('modalConfig');
+      }
+
+    }
   );
 
 $('btnNovoEventoHome')
@@ -12370,100 +12430,44 @@ document.addEventListener(
 );
 
 /* ===== HOME GERAL - PARTE 1D - FIM ===== */
-  /* ===== HOME GERAL - PARTE 1E: NAVEGAÇÃO DA HOME ===== */
+/* ===== HOME GERAL - PARTE 1E: HOME INICIAL INDEPENDENTE ===== */
 
 var homeVisivel = false;
 
 /* =========================================================
-   CRIAR BOTÃO HOME
+   MOSTRAR OU ESCONDER A NAVEGAÇÃO DOS AMBIENTES
    ========================================================= */
 
-function criarBotaoHomeGeral(){
+function alternarNavegacaoHome(homeAberta){
 
-  if ($('navHomeGeral')){
-    return;
-  }
+  document.body.classList.toggle(
+    'home-aberta',
+    homeAberta
+  );
 
   var nav =
     document.querySelector('nav');
 
-  if (!nav){
-    return;
-  }
-
-  var botao =
-    document.createElement('button');
-
-  botao.id =
-    'navHomeGeral';
-
-  botao.type =
-    'button';
-
-  botao.className =
-    'nav-item';
-
-  botao.setAttribute(
-    'data-view',
-    'home'
-  );
-
-  botao.innerHTML =
-    '<span class="nav-ico">' +
-      '<svg viewBox="0 0 24 24" aria-hidden="true">' +
-        '<path d="M3 11.5 12 4l9 7.5"></path>' +
-        '<path d="M5 10v9a1 1 0 0 0 1 1h4v-5h4v5h4a1 1 0 0 0 1-1v-9"></path>' +
-      '</svg>' +
-    '</span>' +
-    '<span class="nav-rot">Home</span>';
-
-  botao.addEventListener(
-    'click',
-    abrirHomeGeral
-  );
-
-  var primeiroBotao =
-    nav.querySelector(
-      'button[data-view]'
-    );
-
-  if (primeiroBotao){
-
-    nav.insertBefore(
-      botao,
-      primeiroBotao
-    );
-
-  } else {
-
-    nav.appendChild(
-      botao
+  if (nav){
+    nav.classList.toggle(
+      'oculto',
+      homeAberta
     );
   }
-}
 
-/* =========================================================
-   MARCAR HOME NO MENU
-   ========================================================= */
-
-function marcarHomeNoMenu(aberta){
-
-  document.body.classList.toggle(
-    'home-aberta',
-    aberta
-  );
-
+  /*
+    Esconde também seletores de ambiente que ficam
+    fora da Home. A própria Home já tem os três botões.
+  */
   document
     .querySelectorAll(
-      'nav button[data-view]'
+      '#seletorAmbiente, .amb-lateral, .btn-semproj'
     )
-    .forEach(function(botao){
+    .forEach(function(elemento){
 
-      botao.classList.toggle(
-        'ativo',
-        aberta &&
-        botao.id ===
-          'navHomeGeral'
+      elemento.classList.toggle(
+        'oculto-home',
+        homeAberta
       );
 
     });
@@ -12481,17 +12485,14 @@ function esconderHomeGeral(){
     $('view-home');
 
   if (home){
-
-    home.classList.add(
-      'oculto'
-    );
+    home.classList.add('oculto');
   }
 
-  marcarHomeNoMenu(false);
+  alternarNavegacaoHome(false);
 }
 
 /* =========================================================
-   ABRIR HOME
+   ABRIR HOME GERAL
    ========================================================= */
 
 function abrirHomeGeral(){
@@ -12518,56 +12519,61 @@ function abrirHomeGeral(){
       $('view-' + nome);
 
     if (tela){
-
-      tela.classList.add(
-        'oculto'
-      );
+      tela.classList.add('oculto');
     }
+
   });
 
-  home.classList.remove(
-    'oculto'
-  );
+  home.classList.remove('oculto');
 
-  marcarHomeNoMenu(true);
+  alternarNavegacaoHome(true);
 
   iniciarHome();
-
   atualizarCabecalhoHome();
 
-  window.scrollTo(
-    0,
-    0
-  );
+  window.scrollTo(0, 0);
 }
 
 /* =========================================================
-   INTEGRAR COM TROCAR TELA
+   ENTRAR EM UM AMBIENTE
    ========================================================= */
 
-if (
-  typeof trocarTela ===
-  'function'
-){
+function abrirAmbientePelaHome(tipo){
 
-  var trocarTelaAntesHome =
-    trocarTela;
+  if (
+    tipo !== 'pessoal' &&
+    tipo !== 'profissional' &&
+    tipo !== 'compartilhado'
+  ){
+    return;
+  }
 
-  trocarTela = function(nome){
+  esconderHomeGeral();
 
-    if (nome === 'home'){
+  if (
+    typeof trocarAmbiente === 'function'
+  ){
+    trocarAmbiente(tipo);
+    return;
+  }
 
-      abrirHomeGeral();
+  ambiente = tipo;
 
-      return;
-    }
+  if (
+    typeof renderizar === 'function'
+  ){
+    renderizar();
+  }
 
-    esconderHomeGeral();
-
-    trocarTelaAntesHome(
-      nome
+  if (
+    typeof trocarTela === 'function'
+  ){
+    trocarTela(
+      tipo === 'compartilhado'
+        ? 'espaco'
+        : 'hoje'
     );
-  };
+  }
 }
 
 /* =========================================================
@@ -12575,8 +12581,7 @@ if (
    ========================================================= */
 
 if (
-  typeof abrirApp ===
-  'function'
+  typeof abrirApp === 'function'
 ){
 
   var abrirAppAntesHome =
@@ -12590,22 +12595,12 @@ if (
       usuarioLogado
     );
 
-    /*
-      Aguarda o aplicativo terminar
-      de montar as telas e o menu.
-    */
     setTimeout(
       abrirHomeGeral,
       0
     );
   };
 }
-
-/* =========================================================
-   CRIAR O BOTÃO
-   ========================================================= */
-
-criarBotaoHomeGeral();
 
 /* ===== HOME GERAL - PARTE 1E - FIM ===== */
   /* ===== SINCRONIZAÇÃO COM A NUVEM ===== */
