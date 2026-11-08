@@ -3177,6 +3177,59 @@ body.home-aberta .oculto-home{
     display:none !important;
   }
   /* ===== AJUSTES 25 - FIM ===== */
+      /* ===== AJUSTES 27 - CHAT IA ===== */
+  .chat-balao{
+    overflow-wrap:anywhere;
+  }
+  .chat-balao .chat-item{
+    position:relative;
+    margin:3px 0;
+    padding-left:14px;
+  }
+  .chat-balao .chat-item::before{
+    content:"•";
+    position:absolute;
+    left:3px;
+  }
+  .chat-balao .chat-esp{
+    height:6px;
+  }
+  .chat-balao.chat-erro{
+    border-color:#E5202E;
+    color:#E5202E;
+  }
+  .chat-modelo{
+    margin-top:7px;
+    font-size:9px;
+    font-weight:700;
+    letter-spacing:.05em;
+    opacity:.55;
+  }
+  .chat-pensando span{
+    display:inline-block;
+    width:6px;
+    height:6px;
+    margin-right:4px;
+    border-radius:50%;
+    background:var(--texto);
+    animation:chatPulso 1s infinite ease-in-out;
+  }
+  .chat-pensando span:nth-child(2){
+    animation-delay:.15s;
+  }
+  .chat-pensando span:nth-child(3){
+    animation-delay:.3s;
+  }
+  @keyframes chatPulso{
+    0%,80%,100%{opacity:.25;transform:scale(.8);}
+    40%{opacity:1;transform:scale(1);}
+  }
+  @media (max-width:760px){
+    #homeChatEntrada{
+      font-size:16px;
+    }
+  }
+  /* ===== AJUSTES 27 - FIM ===== */
   </style>
 </head>
 <body>
@@ -13718,6 +13771,203 @@ $('btnSair').addEventListener('click', sairDaConta);
     setTimeout(pintarBotoesAmbiente, 1200);
   })();
   /* ===== AJUSTES 26 - FIM ===== */
+      /* ===== AJUSTES 27 - CHAT IA DA TELA INÍCIO ===== */
+  (function(){
+    var lista = document.getElementById('homeChatMensagens');
+    if (
+      !lista ||
+      !document.getElementById('homeChatEntrada') ||
+      !document.getElementById('btnEnviarChatHome')
+    ){
+      return;
+    }
+
+    /* remove ouvintes antigos, clonando os elementos */
+    ['homeChatEntrada', 'btnEnviarChatHome', 'btnLimparChatHome']
+      .forEach(function(id){
+        var antigo = document.getElementById(id);
+        if (antigo && antigo.parentNode){
+          antigo.parentNode.replaceChild(antigo.cloneNode(true), antigo);
+        }
+      });
+    var campo = document.getElementById('homeChatEntrada');
+    var botao = document.getElementById('btnEnviarChatHome');
+    var limpar = document.getElementById('btnLimparChatHome');
+
+    var historico = [];
+    var ocupado = false;
+
+    function urlIA(){
+      var base = String(
+        typeof URL_EVENTOS_HOME !== 'undefined' ? URL_EVENTOS_HOME : ''
+      );
+      var i = base.indexOf('/api/conta');
+      base = i >= 0 ? base.substring(0, i) : base.replace(/\/+$/, '');
+      return base + '/api/conta/ia';
+    }
+
+    function nomeModelo(m){
+      m = String(m || '').toLowerCase();
+      if (m.indexOf('kimi') > -1) return 'KIMI K2.6';
+      if (m.indexOf('gemma') > -1) return 'GEMMA 4';
+      if (m.indexOf('llama') > -1) return 'LLAMA 3.3';
+      return m.toUpperCase();
+    }
+
+    function escreverTexto(alvo, texto){
+      alvo.textContent = '';
+      String(texto || '').split('\n').forEach(function(linha){
+        var l = linha.trim();
+        var bloco = document.createElement('div');
+        if (!l){
+          bloco.className = 'chat-esp';
+          alvo.appendChild(bloco);
+          return;
+        }
+        var titulo = /^#{1,4}\s+/.test(l);
+        l = l.replace(/^#{1,4}\s+/, '');
+        if (/^[-•*]\s+/.test(l)){
+          l = l.replace(/^[-•*]\s+/, '');
+          bloco.className = 'chat-item';
+        }
+        l.split(/\*\*(.+?)\*\*/).forEach(function(parte, i){
+          if (!parte) return;
+          if (i % 2 === 1 || titulo){
+            var forte = document.createElement('strong');
+            forte.textContent = parte;
+            bloco.appendChild(forte);
+          } else {
+            bloco.appendChild(document.createTextNode(parte));
+          }
+        });
+        alvo.appendChild(bloco);
+      });
+    }
+
+    function adicionar(papel, texto, modelo, erro){
+      var msg = document.createElement('div');
+      msg.className = 'chat-msg ' + (papel === 'usuario' ? 'usuario' : 'ia');
+      var avatar = document.createElement('span');
+      avatar.className = 'chat-avatar';
+      avatar.textContent = papel === 'usuario'
+        ? String(
+            (typeof usuario !== 'undefined' && usuario && usuario.nome) || 'U'
+          ).charAt(0).toUpperCase()
+        : 'N';
+      var balao = document.createElement('div');
+      balao.className = 'chat-balao' + (erro ? ' chat-erro' : '');
+      escreverTexto(balao, texto);
+      if (modelo){
+        var rotulo = document.createElement('div');
+        rotulo.className = 'chat-modelo';
+        rotulo.textContent = nomeModelo(modelo);
+        balao.appendChild(rotulo);
+      }
+      msg.appendChild(avatar);
+      msg.appendChild(balao);
+      lista.appendChild(msg);
+      lista.scrollTop = lista.scrollHeight;
+      return msg;
+    }
+
+    function adicionarPensando(){
+      var msg = document.createElement('div');
+      msg.className = 'chat-msg ia';
+      var avatar = document.createElement('span');
+      avatar.className = 'chat-avatar';
+      avatar.textContent = 'N';
+      var balao = document.createElement('div');
+      balao.className = 'chat-balao chat-pensando';
+      balao.innerHTML = '<span></span><span></span><span></span>';
+      msg.appendChild(avatar);
+      msg.appendChild(balao);
+      lista.appendChild(msg);
+      lista.scrollTop = lista.scrollHeight;
+      return msg;
+    }
+
+    async function enviar(texto){
+      texto = String(texto || '').trim();
+      if (!texto || ocupado) return;
+      if (typeof tokenAtual !== 'function' || !tokenAtual()){
+        adicionar('ia', 'Entre na sua conta para usar a IA.', null, true);
+        return;
+      }
+      ocupado = true;
+      botao.disabled = true;
+      campo.value = '';
+      var anteriores = historico.slice(-10);
+      adicionar('usuario', texto);
+      historico.push({ papel: 'usuario', texto: texto });
+      var pensando = adicionarPensando();
+      try {
+        var r = await fetch(urlIA() + '/chat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + tokenAtual()
+          },
+          body: JSON.stringify({ mensagem: texto, historico: anteriores })
+        });
+        var d = {};
+        try { d = await r.json(); } catch(e){}
+        pensando.remove();
+        if (!d.ok){
+          adicionar(
+            'ia',
+            (d.erro || ('A IA não respondeu (código ' + r.status + ').')) +
+              (d.detalhe ? '\n' + d.detalhe : ''),
+            null,
+            true
+          );
+        } else {
+          adicionar('ia', d.resposta, d.modelo);
+          historico.push({ papel: 'ia', texto: d.resposta });
+        }
+      } catch(e){
+        pensando.remove();
+        adicionar(
+          'ia',
+          'Não consegui falar com a IA. Verifique a internet e tente de novo.',
+          null,
+          true
+        );
+      } finally {
+        ocupado = false;
+        botao.disabled = false;
+        campo.focus();
+      }
+    }
+
+    botao.addEventListener('click', function(){
+      enviar(campo.value);
+    });
+
+    campo.addEventListener('keydown', function(e){
+      var computador = window.matchMedia('(pointer:fine)').matches;
+      if (e.key === 'Enter' && !e.shiftKey && computador){
+        e.preventDefault();
+        enviar(campo.value);
+      }
+    });
+
+    document.querySelectorAll('[data-home-prompt]').forEach(function(b){
+      var novo = b.cloneNode(true);
+      b.parentNode.replaceChild(novo, b);
+      novo.addEventListener('click', function(){
+        enviar(novo.getAttribute('data-home-prompt'));
+      });
+    });
+
+    if (limpar){
+      limpar.addEventListener('click', function(){
+        historico = [];
+        lista.textContent = '';
+        adicionar('ia', 'Como posso ajudar a organizar seu dia?');
+      });
+    }
+  })();
+  /* ===== AJUSTES 27 - FIM ===== */
 carregarSortable();
 restaurarSessao();
 
