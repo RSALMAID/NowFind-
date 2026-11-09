@@ -14572,22 +14572,11 @@ function escreverTexto(alvo, texto){
 
       const dados = await resposta.json();
 
-    const cidade =
-  dados.city ||
+   const cidade =
   dados.locality ||
-  (Array.isArray(dados.localityInfo?.administrative)
-    ? dados.localityInfo.administrative
-        .filter(item =>
-          item.name &&
-          !/região metropolitana|metropolitan/i.test(item.name)
-        )
-        .map(item => item.name)
-        .find(nome =>
-          nome !== dados.principalSubdivision
-        )
-    : '') ||
-  '';
-
+  dados.city ||
+  dados.principalSubdivision ||
+  'Minha localização';
       if (cidade) {
         titulo.textContent = cidade;
       } else {
