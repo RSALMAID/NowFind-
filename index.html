@@ -15580,7 +15580,261 @@ function escreverTexto(alvo, texto){
   setTimeout(carregarResumo, 3000);
 })();
 /* ===== AJUSTES 31 - FIM ===== */
+/* ===== AJUSTES 32 - CONTA, PRIVACIDADE E PROTEÇÃO DA IA ===== */
+(function () {
+  /* ---------- 1) a IA agora exige login: envia o token nas 3 rotas ---------- */
+  var fetchOriginal = window.fetch.bind(window);
+  var ROTAS_IA = ['/api/organizar', '/api/audio', '/api/arquivo'];
+  var hostIA = '';
+  try { hostIA = new URL(NOWFIND_IA_URL).host; } catch (e) {}
+  window.fetch = function (entrada, opcoes) {
+    try {
+      var texto = typeof entrada === 'string' ? entrada : ((entrada && entrada.url) || '');
+      var u = new URL(texto, location.href);
+      if (u.host === hostIA && ROTAS_IA.indexOf(u.pathname) >= 0) {
+        var t = tokenAtual();
+        if (t) {
+          var cab = new Headers((opcoes && opcoes.headers) || {});
+          if (!cab.has('Authorization')) cab.set('Authorization', 'Bearer ' + t);
+          opcoes = Object.assign({}, opcoes, { headers: cab });
+        }
+      }
+    } catch (e) { /* segue sem alterar */ }
+    return fetchOriginal(entrada, opcoes);
+  };
  
+  /* ---------- 2) tela de login: aviso verdadeiro e links legais ---------- */
+  var avisos = document.querySelectorAll('#auth .aviso');
+  for (var i = 0; i < avisos.length; i++) {
+    var av = avisos[i];
+    if (av.id === 'authMsg' || !/Versão de teste/.test(av.textContent)) continue;
+    av.textContent = '';
+    av.appendChild(document.createTextNode(
+      'Seus dados ficam protegidos na sua conta e sincronizam entre os seus aparelhos. ' +
+      'Ao criar uma conta, você concorda com os '
+    ));
+    var aT = document.createElement('a');
+    aT.href = 'termos.html';
+    aT.target = '_blank';
+    aT.rel = 'noopener';
+    aT.textContent = 'Termos de Uso';
+    av.appendChild(aT);
+    av.appendChild(document.createTextNode(' e com a '));
+    var aP = document.createElement('a');
+    aP.href = 'privacidade.html';
+    aP.target = '_blank';
+    aP.rel = 'noopener';
+    aP.textContent = 'Política de Privacidade';
+    av.appendChild(aP);
+    av.appendChild(document.createTextNode('.'));
+    break;
+  }
+ 
+  /* ---------- 3) Configurações > Conta e privacidade ---------- */
+  var folha = document.querySelector('#modalConfig .folha');
+  if (!folha || document.getElementById('nfContaBox')) return;
+ 
+  var estilo = document.createElement('style');
+  estilo.textContent = [
+    '.nf-conta-box{margin-top:18px;padding-top:14px;border-top:1px solid var(--borda,#E6E9F2)}',
+    '.nf-conta-box h3{margin:0 0 4px;font-size:13px;letter-spacing:.5px}',
+    '.nf-conta-box p{margin:0 0 10px;font-size:12px;opacity:.7;line-height:1.4}',
+    '.nf-conta-btn{display:block;width:100%;margin-top:8px;padding:12px;border-radius:12px;border:1px solid var(--borda,#DDDDE8);background:transparent;color:inherit;font:inherit;font-weight:700;font-size:13px;cursor:pointer}',
+    '.nf-conta-btn.perigo{border-color:#E5202E;color:#E5202E}',
+    '.nf-conta-links{margin-top:12px;font-size:12px;text-align:center}',
+    '.nf-conta-links a{color:inherit;opacity:.75;margin:0 8px}',
+    '.nf-excl-overlay{position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(0,0,0,.6)}',
+    '.nf-excl-caixa{width:100%;max-width:420px;max-height:90vh;overflow:auto;padding:20px;border-radius:18px;background:var(--card,#fff);color:var(--tx,#111);border:1px solid var(--borda,#E6E9F2);box-shadow:0 20px 60px rgba(0,0,0,.35)}',
+    '.nf-excl-caixa h2{margin:0 0 8px;font-size:18px}',
+    '.nf-excl-caixa ul{margin:8px 0 12px 18px;padding:0;font-size:13px;line-height:1.5}',
+    '.nf-excl-caixa label{display:block;margin:12px 0 4px;font-size:12px;font-weight:700}',
+    '.nf-excl-caixa input{width:100%;box-sizing:border-box;padding:11px 12px;border-radius:10px;border:1px solid var(--borda,#DDDDE8);background:transparent;color:inherit;font:inherit}',
+    '.nf-excl-erro{margin-top:10px;padding:8px 10px;border-radius:10px;border-left:4px solid #E5202E;background:rgba(229,32,46,.12);font-size:12px}',
+    '.nf-excl-acoes{display:flex;gap:8px;margin-top:16px}',
+    '.nf-excl-acoes button{flex:1;padding:12px;border-radius:12px;border:none;font:inherit;font-weight:700;font-size:14px;cursor:pointer}',
+    '.nf-excl-cancelar{background:rgba(127,127,127,.2);color:inherit}',
+    '.nf-excl-confirmar{background:#E5202E;color:#fff}',
+    '.nf-excl-confirmar:disabled{opacity:.5;cursor:default}'
+  ].join('\n');
+  document.head.appendChild(estilo);
+ 
+  var caixa = document.createElement('div');
+  caixa.id = 'nfContaBox';
+  caixa.className = 'nf-conta-box';
+  var titulo = document.createElement('h3');
+  titulo.textContent = 'CONTA E PRIVACIDADE';
+  var explica = document.createElement('p');
+  explica.textContent = 'Baixe uma cópia dos seus dados ou exclua a conta definitivamente.';
+  var btnExportar = document.createElement('button');
+  btnExportar.type = 'button';
+  btnExportar.className = 'nf-conta-btn';
+  btnExportar.textContent = '⬇ Exportar meus dados';
+  var btnExcluir = document.createElement('button');
+  btnExcluir.type = 'button';
+  btnExcluir.className = 'nf-conta-btn perigo';
+  btnExcluir.textContent = '🗑 Excluir minha conta';
+  var links = document.createElement('div');
+  links.className = 'nf-conta-links';
+  [['Política de Privacidade', 'privacidade.html'], ['Termos de Uso', 'termos.html']].forEach(function (par) {
+    var a = document.createElement('a');
+    a.href = par[1];
+    a.target = '_blank';
+    a.rel = 'noopener';
+    a.textContent = par[0];
+    links.appendChild(a);
+  });
+  caixa.appendChild(titulo);
+  caixa.appendChild(explica);
+  caixa.appendChild(btnExportar);
+  caixa.appendChild(btnExcluir);
+  caixa.appendChild(links);
+  folha.appendChild(caixa);
+ 
+  function aviso(texto, erro) {
+    if (typeof toast === 'function') toast(texto, !!erro);
+    else alert(texto);
+  }
+ 
+  /* exportar */
+  btnExportar.addEventListener('click', async function () {
+    if (!tokenAtual()) { aviso('Entre na sua conta para exportar.', true); return; }
+    btnExportar.disabled = true;
+    var rotulo = btnExportar.textContent;
+    btnExportar.textContent = 'Preparando...';
+    try {
+      var r = await fetch(URL_CONTA + '/exportar', {
+        headers: { 'Authorization': 'Bearer ' + tokenAtual() }
+      });
+      var j = {};
+      try { j = await r.json(); } catch (e) {}
+      if (!r.ok || !j.ok) throw new Error(j.erro || 'Não foi possível exportar agora.');
+      var blob = new Blob([JSON.stringify(j, null, 2)], { type: 'application/json' });
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'nowfind-meus-dados-' + new Date().toISOString().slice(0, 10) + '.json';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(function () { URL.revokeObjectURL(a.href); }, 5000);
+      aviso('Arquivo com os seus dados baixado.', false);
+    } catch (e) {
+      aviso(e.message || 'Não foi possível exportar agora.', true);
+    } finally {
+      btnExportar.disabled = false;
+      btnExportar.textContent = rotulo;
+    }
+  });
+ 
+  /* excluir conta */
+  function limparTudoDoAparelho() {
+    var apagar = [];
+    for (var k = 0; k < localStorage.length; k++) {
+      var chave = localStorage.key(k);
+      if (chave && chave.indexOf('nowfind') === 0) apagar.push(chave);
+    }
+    apagar.forEach(function (c) { localStorage.removeItem(c); });
+    try { indexedDB.deleteDatabase('nowfind'); } catch (e) {}
+  }
+ 
+  btnExcluir.addEventListener('click', function () {
+    if (!tokenAtual()) { aviso('Entre na sua conta primeiro.', true); return; }
+    if (document.querySelector('.nf-excl-overlay')) return;
+ 
+    var overlay = document.createElement('div');
+    overlay.className = 'nf-excl-overlay';
+    var cx = document.createElement('div');
+    cx.className = 'nf-excl-caixa';
+    cx.setAttribute('role', 'dialog');
+    cx.setAttribute('aria-modal', 'true');
+    var h = document.createElement('h2');
+    h.textContent = 'Excluir minha conta';
+    var intro = document.createElement('p');
+    intro.style.cssText = 'margin:0;font-size:13px;line-height:1.5';
+    intro.textContent = 'Isso é definitivo e não pode ser desfeito.';
+    var lista = document.createElement('ul');
+    [
+      'Suas tarefas, projetos, notas, eventos e referências são apagados.',
+      'Espaços e projetos avulsos só seus são apagados, com as conversas.',
+      'Espaços com outras pessoas passam para o participante mais antigo.',
+      'Suas mensagens em conversas de grupo continuam, sem o seu nome.',
+      'Você será desconectado em todos os aparelhos.'
+    ].forEach(function (t) {
+      var li = document.createElement('li');
+      li.textContent = t;
+      lista.appendChild(li);
+    });
+    var rot = document.createElement('label');
+    rot.textContent = 'Digite sua senha para confirmar';
+    rot.setAttribute('for', 'nfExclSenha');
+    var campo = document.createElement('input');
+    campo.type = 'password';
+    campo.id = 'nfExclSenha';
+    campo.autocomplete = 'current-password';
+    var erro = document.createElement('div');
+    erro.className = 'nf-excl-erro oculto';
+    erro.setAttribute('role', 'alert');
+    var acoes = document.createElement('div');
+    acoes.className = 'nf-excl-acoes';
+    var cancelar = document.createElement('button');
+    cancelar.type = 'button';
+    cancelar.className = 'nf-excl-cancelar';
+    cancelar.textContent = 'Cancelar';
+    var confirmar = document.createElement('button');
+    confirmar.type = 'button';
+    confirmar.className = 'nf-excl-confirmar';
+    confirmar.textContent = 'Excluir definitivamente';
+    acoes.appendChild(cancelar);
+    acoes.appendChild(confirmar);
+    [h, intro, lista, rot, campo, erro, acoes].forEach(function (n) { cx.appendChild(n); });
+    overlay.appendChild(cx);
+    document.body.appendChild(overlay);
+    campo.focus();
+ 
+    function fechar() {
+      if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+    }
+    cancelar.addEventListener('click', fechar);
+    overlay.addEventListener('click', function (e) { if (e.target === overlay) fechar(); });
+ 
+    async function excluir() {
+      var senha = campo.value;
+      if (!senha) {
+        erro.textContent = 'Digite a sua senha.';
+        erro.classList.remove('oculto');
+        return;
+      }
+      confirmar.disabled = true;
+      confirmar.textContent = 'Excluindo...';
+      erro.classList.add('oculto');
+      try {
+        var r = await fetch(URL_CONTA + '/excluir-conta', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + tokenAtual()
+          },
+          body: JSON.stringify({ senha: senha })
+        });
+        var j = {};
+        try { j = await r.json(); } catch (e) {}
+        if (!r.ok || !j.ok) throw new Error(j.erro || 'Não foi possível excluir agora.');
+        limparTudoDoAparelho();
+        location.reload();
+      } catch (e) {
+        erro.textContent = e.message || 'Não foi possível excluir agora.';
+        erro.classList.remove('oculto');
+        confirmar.disabled = false;
+        confirmar.textContent = 'Excluir definitivamente';
+      }
+    }
+    confirmar.addEventListener('click', excluir);
+    campo.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); excluir(); }
+    });
+  });
+})();
+/* ===== AJUSTES 32 - FIM ===== */
+  
 carregarSortable();
 restaurarSessao();
 
