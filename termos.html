@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Termos de Uso · NowFind</title>
+<meta name="robots" content="index,follow">
+<style>
+:root{--bg:#fff;--tx:#14172B;--mut:#5b6078;--bd:#E6E9F2;--ac:#2F5BFF}
+@media (prefers-color-scheme:dark){:root{--bg:#111318;--tx:#EEF0F7;--mut:#a3a8bd;--bd:#2a2e3a;--ac:#8fa8ff}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:760px;margin:0 auto;padding:24px 20px 64px}
+h1{font-size:28px;margin:8px 0 4px}h2{font-size:19px;margin:32px 0 8px}p,li{color:var(--tx)}
+.mut{color:var(--mut);font-size:14px}a{color:var(--ac)}ul{padding-left:22px}
+.topo{display:flex;align-items:center;gap:10px;font-weight:800}.logo{width:34px;height:34px;border-radius:9px;background:#0000ff;color:#ffd600;display:grid;place-items:center;font-weight:900}
+.aviso{margin:16px 0;padding:12px 14px;border-radius:12px;border:1px solid var(--bd);font-size:14px}
+#configuracao{display:none;border-color:#E5202E;background:rgba(229,32,46,.1)}
+nav.rodape{margin-top:40px;padding-top:16px;border-top:1px solid var(--bd);font-size:14px}nav.rodape a{margin-right:14px}
+table{border-collapse:collapse;width:100%;font-size:14px}th,td{border:1px solid var(--bd);padding:8px;text-align:left;vertical-align:top}
+</style>
+</head><body><main>
+<div class="topo"><span class="logo">N</span><span>NowFind</span></div>
+<div id="configuracao" class="aviso"><b>Atenção (só você vê isto até configurar):</b> abra o arquivo <code>contato.js</code> e preencha seu e-mail e nome. Depois desse passo este aviso some.</div>
+<h1>Termos de Uso</h1>
+<p class="mut">Atualizados em novembro de 2026</p>
+
+<p>Ao criar uma conta ou usar o NowFind, você concorda com estes termos. Se não concordar, não use o serviço.</p>
+
+<h2>1. O serviço</h2>
+<p>O NowFind ajuda você a capturar ideias e organizar tarefas, projetos e compromissos, sozinho ou em equipe, com apoio de inteligência artificial. O serviço é mantido por <b data-c="responsavel"></b>.</p>
+
+<h2>2. Sua conta</h2>
+<p>Você deve informar dados verdadeiros, manter a senha em segredo e ter 18 anos ou mais. Você é responsável pelo que acontece na sua conta.</p>
+
+<h2>3. Seu conteúdo</h2>
+<p>O conteúdo que você cria é seu. Você nos autoriza apenas a guardá-lo, processá-lo e exibi-lo para as pessoas que você convidar, na medida necessária para o serviço funcionar. Em espaços compartilhados, os outros participantes também podem ver e editar o conteúdo do espaço.</p>
+
+<h2>4. Uso aceitável</h2>
+<ul>
+<li>Não use o serviço para atividades ilegais, para assediar pessoas ou para enviar conteúdo que viole direitos de terceiros.</li>
+<li>Não tente acessar contas ou dados de outras pessoas, nem sobrecarregar o serviço.</li>
+<li>Os recursos de IA têm um limite diário de uso por pessoa.</li>
+</ul>
+
+<h2>5. Inteligência artificial</h2>
+<p>As respostas e organizações geradas por IA podem conter erros. Confira sempre antes de tomar decisões, principalmente sobre prazos, dinheiro, saúde ou temas jurídicos.</p>
+
+<h2>6. Disponibilidade</h2>
+<p>Trabalhamos para manter o serviço no ar, mas ele é oferecido no estado em que se encontra, sem garantia de funcionamento ininterrupto. Podemos alterar ou encerrar recursos, avisando com antecedência quando possível. Recomendamos exportar os seus dados de tempos em tempos.</p>
+
+<h2>7. Encerramento</h2>
+<p>Você pode excluir a conta a qualquer momento em Configurações &gt; Conta e privacidade. Podemos suspender contas que violem estes termos.</p>
+
+<h2>8. Responsabilidade</h2>
+<p>Na medida permitida pela lei, não nos responsabilizamos por perdas indiretas ou por decisões tomadas com base em resultados do app ou da IA. Isso não afasta direitos que a lei garante ao consumidor.</p>
+
+<h2>9. Privacidade</h2>
+<p>O tratamento de dados pessoais está descrito na <a href="privacidade.html">Política de Privacidade</a>.</p>
+
+<h2>10. Mudanças e foro</h2>
+<p>Podemos atualizar estes termos e avisaremos no app. Fica eleito o foro do domicílio do consumidor para resolver conflitos, conforme a legislação brasileira. Dúvidas: <a data-c="email" href="#"></a>.</p>
+<nav class="rodape"><a href="privacidade.html">Política de Privacidade</a><a href="termos.html">Termos de Uso</a><a href="excluir-conta.html">Excluir conta</a><a href="/">Abrir o NowFind</a></nav>
+</main>
+<script src="contato.js"></script>
+<script>
+(function(){
+  var c = window.NOWFIND_CONTATO || {};
+  var faltando = !c.email || /COLOQUE/.test(c.email) || !c.responsavel || /COLOQUE/.test(c.responsavel);
+  var aviso = document.getElementById("configuracao");
+  if (aviso && faltando) aviso.style.display = "block";
+  document.querySelectorAll("[data-c]").forEach(function(e){
+    var v = c[e.getAttribute("data-c")] || "[preencher em contato.js]";
+    e.textContent = v;
+    if (e.tagName === "A" && e.getAttribute("data-c") === "email") e.href = "mailto:" + v;
+  });
+})();
+</script>
+</body></html>

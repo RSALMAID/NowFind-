@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Excluir conta · NowFind</title>
+<meta name="robots" content="index,follow">
+<style>
+:root{--bg:#fff;--tx:#14172B;--mut:#5b6078;--bd:#E6E9F2;--ac:#2F5BFF}
+@media (prefers-color-scheme:dark){:root{--bg:#111318;--tx:#EEF0F7;--mut:#a3a8bd;--bd:#2a2e3a;--ac:#8fa8ff}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:760px;margin:0 auto;padding:24px 20px 64px}
+h1{font-size:28px;margin:8px 0 4px}h2{font-size:19px;margin:32px 0 8px}p,li{color:var(--tx)}
+.mut{color:var(--mut);font-size:14px}a{color:var(--ac)}ul{padding-left:22px}
+.topo{display:flex;align-items:center;gap:10px;font-weight:800}.logo{width:34px;height:34px;border-radius:9px;background:#0000ff;color:#ffd600;display:grid;place-items:center;font-weight:900}
+.aviso{margin:16px 0;padding:12px 14px;border-radius:12px;border:1px solid var(--bd);font-size:14px}
+#configuracao{display:none;border-color:#E5202E;background:rgba(229,32,46,.1)}
+nav.rodape{margin-top:40px;padding-top:16px;border-top:1px solid var(--bd);font-size:14px}nav.rodape a{margin-right:14px}
+table{border-collapse:collapse;width:100%;font-size:14px}th,td{border:1px solid var(--bd);padding:8px;text-align:left;vertical-align:top}
+</style>
+</head><body><main>
+<div class="topo"><span class="logo">N</span><span>NowFind</span></div>
+<div id="configuracao" class="aviso"><b>Atenção (só você vê isto até configurar):</b> abra o arquivo <code>contato.js</code> e preencha seu e-mail e nome. Depois desse passo este aviso some.</div>
+<h1>Como excluir a sua conta do NowFind</h1>
+<p class="mut">Você pode excluir a conta e os dados a qualquer momento.</p>
+
+<h2>Pelo aplicativo (mais rápido)</h2>
+<ol>
+<li>Entre na sua conta no NowFind.</li>
+<li>Abra <b>Configurações</b> (ícone de engrenagem).</li>
+<li>Role até <b>Conta e privacidade</b> e toque em <b>Excluir minha conta</b>.</li>
+<li>Digite a sua senha e confirme.</li>
+</ol>
+
+<h2>Sem acesso ao aplicativo</h2>
+<p>Envie um e-mail para <a data-c="email" href="#"></a>, a partir do endereço cadastrado na conta, com o assunto "Excluir conta NowFind". Confirmaremos o pedido e concluiremos a exclusão em até 15 dias.</p>
+
+<h2>O que acontece</h2>
+<ul>
+<li><b>Apagamos:</b> nome, e-mail, senha, tarefas, projetos, notas, eventos, referências, preferências e o histórico de uso.</li>
+<li><b>Espaços e projetos avulsos só seus</b> são apagados, junto com as conversas.</li>
+<li><b>Espaços com outras pessoas</b> passam para o participante mais antigo.</li>
+<li><b>Mensagens em conversas de grupo</b> continuam para os demais participantes, sem ligação com você.</li>
+<li><b>Cópias de segurança</b> do banco de dados expiram sozinhas em até 30 dias.</li>
+</ul>
+<p>Quer guardar uma cópia antes? Em Configurações &gt; Conta e privacidade, use <b>Exportar meus dados</b>.</p>
+<nav class="rodape"><a href="privacidade.html">Política de Privacidade</a><a href="termos.html">Termos de Uso</a><a href="excluir-conta.html">Excluir conta</a><a href="/">Abrir o NowFind</a></nav>
+</main>
+<script src="contato.js"></script>
+<script>
+(function(){
+  var c = window.NOWFIND_CONTATO || {};
+  var faltando = !c.email || /COLOQUE/.test(c.email) || !c.responsavel || /COLOQUE/.test(c.responsavel);
+  var aviso = document.getElementById("configuracao");
+  if (aviso && faltando) aviso.style.display = "block";
+  document.querySelectorAll("[data-c]").forEach(function(e){
+    var v = c[e.getAttribute("data-c")] || "[preencher em contato.js]";
+    e.textContent = v;
+    if (e.tagName === "A" && e.getAttribute("data-c") === "email") e.href = "mailto:" + v;
+  });
+})();
+</script>
+</body></html>
