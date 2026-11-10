@@ -4673,7 +4673,7 @@ body.home-aberta .oculto-home{
 <div id="modalProjeto" class="modal oculto">
   <div class="folha">
     <div class="folha-topo">
-      <div><small>PROJETO</small><h2 id="projTitulo">Novo projeto</h2></div>
+      <div><small>PROJETO</small><h2 id="projFormTitulo">Novo projeto</h2></div>
       <button id="btnFecharProjeto" class="fechar">×</button>
     </div>
     <label>Nome</label>
@@ -5356,7 +5356,7 @@ function progresso(pid){
 function abrirFormProjeto(id){
   var p = id ? acharProjeto(id) : null;
   editandoProjeto = p ? id : null;
-  $('projTitulo').textContent = p ? 'Editar projeto' : 'Novo projeto';
+ $('projFormTitulo').textContent = p ? 'Editar projeto' : 'Novo projeto';
   $('inProjNome').value = p ? p.nome : '';
   $('inProjObjetivo').value = p ? (p.objetivo || '') : '';
   definirSegmento('projTipo', p ? p.tipo : (filtroTipo === 'todos' ? 'pessoal' : filtroTipo));
