@@ -13143,107 +13143,289 @@ if (
   instalarRetornoPeloLogo();
   criarBotoesVoltarHome();
   /* ===== HOME GERAL - PARTE 1F - FIM ===== */
-  /* ===== SINCRONIZAÇÃO COM A NUVEM ===== */
-
+ /* ===== SINCRONIZAÇÃO COM A NUVEM (mescla em vez de sobrescrever) ===== */
 var URL_DADOS = URL_CONTA + '/dados';
 var timerSync = null;
-
+var syncOcupado = false;
+var syncDeNovo = false;
+var versaoLocal = 0;
+var LISTAS_SYNC = ['itens', 'projetos'];
+var fotoSync = { itens: {}, projetos: {} };
+ 
 function tokenAtual(){
   return localStorage.getItem('nowfind_token');
 }
-
 function statusSync(txt){
   var s = $('statusSync');
   if (s) s.textContent = txt;
 }
-
 function chavePendente(){
   return chaveDados() + '_pendente';
 }
-
+/* versão da nuvem que este aparelho já conhece */
+function chaveBase(){
+  return chaveDados() + '_base';
+}
+ 
+/* ---------- controle do que mudou neste aparelho ---------- */
+function semMarca(reg){
+  var copia = {};
+  Object.keys(reg).forEach(function(k){
+    if (k !== '_m') copia[k] = reg[k];
+  });
+  return JSON.stringify(copia);
+}
+/* guarda um retrato dos dados para comparar na próxima gravação */
+function fotografarDados(){
+  LISTAS_SYNC.forEach(function(nome){
+    var mapa = {};
+    (dados[nome] || []).forEach(function(reg){
+      if (reg && reg.id) mapa[reg.id] = semMarca(reg);
+    });
+    fotoSync[nome] = mapa;
+  });
+}
+/* carimba o que foi alterado e anota o que foi excluído */
+function marcarMudancas(){
+  var quando = agora();
+  dados.excluidos = dados.excluidos || {};
+  LISTAS_SYNC.forEach(function(nome){
+    var antes = fotoSync[nome] || {};
+    var vivos = {};
+    (dados[nome] || []).forEach(function(reg){
+      if (!reg || !reg.id) return;
+      vivos[reg.id] = true;
+      if (antes[reg.id] !== semMarca(reg)) reg._m = quando;
+      delete dados.excluidos[nome + ':' + reg.id];
+    });
+    Object.keys(antes).forEach(function(id){
+      if (!vivos[id]) dados.excluidos[nome + ':' + id] = quando;
+    });
+  });
+  dados._salvoEm = quando;
+}
+ 
+/* ---------- mescla dos dados de dois aparelhos ---------- */
+function dataRegistro(reg){
+  return String((reg && (reg._m || reg.atualizadoEm || reg.criadoEm)) || '');
+}
+function mesclarDados(local, remoto){
+  local = local || {};
+  remoto = remoto || {};
+  var localMaisNovo =
+    String(local._salvoEm || '') >= String(remoto._salvoEm || '');
+  var fundo = localMaisNovo ? remoto : local;
+  var topo = localMaisNovo ? local : remoto;
+  var final = {};
+  Object.keys(fundo).forEach(function(k){ final[k] = fundo[k]; });
+  Object.keys(topo).forEach(function(k){ final[k] = topo[k]; });
+ 
+  /* exclusões conhecidas pelos dois lados */
+  var exc = {};
+  [remoto.excluidos, local.excluidos].forEach(function(mapa){
+    Object.keys(mapa || {}).forEach(function(k){
+      if (!exc[k] || mapa[k] > exc[k]) exc[k] = mapa[k];
+    });
+  });
+  var limite = new Date(Date.now() - 180 * 86400000).toISOString();
+  Object.keys(exc).forEach(function(k){
+    if (exc[k] < limite) delete exc[k];
+  });
+ 
+  LISTAS_SYNC.forEach(function(nome){
+    var doRemoto = {};
+    (remoto[nome] || []).forEach(function(reg){
+      if (reg && reg.id) doRemoto[reg.id] = reg;
+    });
+    var usados = {};
+    var lista = [];
+    (local[nome] || []).forEach(function(reg){
+      if (!reg || !reg.id) return;
+      usados[reg.id] = true;
+      var outro = doRemoto[reg.id];
+      lista.push(
+        outro && dataRegistro(outro) > dataRegistro(reg) ? outro : reg
+      );
+    });
+    var novos = (remoto[nome] || []).filter(function(reg){
+      return reg && reg.id && !usados[reg.id];
+    });
+    final[nome] = novos.concat(lista).filter(function(reg){
+      var apagadoEm = exc[nome + ':' + reg.id];
+      return !(apagadoEm && apagadoEm >= dataRegistro(reg));
+    });
+  });
+ 
+  final.excluidos = exc;
+  var revisoes = [local.ultimaRevisao, remoto.ultimaRevisao]
+    .filter(function(x){ return x; })
+    .sort();
+  final.ultimaRevisao = revisoes.length ? revisoes[revisoes.length - 1] : null;
+  return final;
+}
+ 
+/* aplica neste aparelho o que veio da nuvem */
+function receberDaNuvem(texto, quando, mesclar){
+  var remoto = null;
+  try { remoto = texto ? JSON.parse(texto) : null; } catch(e){ remoto = null; }
+  if (remoto && typeof remoto === 'object'){
+    var atual = localStorage.getItem(chaveDados());
+    if (atual && atual !== texto){
+      localStorage.setItem(chaveDados() + '_backup', atual);
+    }
+    var final = mesclar ? mesclarDados(dados, remoto) : remoto;
+    localStorage.setItem(chaveDados(), JSON.stringify(final));
+    carregarDados();
+    renderizar();
+  }
+  if (quando) localStorage.setItem(chaveBase(), quando);
+  else localStorage.removeItem(chaveBase());
+}
+ 
 async function enviarParaNuvem(){
   var token = tokenAtual();
   if (!token || !usuario) return;
+  if (syncOcupado){ syncDeNovo = true; return; }
+  syncOcupado = true;
   try {
     statusSync('☁️ Salvando...');
-    var r = await fetch(URL_DADOS, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-      body: JSON.stringify({ conteudo: JSON.stringify(dados) })
-    });
-    var j = await r.json();
-    if (r.ok && j.ok){
-      localStorage.removeItem(chavePendente());
-      statusSync('☁️ Sincronizado');
-    } else {
-      statusSync('⚠️ Não sincronizado: ' + (j.erro || 'erro'));
+    for (var tentativa = 0; tentativa < 4; tentativa++){
+      var versaoEnviada = versaoLocal;
+      var r = await fetch(URL_DADOS, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + token
+        },
+        body: JSON.stringify({
+          conteudo: JSON.stringify(dados),
+          base: localStorage.getItem(chaveBase()) || null
+        })
+      });
+      var j = {};
+      try { j = await r.json(); } catch(e){}
+      if (r.ok && j.ok){
+        localStorage.setItem(chaveBase(), j.atualizado_em);
+        if (versaoLocal === versaoEnviada){
+          localStorage.removeItem(chavePendente());
+        } else {
+          syncDeNovo = true;
+        }
+        statusSync('☁️ Sincronizado');
+        return;
+      }
+      /* outro aparelho salvou antes: junta os dois e tenta de novo */
+      if (r.status === 409 && j.conflito){
+        receberDaNuvem(j.conteudo, j.atualizado_em, true);
+        continue;
+      }
+      if (r.status === 401){
+        statusSync('⚠️ Sessão expirada. Entre novamente.');
+        return;
+      }
+      statusSync('⚠️ Não sincronizado: ' + (j.erro || ('erro ' + r.status)));
+      return;
     }
+    statusSync('⚠️ Não sincronizado. Nova tentativa em instantes.');
+    syncDeNovo = true;
   } catch(e){
     statusSync('⚠️ Sem conexão. Salvo neste aparelho.');
+  } finally {
+    syncOcupado = false;
+    if (syncDeNovo){
+      syncDeNovo = false;
+      clearTimeout(timerSync);
+      timerSync = setTimeout(enviarParaNuvem, 3000);
+    }
   }
 }
-
+ 
 /* toda gravação vai para a nuvem 1,5 s depois */
 var salvarDadosSyncBase = salvarDados;
 salvarDados = function(){
+  if (usuario) marcarMudancas();
   salvarDadosSyncBase();
   if (!usuario) return;
+  fotografarDados();
+  versaoLocal++;
   localStorage.setItem(chavePendente(), '1');
   clearTimeout(timerSync);
   timerSync = setTimeout(enviarParaNuvem, 1500);
 };
-
+ 
+/* sempre que os dados são lidos, atualiza o retrato */
+var carregarDadosSyncBase = carregarDados;
+carregarDados = function(){
+  carregarDadosSyncBase();
+  fotografarDados();
+};
+ 
 async function sincronizarAoAbrir(){
   var token = tokenAtual();
-  if (!token || !usuario) return;
-
-  /* alteração feita sem internet: este aparelho envia primeiro */
-  if (localStorage.getItem(chavePendente())){
-    await enviarParaNuvem();
-    return;
-  }
-
+  if (!token || !usuario || syncOcupado) return;
+  syncOcupado = true;
+  var enviarDepois = false;
   try {
     statusSync('☁️ Sincronizando...');
-    var r = await fetch(URL_DADOS, { headers: { 'Authorization': 'Bearer ' + token } });
-    var j = await r.json();
-    if (!r.ok || !j.ok){ statusSync('⚠️ Não sincronizado'); return; }
-
+    var r = await fetch(URL_DADOS, {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    var j = {};
+    try { j = await r.json(); } catch(e){}
+    if (!r.ok || !j.ok){
+      statusSync(
+        r.status === 401
+          ? '⚠️ Sessão expirada. Entre novamente.'
+          : '⚠️ Não sincronizado'
+      );
+      return;
+    }
+    var pendente = !!localStorage.getItem(chavePendente());
     /* nuvem vazia: o primeiro aparelho com dados vira a base */
     if (!j.conteudo){
+      localStorage.removeItem(chaveBase());
       if ((dados.itens || []).length || (dados.projetos || []).length){
-        await enviarParaNuvem();
+        enviarDepois = true;
       } else {
         statusSync('☁️ Nada para sincronizar ainda');
       }
       return;
     }
-
-    var local = localStorage.getItem(chaveDados());
-    if (local && local !== j.conteudo){
-      localStorage.setItem(chaveDados() + '_backup', local);
+    /* a nuvem não mudou desde a última vez */
+    if (j.atualizado_em === localStorage.getItem(chaveBase())){
+      if (pendente) enviarDepois = true;
+      else statusSync('☁️ Sincronizado');
+      return;
     }
-    localStorage.setItem(chaveDados(), j.conteudo);
-    carregarDados();
-    renderizar();
-    statusSync('☁️ Sincronizado');
-
+    /* a nuvem mudou: sem alteração local, recebe; com alteração local, junta */
+    receberDaNuvem(j.conteudo, j.atualizado_em, pendente);
+    if (pendente) enviarDepois = true;
+    else statusSync('☁️ Sincronizado');
   } catch(e){
     statusSync('⚠️ Sem conexão. Usando dados deste aparelho.');
+  } finally {
+    syncOcupado = false;
+    if (enviarDepois || syncDeNovo){
+      syncDeNovo = false;
+      enviarParaNuvem();
+    }
   }
 }
-
+ 
 var abrirAppBase = abrirApp;
 abrirApp = function(u){
   abrirAppBase(u);
   sincronizarAoAbrir();
 };
-
 /* ao voltar para o app, busca o que mudou no outro aparelho */
 document.addEventListener('visibilitychange', function(){
   if (document.visibilityState === 'visible' && usuario) sincronizarAoAbrir();
 });
-
+/* com o app aberto, confere a nuvem a cada minuto */
+setInterval(function(){
+  if (document.visibilityState === 'visible' && usuario) sincronizarAoAbrir();
+}, 60000);
+  /* ===== SINCRONIZAÇÃO COM A NUVEM - FIM ===== */
 document.querySelectorAll('.segmento').forEach(function(seg){
   seg.querySelectorAll('button').forEach(function(b){
     b.addEventListener('click', function(){ definirSegmento(seg.id, b.getAttribute('data-v')); });
