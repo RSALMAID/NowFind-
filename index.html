@@ -7591,47 +7591,95 @@ function mostrarResultadoIA(analise){
   }
 
 /* =====================================
-   CRIAR COMO: TAREFAS OU PROJETO
+   CRIAR COMO: SÓ TAREFAS, PROJETO EXISTENTE OU PROJETO NOVO
    ===================================== */
-
 var rotuloCriar = el('label', null, 'Criar como');
 rotuloCriar.style.marginTop = '16px';
 area.appendChild(rotuloCriar);
-
+ 
 var escolhaCriar = el('div', 'segmento');
-
-var btnTarefas = el('button', null, '✅ Tarefas');
+var btnTarefas = el('button', null, '✅ Só tarefas');
 btnTarefas.type = 'button';
-
-var btnProjeto = el('button', null, '📁 Projeto');
-btnProjeto.type = 'button';
-
-function aplicarEscolhaCriar(valor){
-
-  if(valor === 'projeto'){
-    analise.classificacao = 'projeto';
-    if(!analise.projeto_sugerido){
-      analise.projeto_sugerido = analise.objetivo || 'Novo projeto';
-    }
-  } else {
-    analise.classificacao = 'acao';
-  }
-
-  btnTarefas.classList.toggle('sel', valor === 'tarefas');
-  btnProjeto.classList.toggle('sel', valor === 'projeto');
-
-}
-
-btnTarefas.addEventListener('click', function(){ aplicarEscolhaCriar('tarefas'); });
-btnProjeto.addEventListener('click', function(){ aplicarEscolhaCriar('projeto'); });
-
+var btnExistente = el('button', null, '📂 Existente');
+btnExistente.type = 'button';
+var btnNovo = el('button', null, '➕ Novo');
+btnNovo.type = 'button';
 escolhaCriar.appendChild(btnTarefas);
-escolhaCriar.appendChild(btnProjeto);
+escolhaCriar.appendChild(btnExistente);
+escolhaCriar.appendChild(btnNovo);
 area.appendChild(escolhaCriar);
-
-aplicarEscolhaCriar(
-  analise.classificacao === 'projeto' ? 'projeto' : 'tarefas'
-);
+ 
+var dicaCriar = el('p', null, '');
+dicaCriar.style.cssText = 'margin-top:8px;color:#737789;font-size:12px';
+area.appendChild(dicaCriar);
+ 
+/* escolher um projeto que já existe */
+var campoExistente = el('div');
+campoExistente.style.marginTop = '8px';
+var seletorProjeto = document.createElement('select');
+var opcaoVazia = el('option', null, 'Escolha o projeto...');
+opcaoVazia.value = '';
+seletorProjeto.appendChild(opcaoVazia);
+dados.projetos.forEach(function(p){
+  var op = el(
+    'option',
+    null,
+    p.nome + ' · ' + (p.tipo === 'profissional' ? 'Profissional' : 'Pessoal')
+  );
+  op.value = p.id;
+  seletorProjeto.appendChild(op);
+});
+campoExistente.appendChild(seletorProjeto);
+area.appendChild(campoExistente);
+ 
+/* dar nome a um projeto novo */
+var campoNovo = el('div');
+campoNovo.style.marginTop = '8px';
+var nomeNovo = document.createElement('input');
+nomeNovo.type = 'text';
+nomeNovo.maxLength = 120;
+nomeNovo.placeholder = 'Nome do novo projeto';
+nomeNovo.value = analise.projeto_sugerido || analise.objetivo || '';
+campoNovo.appendChild(nomeNovo);
+area.appendChild(campoNovo);
+ 
+var destino = { modo: 'tarefas', projetoId: null, nome: nomeNovo.value };
+analise._destino = destino;
+ 
+function aplicarDestino(modo){
+  destino.modo = modo;
+  btnTarefas.classList.toggle('sel', modo === 'tarefas');
+  btnExistente.classList.toggle('sel', modo === 'existente');
+  btnNovo.classList.toggle('sel', modo === 'novo');
+  campoExistente.classList.toggle('oculto', modo !== 'existente');
+  campoNovo.classList.toggle('oculto', modo !== 'novo');
+  dicaCriar.textContent =
+    modo === 'tarefas'
+      ? 'Cria só as tarefas, sem projeto. Você pode ligá-las a um projeto depois.'
+      : (modo === 'existente'
+          ? 'As tarefas entram no projeto escolhido.'
+          : 'Cria um projeto novo com as tarefas dentro.');
+}
+btnTarefas.addEventListener('click', function(){ aplicarDestino('tarefas'); });
+btnExistente.addEventListener('click', function(){ aplicarDestino('existente'); });
+btnNovo.addEventListener('click', function(){ aplicarDestino('novo'); });
+seletorProjeto.addEventListener('change', function(){
+  destino.projetoId = seletorProjeto.value || null;
+  var escolhido = acharProjeto(seletorProjeto.value);
+  /* acompanha o ambiente do projeto, como no campo Projeto da captura */
+  if (escolhido) definirSegmento('capTipo', escolhido.tipo);
+});
+nomeNovo.addEventListener('input', function(){ destino.nome = nomeNovo.value; });
+ 
+/* se um projeto já estava escolhido na captura, começa nele */
+var projetoDaCaptura = $('capProjeto') ? $('capProjeto').value : '';
+if (projetoDaCaptura && acharProjeto(projetoDaCaptura)){
+  seletorProjeto.value = projetoDaCaptura;
+  destino.projetoId = projetoDaCaptura;
+  aplicarDestino('existente');
+} else {
+  aplicarDestino('tarefas');
+}
   /* =====================================
      BOTÕES
      ===================================== */
@@ -7868,7 +7916,25 @@ function aceitarAnaliseIA(analise){
   }
   analise.tipo = tipo;
 
+   var destinoIA = analise._destino || { modo: 'tarefas' };
+  if (destinoIA.modo === 'existente' && !acharProjeto(destinoIA.projetoId)){
+    alert('Escolha em qual projeto as tarefas vão entrar.');
+    return;
+  }
   var projetoId = null;
+  if (destinoIA.modo === 'existente'){
+    projetoId = destinoIA.projetoId;
+    analise.classificacao = 'acao';
+  } else if (destinoIA.modo === 'novo'){
+    analise.classificacao = 'projeto';
+    analise.projeto_sugerido =
+      String(destinoIA.nome || '').trim() ||
+      analise.projeto_sugerido ||
+      analise.objetivo ||
+      'Novo projeto';
+  } else {
+    analise.classificacao = 'acao';
+  }
 
 
   /* =========================
