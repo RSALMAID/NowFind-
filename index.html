@@ -14964,6 +14964,623 @@ function escreverTexto(alvo, texto){
 
 })();
 /* ===== AJUSTES 30 - FIM ===== */
+    /* ===== AJUSTES 31 - CHAT DO ESPAÇO / PROJETO AVULSO ===== */
+(function () {
+  var barraDireita = document.querySelector('#espPainel .esp-direita');
+  var botaoPessoas = document.getElementById('btnPessoas');
+  if (!barraDireita || !botaoPessoas || document.getElementById('btnChatEsp')) return;
+ 
+  var naoLidas = {};            /* espaço -> mensagens não lidas */
+  var resumoCarregado = false;
+  var chat = null;              /* estado do chat aberto */
+  var INTERVALO_CHAT = 4000;
+  var INTERVALO_RESUMO = 30000;
+ 
+  function token() {
+    return typeof tokenAtual === 'function' ? tokenAtual() : '';
+  }
+ 
+  async function api(caminho, metodo, corpo) {
+    var r = await fetch(URL_ESP + '/chat' + caminho, {
+      method: metodo || 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + token()
+      },
+      body: corpo ? JSON.stringify(corpo) : undefined
+    });
+    var j = {};
+    try { j = await r.json(); } catch (e) {}
+    return { status: r.status, j: j };
+  }
+ 
+  /* ---------- aparência ---------- */
+  var estilo = document.createElement('style');
+  estilo.textContent = [
+    '.nf-chat-overlay{position:fixed;inset:0;z-index:99998;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(0,0,0,.55);backdrop-filter:blur(6px)}',
+    '.nf-chat-janela{position:relative;width:100%;max-width:560px;height:min(86vh,720px);display:flex;flex-direction:column;overflow:hidden;border-radius:20px;background:var(--card,#fff);color:var(--tx,#111);border:1px solid var(--borda,#E7E7EE);box-shadow:0 20px 60px rgba(0,0,0,.3)}',
+    '@media (max-width:640px){.nf-chat-overlay{padding:0}.nf-chat-janela{height:100%;max-width:none;border-radius:0;border:none}}',
+    '.nf-chat-topo{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:calc(14px + env(safe-area-inset-top,0px)) 16px 12px;border-bottom:1px solid var(--borda,#E7E7EE)}',
+    '.nf-chat-topo small{display:block;font-size:10px;font-weight:700;letter-spacing:1px;opacity:.6}',
+    '.nf-chat-topo b{display:block;font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:420px}',
+    '.nf-chat-fechar{flex:none;width:34px;height:34px;border:none;border-radius:50%;background:rgba(127,127,127,.18);color:inherit;font-size:20px;line-height:1;cursor:pointer}',
+    '.nf-chat-lista{flex:1;overflow-y:auto;padding:12px 14px;display:flex;flex-direction:column;gap:2px;-webkit-overflow-scrolling:touch}',
+    '.nf-chat-antigas{align-self:center;margin:4px 0 10px;border:none;border-radius:14px;padding:7px 14px;background:rgba(127,127,127,.18);color:inherit;font-size:12px;font-weight:700;cursor:pointer}',
+    '.nf-chat-vazio{margin:auto;text-align:center;padding:24px;opacity:.65;font-size:14px;line-height:1.5}',
+    '.nf-chat-dia{align-self:center;margin:10px 0 6px;padding:3px 10px;border-radius:10px;background:rgba(127,127,127,.18);font-size:11px;font-weight:700;opacity:.8}',
+    '.nf-msg{display:flex;flex-direction:column;max-width:82%;margin-top:6px}',
+    '.nf-msg.agrupada{margin-top:1px}',
+    '.nf-msg.minha{align-self:flex-end;align-items:flex-end}',
+    '.nf-msg.outra{align-self:flex-start;align-items:flex-start}',
+    '.nf-msg-autor{font-size:11px;font-weight:700;margin:0 4px 2px}',
+    '.nf-msg-balao{padding:8px 11px 6px;border-radius:14px;font-size:14px;line-height:1.4;white-space:pre-wrap;word-break:break-word;overflow-wrap:anywhere}',
+    '.nf-msg.minha .nf-msg-balao{background:var(--grad-acento,var(--azul,#2F5BFF));color:var(--on-acento,#fff);border-bottom-right-radius:4px}',
+    '.nf-msg.outra .nf-msg-balao{background:rgba(127,127,127,.18);border-bottom-left-radius:4px}',
+    '.nf-msg-balao a{color:inherit;text-decoration:underline}',
+    '.nf-msg-hora{display:block;margin-top:2px;font-size:10px;text-align:right;opacity:.65}',
+    '.nf-chat-novas{position:absolute;left:50%;transform:translateX(-50%);bottom:84px;border:none;border-radius:16px;padding:8px 14px;background:var(--grad-acento,var(--azul,#2F5BFF));color:var(--on-acento,#fff);font-size:12px;font-weight:700;box-shadow:0 6px 18px rgba(0,0,0,.3);cursor:pointer}',
+    '.nf-chat-erro{margin:0 14px 8px;padding:8px 10px;border-radius:10px;border-left:4px solid #E5202E;background:rgba(229,32,46,.12);font-size:12px}',
+    '.nf-chat-compor{display:flex;align-items:flex-end;gap:8px;padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--borda,#E7E7EE)}',
+    '.nf-chat-compor textarea{flex:1;min-height:42px;max-height:120px;resize:none;border:1px solid var(--borda,#DDDDE8);border-radius:14px;padding:10px 12px;font:inherit;font-size:15px;line-height:1.35;background:transparent;color:inherit;outline:none}',
+    '.nf-chat-compor textarea:focus{border-color:var(--azul,#2F5BFF)}',
+    '.nf-chat-enviar{flex:none;height:42px;border:none;border-radius:14px;padding:0 16px;background:var(--grad-acento,var(--azul,#2F5BFF));color:var(--on-acento,#fff);font-weight:700;font-size:14px;cursor:pointer}',
+    '.nf-chat-enviar:disabled{opacity:.5;cursor:default}',
+    '.nf-chat-n{display:inline-block;min-width:18px;margin-left:6px;padding:1px 6px;border-radius:9px;background:#E5202E;color:#fff;font-size:11px;font-weight:700;text-align:center}',
+    '.nf-chat-bolha{margin-left:auto;padding:2px 8px;border-radius:10px;background:#E5202E;color:#fff;font-size:11px;font-weight:700;white-space:nowrap}',
+    '.nf-tem-chat::after{content:"";display:inline-block;width:8px;height:8px;margin-left:6px;border-radius:50%;background:#E5202E;vertical-align:middle}'
+  ].join('\n');
+  document.head.appendChild(estilo);
+ 
+  /* ---------- botão "Chat" na barra do espaço ---------- */
+  var botaoChat = document.createElement('button');
+  botaoChat.id = 'btnChatEsp';
+  botaoChat.type = 'button';
+  botaoChat.className = 'chip-filtro';
+  botaoChat.appendChild(document.createTextNode('💬 Chat'));
+  var contador = document.createElement('span');
+  contador.className = 'nf-chat-n oculto';
+  botaoChat.appendChild(contador);
+  barraDireita.insertBefore(botaoChat, botaoPessoas);
+  botaoChat.addEventListener('click', abrirChat);
+ 
+  function textoContagem(n) { return n > 99 ? '99+' : String(n); }
+ 
+  function atualizarBotao() {
+    var n = (typeof espacoAtual !== 'undefined' && espacoAtual && naoLidas[espacoAtual]) || 0;
+    contador.textContent = textoContagem(n);
+    contador.classList.toggle('oculto', !n);
+  }
+ 
+  function marcarMenu() {
+    var total = 0;
+    Object.keys(naoLidas).forEach(function (id) { total += naoLidas[id]; });
+    /* menu lateral e seletor de ambiente */
+    document.querySelectorAll('[data-amb="compartilhado"]').forEach(function (b) {
+      b.classList.toggle('nf-tem-chat', total > 0);
+    });
+    /* cartão "Compartilhado" da Home */
+    var cartao = document.querySelector('[data-home-ambiente="compartilhado"]');
+    if (cartao) {
+      var bolha = cartao.querySelector('.nf-chat-bolha');
+      if (total > 0) {
+        if (!bolha) {
+          bolha = document.createElement('span');
+          bolha.className = 'nf-chat-bolha';
+          cartao.insertBefore(bolha, cartao.querySelector('.home-amb-seta'));
+        }
+        bolha.textContent = '💬 ' + textoContagem(total);
+        bolha.title = total + ' mensagem(ns) não lida(s)';
+      } else if (bolha) {
+        bolha.parentNode.removeChild(bolha);
+      }
+    }
+  }
+ 
+  /* os cartões do início e a barra do espaço passam a mostrar não lidas */
+  var cardEspacoBase = cardEspaco;
+  cardEspaco = function (e) {
+    var c = cardEspacoBase(e);
+    var n = naoLidas[e.id] || 0;
+    if (n) {
+      var topo = c.querySelector('.pc-topo');
+      if (topo) {
+        var b = document.createElement('span');
+        b.className = 'nf-chat-bolha';
+        b.textContent = '💬 ' + textoContagem(n);
+        b.title = n + ' mensagem(ns) não lida(s)';
+        topo.appendChild(b);
+      }
+    }
+    return c;
+  };
+  var renderEspBase = renderEsp;
+  renderEsp = function () {
+    renderEspBase.apply(this, arguments);
+    atualizarBotao();
+  };
+ 
+  /* ---------- utilidades de texto e data ---------- */
+  function mesmoDia(a, b) {
+    return a.getFullYear() === b.getFullYear() &&
+      a.getMonth() === b.getMonth() &&
+      a.getDate() === b.getDate();
+  }
+  function rotuloDia(d) {
+    var hoje = new Date();
+    var ontem = new Date();
+    ontem.setDate(hoje.getDate() - 1);
+    if (mesmoDia(d, hoje)) return 'Hoje';
+    if (mesmoDia(d, ontem)) return 'Ontem';
+    return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  }
+  function horaDe(d) {
+    return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  }
+  /* mostra o texto como texto puro; só links http(s) viram links */
+  function preencherTexto(alvo, texto) {
+    String(texto).split(/(https?:\/\/[^\s<>"']+)/g).forEach(function (parte) {
+      if (!parte) return;
+      if (/^https?:\/\//i.test(parte)) {
+        var limpo = parte.replace(/[.,;:!?)\]]+$/, '');
+        try {
+          var a = document.createElement('a');
+          a.href = new URL(limpo).href;
+          a.target = '_blank';
+          a.rel = 'noopener noreferrer';
+          a.textContent = limpo;
+          alvo.appendChild(a);
+          if (limpo.length < parte.length) {
+            alvo.appendChild(document.createTextNode(parte.slice(limpo.length)));
+          }
+        } catch (e) {
+          alvo.appendChild(document.createTextNode(parte));
+        }
+      } else {
+        alvo.appendChild(document.createTextNode(parte));
+      }
+    });
+  }
+ 
+  /* ---------- janela do chat ---------- */
+  function montarJanela(esp) {
+    var overlay = document.createElement('div');
+    overlay.className = 'nf-chat-overlay';
+    var janela = document.createElement('div');
+    janela.className = 'nf-chat-janela';
+    janela.setAttribute('role', 'dialog');
+    janela.setAttribute('aria-modal', 'true');
+    janela.setAttribute('aria-label', 'Chat de ' + esp.nome);
+ 
+    var topo = document.createElement('div');
+    topo.className = 'nf-chat-topo';
+    var titulos = document.createElement('div');
+    var rotulo = document.createElement('small');
+    rotulo.textContent = esp.tipo === 'projeto' ? 'CHAT · PROJETO AVULSO' : 'CHAT · ESPAÇO';
+    var nome = document.createElement('b');
+    nome.textContent = esp.nome;
+    titulos.appendChild(rotulo);
+    titulos.appendChild(nome);
+    var fechar = document.createElement('button');
+    fechar.type = 'button';
+    fechar.className = 'nf-chat-fechar';
+    fechar.setAttribute('aria-label', 'Fechar chat');
+    fechar.textContent = '×';
+    topo.appendChild(titulos);
+    topo.appendChild(fechar);
+ 
+    var lista = document.createElement('div');
+    lista.className = 'nf-chat-lista';
+    lista.setAttribute('aria-live', 'polite');
+    var antigas = document.createElement('button');
+    antigas.type = 'button';
+    antigas.className = 'nf-chat-antigas oculto';
+    antigas.textContent = 'Ver mensagens anteriores';
+    var msgs = document.createElement('div');
+    msgs.style.display = 'contents';
+    var vazio = document.createElement('div');
+    vazio.className = 'nf-chat-vazio oculto';
+    vazio.textContent = 'Nenhuma mensagem ainda. Escreva a primeira! Todos os participantes ' +
+      (esp.tipo === 'projeto' ? 'deste projeto' : 'deste espaço') + ' veem esta conversa.';
+    lista.appendChild(antigas);
+    lista.appendChild(msgs);
+    lista.appendChild(vazio);
+ 
+    var novas = document.createElement('button');
+    novas.type = 'button';
+    novas.className = 'nf-chat-novas oculto';
+ 
+    var erro = document.createElement('div');
+    erro.className = 'nf-chat-erro oculto';
+    erro.setAttribute('role', 'alert');
+ 
+    var compor = document.createElement('div');
+    compor.className = 'nf-chat-compor';
+    var campo = document.createElement('textarea');
+    campo.rows = 1;
+    campo.maxLength = 2000;
+    campo.placeholder = 'Escreva uma mensagem...';
+    campo.setAttribute('aria-label', 'Mensagem');
+    var enviar = document.createElement('button');
+    enviar.type = 'button';
+    enviar.className = 'nf-chat-enviar';
+    enviar.textContent = 'Enviar';
+    compor.appendChild(campo);
+    compor.appendChild(enviar);
+ 
+    janela.appendChild(topo);
+    janela.appendChild(lista);
+    janela.appendChild(novas);
+    janela.appendChild(erro);
+    janela.appendChild(compor);
+    overlay.appendChild(janela);
+    document.body.appendChild(overlay);
+ 
+    return {
+      overlay: overlay, lista: lista, antigas: antigas, msgs: msgs, vazio: vazio,
+      novas: novas, erro: erro, campo: campo, enviar: enviar, fechar: fechar
+    };
+  }
+ 
+  function pertoDoFim() {
+    var l = chat.ref.lista;
+    return l.scrollHeight - l.scrollTop - l.clientHeight < 80;
+  }
+  function irParaOFim() {
+    var l = chat.ref.lista;
+    l.scrollTop = l.scrollHeight;
+  }
+  function mostrarErro(texto) {
+    if (!chat) return;
+    var e = chat.ref.erro;
+    e.textContent = texto;
+    e.classList.remove('oculto');
+    clearTimeout(chat.timerErro);
+    chat.timerErro = setTimeout(function () { e.classList.add('oculto'); }, 6000);
+  }
+ 
+  function desenhar() {
+    var c = chat;
+    if (!c) return;
+    var box = c.ref.msgs;
+    box.textContent = '';
+    c.ref.antigas.classList.toggle('oculto', !c.temMais);
+    c.ref.vazio.classList.toggle('oculto', c.mensagens.length > 0);
+    var anterior = null;
+    c.mensagens.forEach(function (m) {
+      var data = new Date(m.criado_em);
+      var dataAnterior = anterior ? new Date(anterior.criado_em) : null;
+      var mudouDia = !dataAnterior || !mesmoDia(data, dataAnterior);
+      if (mudouDia) {
+        var sep = document.createElement('div');
+        sep.className = 'nf-chat-dia';
+        sep.textContent = rotuloDia(data);
+        box.appendChild(sep);
+      }
+      var minha = m.usuario_id === meuId();
+      var agrupada = !mudouDia && anterior &&
+        anterior.usuario_id === m.usuario_id &&
+        (data.getTime() - dataAnterior.getTime()) < 5 * 60000;
+      var linha = document.createElement('div');
+      linha.className = 'nf-msg ' + (minha ? 'minha' : 'outra') + (agrupada ? ' agrupada' : '');
+      if (!minha && !agrupada) {
+        var autor = document.createElement('span');
+        autor.className = 'nf-msg-autor';
+        autor.textContent = String(m.nome || 'Ex-participante').trim().split(' ')[0];
+        autor.style.color = corDe(m.usuario_id);
+        linha.appendChild(autor);
+      }
+      var balao = document.createElement('div');
+      balao.className = 'nf-msg-balao';
+      preencherTexto(balao, m.texto);
+      var hora = document.createElement('span');
+      hora.className = 'nf-msg-hora';
+      hora.textContent = horaDe(data);
+      balao.appendChild(hora);
+      linha.appendChild(balao);
+      box.appendChild(linha);
+      anterior = m;
+    });
+  }
+ 
+  /* junta mensagens novas sem repetir e na ordem certa */
+  function juntar(lista) {
+    var c = chat;
+    var entrou = 0;
+    lista.forEach(function (m) {
+      if (!m || !m.id || c.ids[m.id]) return;
+      c.ids[m.id] = true;
+      c.mensagens.push(m);
+      entrou++;
+    });
+    if (entrou) {
+      c.mensagens.sort(function (a, b) { return a.id - b.id; });
+    }
+    return entrou;
+  }
+ 
+  async function marcarLido() {
+    var c = chat;
+    if (!c || !c.mensagens.length) return;
+    var ate = c.mensagens[c.mensagens.length - 1].id;
+    if (ate <= c.ultimoLido) return;
+    c.ultimoLido = ate;
+    delete naoLidas[c.espacoId];
+    atualizarBotao();
+    marcarMenu();
+    try {
+      await api('/lido', 'POST', { espaco_id: c.espacoId, ate_id: ate });
+    } catch (e) {
+      c.ultimoLido = 0;
+    }
+  }
+ 
+  function incorporar(lista, forcarRolagem) {
+    var c = chat;
+    var estavaNoFim = pertoDoFim();
+    var deOutros = 0;
+    var antes = c.mensagens.length;
+    var entrou = juntar(lista);
+    if (!entrou) return;
+    c.mensagens.slice(antes).forEach(function (m) {
+      if (m.usuario_id !== meuId()) deOutros++;
+    });
+    desenhar();
+    if (estavaNoFim || forcarRolagem) {
+      irParaOFim();
+      c.pendentes = 0;
+      c.ref.novas.classList.add('oculto');
+      marcarLido();
+    } else if (deOutros) {
+      c.pendentes += deOutros;
+      c.ref.novas.textContent = '↓ ' + c.pendentes + (c.pendentes === 1 ? ' nova mensagem' : ' novas mensagens');
+      c.ref.novas.classList.remove('oculto');
+    }
+  }
+ 
+  async function buscarNovas() {
+    var c = chat;
+    if (!c || c.ocupado || document.visibilityState !== 'visible') return;
+    c.ocupado = true;
+    try {
+      var r = await api(
+        '?id=' + encodeURIComponent(c.espacoId) + (c.cursor ? '&depois=' + c.cursor : ''),
+        'GET'
+      );
+      if (chat !== c) return;
+      if (r.status === 403) {
+        fecharChat();
+        if (typeof toast === 'function') toast('Você não participa mais deste espaço.', true);
+        return;
+      }
+      if (r.j.ok) {
+        var lista = r.j.mensagens || [];
+        lista.forEach(function (m) { if (m.id > c.cursor) c.cursor = m.id; });
+        incorporar(lista, false);
+        /* se vieram muitas de uma vez, busca o resto logo em seguida */
+        if (lista.length >= 200) setTimeout(buscarNovas, 200);
+      }
+    } catch (e) {
+      /* sem internet: tenta de novo no próximo ciclo */
+    } finally {
+      c.ocupado = false;
+    }
+  }
+ 
+  async function carregarAnteriores() {
+    var c = chat;
+    if (!c || c.carregandoAntes || !c.temMais || !c.mensagens.length) return;
+    c.carregandoAntes = true;
+    c.ref.antigas.disabled = true;
+    try {
+      var r = await api(
+        '?id=' + encodeURIComponent(c.espacoId) + '&antes=' + c.mensagens[0].id,
+        'GET'
+      );
+      if (chat !== c) return;
+      if (r.j.ok) {
+        var l = c.ref.lista;
+        var alturaAntes = l.scrollHeight;
+        var topoAntes = l.scrollTop;
+        juntar(r.j.mensagens || []);
+        c.temMais = !!r.j.tem_mais;
+        desenhar();
+        l.scrollTop = l.scrollHeight - alturaAntes + topoAntes;
+      } else {
+        mostrarErro(r.j.erro || 'Não foi possível carregar as mensagens anteriores.');
+      }
+    } catch (e) {
+      mostrarErro('Sem conexão. Tente de novo.');
+    } finally {
+      c.carregandoAntes = false;
+      if (chat === c) c.ref.antigas.disabled = false;
+    }
+  }
+ 
+  async function enviar() {
+    var c = chat;
+    if (!c || c.enviando) return;
+    var texto = c.ref.campo.value.trim();
+    if (!texto) return;
+    c.enviando = true;
+    c.ref.enviar.disabled = true;
+    try {
+      var r = await api('/enviar', 'POST', { espaco_id: c.espacoId, texto: texto });
+      if (chat !== c) return;
+      if (r.status === 403) {
+        fecharChat();
+        if (typeof toast === 'function') toast('Você não participa mais deste espaço.', true);
+        return;
+      }
+      if (!r.j.ok || !r.j.mensagem) {
+        mostrarErro(r.j.erro || 'Não foi possível enviar. Tente de novo.');
+        return;
+      }
+      c.ref.campo.value = '';
+      ajustarAltura();
+      incorporar([r.j.mensagem], true);
+      buscarNovas();
+    } catch (e) {
+      mostrarErro('Sem conexão. A mensagem não foi enviada.');
+    } finally {
+      c.enviando = false;
+      if (chat === c) {
+        c.ref.enviar.disabled = false;
+        if (window.matchMedia('(pointer:fine)').matches) c.ref.campo.focus();
+      }
+    }
+  }
+ 
+  function ajustarAltura() {
+    if (!chat) return;
+    var campo = chat.ref.campo;
+    campo.style.height = 'auto';
+    campo.style.height = Math.min(campo.scrollHeight, 120) + 'px';
+  }
+ 
+  function aoTeclar(e) {
+    if (e.key === 'Escape' && chat) fecharChat();
+  }
+ 
+  async function abrirChat() {
+    if (chat || !token()) return;
+    if (typeof espNaHub !== 'undefined' && espNaHub) return;
+    var esp = espacoSelecionado();
+    if (!esp) return;
+ 
+    var ref = montarJanela(esp);
+    var c = chat = {
+      espacoId: esp.id,
+      ref: ref,
+      mensagens: [],
+      ids: {},
+      cursor: 0,
+      temMais: false,
+      ultimoLido: 0,
+      pendentes: 0,
+      ocupado: false,
+      enviando: false,
+      carregandoAntes: false,
+      timer: null,
+      timerErro: null
+    };
+    document.body.style.overflow = 'hidden';
+    document.addEventListener('keydown', aoTeclar);
+ 
+    ref.fechar.addEventListener('click', fecharChat);
+    ref.overlay.addEventListener('click', function (e) {
+      if (e.target === ref.overlay) fecharChat();
+    });
+    ref.antigas.addEventListener('click', carregarAnteriores);
+    ref.enviar.addEventListener('click', enviar);
+    ref.campo.addEventListener('input', ajustarAltura);
+    ref.campo.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' && !e.shiftKey && !e.isComposing &&
+          window.matchMedia('(pointer:fine)').matches) {
+        e.preventDefault();
+        enviar();
+      }
+    });
+    ref.novas.addEventListener('click', function () {
+      irParaOFim();
+      c.pendentes = 0;
+      ref.novas.classList.add('oculto');
+      marcarLido();
+    });
+    ref.lista.addEventListener('scroll', function () {
+      if (chat === c && pertoDoFim()) {
+        c.pendentes = 0;
+        ref.novas.classList.add('oculto');
+        marcarLido();
+      }
+    });
+ 
+    try {
+      var r = await api('?id=' + encodeURIComponent(c.espacoId), 'GET');
+      if (chat !== c) return;
+      if (r.status === 403) {
+        fecharChat();
+        if (typeof toast === 'function') toast('Você não participa deste espaço.', true);
+        return;
+      }
+      if (!r.j.ok) throw new Error(r.j.erro || 'Não foi possível abrir o chat.');
+      var lista = r.j.mensagens || [];
+      lista.forEach(function (m) { if (m.id > c.cursor) c.cursor = m.id; });
+      juntar(lista);
+      c.temMais = !!r.j.tem_mais;
+      desenhar();
+      irParaOFim();
+      marcarLido();
+    } catch (e) {
+      if (chat !== c) return;
+      c.ref.vazio.textContent = 'Não consegui carregar a conversa. Verifique a internet e abra o chat de novo.';
+      c.ref.vazio.classList.remove('oculto');
+    }
+    if (chat === c) {
+      c.timer = setInterval(buscarNovas, INTERVALO_CHAT);
+      if (window.matchMedia('(pointer:fine)').matches) ref.campo.focus();
+    }
+  }
+ 
+  function fecharChat() {
+    var c = chat;
+    if (!c) return;
+    chat = null;
+    clearInterval(c.timer);
+    clearTimeout(c.timerErro);
+    document.removeEventListener('keydown', aoTeclar);
+    document.body.style.overflow = '';
+    if (c.ref.overlay.parentNode) c.ref.overlay.parentNode.removeChild(c.ref.overlay);
+    carregarResumo();
+  }
+ 
+  /* ---------- mensagens não lidas (todos os espaços) ---------- */
+  async function carregarResumo() {
+    if (!token() || typeof usuario === 'undefined' || !usuario) return;
+    if (document.visibilityState !== 'visible') return;
+    try {
+      var r = await api('/resumo', 'GET');
+      if (!r.j.ok) return;
+      var novo = {};
+      (r.j.espacos || []).forEach(function (x) {
+        novo[x.espaco_id] = Number(x.nao_lidas) || 0;
+      });
+      if (chat) delete novo[chat.espacoId];
+      var aumentou = null;
+      Object.keys(novo).forEach(function (id) {
+        if (resumoCarregado && novo[id] > (naoLidas[id] || 0)) aumentou = id;
+      });
+      var mudou = JSON.stringify(novo) !== JSON.stringify(naoLidas);
+      naoLidas = novo;
+      resumoCarregado = true;
+      if (!mudou) return;
+      atualizarBotao();
+      marcarMenu();
+      var painel = document.getElementById('view-espaco');
+      if (typeof espNaHub !== 'undefined' && espNaHub && painel && !painel.classList.contains('oculto')) {
+        renderEsp();
+      }
+      if (aumentou && typeof toast === 'function') {
+        var nomeEsp = 'um espaço';
+        (typeof espacos !== 'undefined' ? espacos : []).forEach(function (e) {
+          if (e.id === aumentou) nomeEsp = e.nome;
+        });
+        toast('💬 Nova mensagem em ' + nomeEsp, false);
+      }
+    } catch (e) {
+      /* sem internet: mantém o que já sabia */
+    }
+  }
+ 
+  setInterval(carregarResumo, INTERVALO_RESUMO);
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState !== 'visible') return;
+    carregarResumo();
+    if (chat) buscarNovas();
+  });
+  setTimeout(carregarResumo, 3000);
+})();
+/* ===== AJUSTES 31 - FIM ===== */
+ 
 carregarSortable();
 restaurarSessao();
 
