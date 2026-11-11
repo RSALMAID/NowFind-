@@ -15898,6 +15898,23 @@ function escreverTexto(alvo, texto){
   }
 })();
 /* ===== AJUSTES 34 - FIM ===== */
+    /* ===== AJUSTES 35 - TELA DE ENTRAR SEMPRE COM O VISUAL PADRÃO ===== */
+(function () {
+  if (document.getElementById('nfEstiloAuth')) return;
+  var s = document.createElement('style');
+  s.id = 'nfEstiloAuth';
+  s.textContent = [
+    '#auth{--azul:rgb(0,0,255);--azul2:rgb(51,51,153);--on-acento:#fff;',
+    '--grad-acento:linear-gradient(135deg,rgb(0,0,255),rgb(51,51,153));',
+    '--tx:#14172B;--texto:#737789;--card:#fff;--borda:#DDDDE8;--linha:#E7E7EE;color:#14172B}',
+    '#auth .cartao,#auth .cartao h2,#auth .cartao label{color:#14172B}',
+    '#auth .cartao p,#auth .cartao .troca{color:#5B6078}',
+    '#auth .cartao input{background:#fff;color:#14172B;border-color:#DDDDE8}',
+    '#auth .cartao input::placeholder{color:#8A8FA8}'
+  ].join('\n');
+  document.head.appendChild(s);
+})();
+/* ===== AJUSTES 35 - FIM ===== */
 carregarSortable();
 restaurarSessao();
 
