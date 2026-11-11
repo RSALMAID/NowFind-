@@ -15876,7 +15876,28 @@ function escreverTexto(alvo, texto){
     return fetchAntes(entrada, opcoes);
   };
 })();
-/* ===== AJUSTES 33 - FIM ===== */  
+/* ===== AJUSTES 33 - FIM ===== */
+    /* ===== AJUSTES 34 - SAIR DA CONTA NAS CONFIGURAÇÕES ===== */
+(function () {
+  var folha = document.querySelector('#modalConfig .folha');
+  var botaoSair = document.getElementById('btnSair');
+  if (!folha || !botaoSair || document.getElementById('btnSairConfig')) return;
+  var b = document.createElement('button');
+  b.id = 'btnSairConfig';
+  b.type = 'button';
+  b.textContent = 'Sair da conta';
+  b.style.cssText = 'display:block;width:100%;margin-top:14px;padding:12px;border-radius:12px;' +
+    'border:1px solid rgba(127,127,127,.4);background:transparent;color:inherit;font:inherit;' +
+    'font-weight:700;font-size:13px;cursor:pointer';
+  b.addEventListener('click', function () { botaoSair.click(); });
+  var excluir = folha.querySelector('.nf-conta-btn.perigo');
+  if (excluir && excluir.parentNode) {
+    excluir.parentNode.insertBefore(b, excluir);
+  } else {
+    folha.appendChild(b);
+  }
+})();
+/* ===== AJUSTES 34 - FIM ===== */
 carregarSortable();
 restaurarSessao();
 
