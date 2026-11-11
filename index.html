@@ -18961,6 +18961,908 @@ function escreverTexto(alvo, texto){
   new MutationObserver(function () { botaoNoMenu(); }).observe(document.body, { childList: true, subtree: true });
 })();
 /* ===== AJUSTES 42 - FIM ===== */
+/* ===== AJUSTES 44 - ASSISTENTE (no lugar dos botões Texto, Áudio e Arquivo) ===== */
+(function () {
+  var cartao = document.querySelector('#view-hoje .captura');
+  if (!cartao || document.getElementById('nfAssist')) return;
+
+  var MAX_GRAVACAO = 90;               /* segundos */
+  var DESTRUTIVAS = { evento_excluir: 1, tarefa_excluir: 1, projeto_excluir: 1, nota_excluir: 1, avulso_excluir: 1 };
+  var STATUS_NOMES = { afazer: 'A fazer', andamento: 'Em andamento', aguardando: 'Aguardando', realizado: 'Realizado', validado: 'Validado' };
+  var MESES_CURTOS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+  var DIAS_CURTOS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
+
+  var as = { historico: [], ocupado: false, gravando: false, desfazer: [], gravador: null, fluxo: null, timer: null, segundos: 0, cancelar: false, seq: 0 };
+
+  /* ---------- utilidades ---------- */
+  function h(tag, cls, txt) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (txt != null) e.textContent = txt;
+    return e;
+  }
+  function svg(corpo) {
+    return '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">' + corpo + '</svg>';
+  }
+  var ICO = {
+    mic: svg('<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3"/>'),
+    parar: svg('<rect x="6.5" y="6.5" width="11" height="11" rx="2.5" fill="currentColor"/>'),
+    enviar: svg('<path d="M21.5 3.5L10.2 14.8"/><path d="M21.5 3.5l-7 17-4.3-7.7L2.5 9z"/>'),
+    x: svg('<path d="M6 6l12 12M18 6L6 18"/>'),
+    ok: svg('<path d="M5 12.5l4.5 4.5L19 7.5"/>'),
+    aviso: svg('<path d="M12 4l9 16H3z"/><path d="M12 10v4M12 17.5h.01"/>'),
+    voltar: svg('<path d="M9 7L4 12l5 5"/><path d="M4 12h10a6 6 0 0 1 0 12h-2" transform="translate(0 -4)"/>'),
+    faisca: svg('<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/><path d="M19 16l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7z"/>')
+  };
+  function pad(n) { return n < 10 ? '0' + n : '' + n; }
+  function iso16(d) {
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+  }
+  function ymd(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+  function paraData(s) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2}))?/.exec(String(s || ''));
+    if (!m) return null;
+    return new Date(+m[1], +m[2] - 1, +m[3], m[4] ? +m[4] : 0, m[5] ? +m[5] : 0, 0, 0);
+  }
+  function fmtData(d, comHora) {
+    return DIAS_CURTOS[d.getDay()] + ', ' + d.getDate() + ' ' + MESES_CURTOS[d.getMonth()] + (comHora ? ' às ' + pad(d.getHours()) + ':' + pad(d.getMinutes()) : '');
+  }
+  function fmtPrazo(s) {
+    var d = paraData(s);
+    return d ? fmtData(d, false) : s;
+  }
+  function norm(t) {
+    return String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
+  }
+  function aspas(t) { return '“' + t + '”'; }
+  function novoIdItem() {
+    as.seq = (as.seq + 1) % 100;
+    return String(Date.now()) + pad(as.seq);
+  }
+  function ambiente() {
+    var a = typeof ambienteAtual === 'function' ? ambienteAtual() : 'pessoal';
+    return a === 'profissional' ? 'profissional' : 'pessoal';
+  }
+  function escaparHtml(t) { return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+  function textoParaHtml(t) {
+    return String(t || '').replace(/\r\n/g, '\n').split('\n').map(function (l) {
+      return l.trim() ? '<div>' + escaparHtml(l) + '</div>' : '<div><br></div>';
+    }).join('');
+  }
+  function htmlParaTexto(html) {
+    var d = document.createElement('div');
+    d.innerHTML = String(html || '').replace(/<\/(div|p|li)>/gi, '</$1>\n').replace(/<br\s*\/?>/gi, '\n');
+    return (d.textContent || '').replace(/\n{3,}/g, '\n\n').trim();
+  }
+
+  /* ---------- aparência ---------- */
+  var estilo = document.createElement('style');
+  estilo.id = 'nfEstiloAssist';
+  estilo.textContent = [
+    '#view-hoje .captura .opcoes{display:none !important}',
+    '#view-hoje .captura.nf-assistente{display:flex;flex-direction:column}',
+    '@media (min-width:900px){#view-hoje:not(.oculto){grid-template-rows:auto 1fr}}',
+    '#view-hoje #cardRevisao,#view-hoje .saudacao{align-self:start}',
+    '#view-hoje .captura.nf-assistente::after{pointer-events:none}',
+    '.nf-as-topo{position:relative;z-index:2;display:flex;align-items:flex-start;justify-content:space-between;gap:10px}',
+    '.nf-as-topo h3{display:flex;align-items:center;gap:8px}',
+    '.nf-as-topo h3 svg{width:22px;height:22px}',
+    '.nf-as-limpar{border:none;border-radius:10px;padding:6px 10px;background:rgba(255,255,255,.18);color:inherit;font:inherit;font-size:12px;font-weight:700;cursor:pointer}',
+    '.nf-as{position:relative;z-index:1;display:flex;flex-direction:column;flex:1;min-height:0;gap:10px}',
+    '.nf-as-msgs{flex:1;min-height:150px;max-height:330px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding:4px 2px;-webkit-overflow-scrolling:touch}',
+    '.nf-as-msgs:empty{display:none}',
+    '@media (max-width:700px){.nf-as-msgs{max-height:46vh}}',
+    '.nf-as-chips{display:flex;flex-wrap:wrap;gap:7px}',
+    '.nf-as-chips[hidden],.nf-as-limpar[hidden],.nf-as-voz button[hidden]{display:none !important}',
+    '.nf-as-chips button{border:1px solid rgba(255,255,255,.35);border-radius:999px;padding:7px 12px;background:rgba(255,255,255,.14);color:inherit;font:inherit;font-size:12.5px;font-weight:600;cursor:pointer;text-align:left}',
+    '.nf-as-chips button:hover{background:rgba(255,255,255,.26)}',
+    '.nf-as-msg{max-width:94%;padding:9px 13px;border-radius:16px;font-size:14px;line-height:1.42;white-space:pre-wrap;overflow-wrap:anywhere}',
+    '.nf-as-msg.eu{align-self:flex-end;background:rgba(255,255,255,.24);border-bottom-right-radius:5px}',
+    '.nf-as-msg.ia{align-self:flex-start;background:rgba(0,0,0,.2);border-bottom-left-radius:5px}',
+    '.nf-as-msg.pensando{opacity:.85;font-style:italic}',
+    '.nf-as-resultados{align-self:stretch;display:flex;flex-direction:column;gap:6px;padding:10px 12px;border-radius:14px;background:rgba(255,255,255,.95);color:#14172B}',
+    '.nf-as-linha{display:flex;align-items:flex-start;gap:8px;font-size:13px;line-height:1.35}',
+    '.nf-as-linha svg{flex:none;width:17px;height:17px;margin-top:1px}',
+    '.nf-as-linha.ok svg{color:#14935B}.nf-as-linha.erro svg{color:#D93A3A}',
+    '.nf-as-linha span{min-width:0;overflow-wrap:anywhere}',
+    '.nf-as-acoes{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}',
+    '.nf-as-acoes button{display:inline-flex;align-items:center;gap:6px;border:1px solid #D5D9E6;border-radius:11px;padding:7px 12px;background:#fff;color:#14172B;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer}',
+    '.nf-as-acoes button svg{width:15px;height:15px}',
+    '.nf-as-acoes button.perigo{background:#D93A3A;border-color:#D93A3A;color:#fff}',
+    '.nf-as-acoes button:disabled{opacity:.5;cursor:default}',
+    '.nf-as-confirma{border:2px solid #D93A3A}',
+    '.nf-as-confirma b{font-size:13px}',
+    '.nf-as-form{display:flex;align-items:flex-end;gap:8px;padding:6px;border-radius:20px;background:rgba(255,255,255,.96);box-shadow:0 8px 22px rgba(0,0,0,.2)}',
+    '.nf-as-form textarea{flex:1;min-width:0;min-height:42px;max-height:120px;resize:none;border:none;outline:none;background:transparent;color:#14172B;font:inherit;font-size:15px;line-height:1.35;padding:10px 6px 10px 12px}',
+    '.nf-as-form textarea::placeholder{color:#737789}',
+    '.nf-as-btn{flex:none;width:42px;height:42px;display:grid;place-items:center;border:none;border-radius:50%;cursor:pointer}',
+    '.nf-as-btn svg{width:21px;height:21px}',
+    '.nf-as-mic{background:#EEF0F8;color:#14172B}',
+    '.nf-as-mic.gravando{background:#E5202E;color:#fff;animation:nfAsPulso 1.1s infinite}',
+    '@keyframes nfAsPulso{0%{box-shadow:0 0 0 0 rgba(229,32,46,.5)}70%{box-shadow:0 0 0 12px rgba(229,32,46,0)}100%{box-shadow:0 0 0 0 rgba(229,32,46,0)}}',
+    '.nf-as-enviar{background:var(--grad-acento,var(--azul,#2F5BFF));color:var(--on-acento,#fff)}',
+    '.nf-as-enviar:disabled{opacity:.4;cursor:default}',
+    '.nf-as-voz{display:none;align-items:center;gap:10px;padding:8px 12px;border-radius:14px;background:rgba(229,32,46,.9);color:#fff;font-size:13px;font-weight:700}',
+    '.nf-as-voz.ativo{display:flex}',
+    '.nf-as-voz span{flex:1}',
+    '.nf-as-voz button{border:none;border-radius:10px;padding:6px 10px;background:rgba(255,255,255,.25);color:#fff;font:inherit;font-size:12px;font-weight:700;cursor:pointer}',
+    '.nf-as-dica{font-size:11.5px;opacity:.8}'
+  ].join('\n');
+  document.head.appendChild(estilo);
+
+  /* ---------- o cartão vira o assistente ---------- */
+  cartao.classList.add('nf-assistente');
+  var titulo = cartao.querySelector('h3');
+  var subtitulo = cartao.querySelector('p');
+  var topo = h('div', 'nf-as-topo');
+  var colTitulo = h('div');
+  if (titulo) {
+    titulo.textContent = '';
+    var ic = document.createElement('span');
+    ic.innerHTML = ICO.faisca;
+    titulo.appendChild(ic.firstChild);
+    titulo.appendChild(document.createTextNode('Assistente'));
+    colTitulo.appendChild(titulo);
+  }
+  if (subtitulo) {
+    subtitulo.textContent = 'Peça o que precisar: agenda, tarefas, projetos e anotações. Escreva ou fale.';
+    colTitulo.appendChild(subtitulo);
+  }
+  var btnLimpar = h('button', 'nf-as-limpar', 'Limpar');
+  btnLimpar.type = 'button';
+  btnLimpar.hidden = true;
+  topo.appendChild(colTitulo);
+  topo.appendChild(btnLimpar);
+  cartao.insertBefore(topo, cartao.firstChild);
+
+  var raiz = h('div', 'nf-as');
+  raiz.id = 'nfAssist';
+  var msgs = h('div', 'nf-as-msgs');
+  msgs.setAttribute('aria-live', 'polite');
+  var chips = h('div', 'nf-as-chips');
+  [
+    'O que eu tenho hoje?',
+    'Marcar dentista amanhã às 9h',
+    'Criar tarefa: ligar para o cliente até sexta',
+    'Anotar: ideias para a reunião de segunda'
+  ].forEach(function (t) {
+    var b = h('button', null, t);
+    b.type = 'button';
+    b.addEventListener('click', function () { enviarPedido(t); });
+    chips.appendChild(b);
+  });
+  var faixaVoz = h('div', 'nf-as-voz');
+  var vozTxt = h('span', null, 'Ouvindo...');
+  var btnCancelaVoz = h('button', null, 'Cancelar');
+  btnCancelaVoz.type = 'button';
+  faixaVoz.appendChild(vozTxt);
+  faixaVoz.appendChild(btnCancelaVoz);
+  var form = h('form', 'nf-as-form');
+  var campo = document.createElement('textarea');
+  campo.rows = 1;
+  campo.maxLength = 1500;
+  campo.id = 'nfAssistCampo';
+  campo.placeholder = 'Escreva ou fale o que precisa...';
+  campo.setAttribute('aria-label', 'Pedir ao assistente');
+  var btnMic = h('button', 'nf-as-btn nf-as-mic');
+  btnMic.type = 'button';
+  btnMic.id = 'nfAssistMic';
+  btnMic.title = 'Falar com o assistente';
+  btnMic.setAttribute('aria-label', 'Falar com o assistente');
+  btnMic.innerHTML = ICO.mic;
+  var btnEnviar = h('button', 'nf-as-btn nf-as-enviar');
+  btnEnviar.type = 'submit';
+  btnEnviar.id = 'nfAssistEnviar';
+  btnEnviar.title = 'Enviar';
+  btnEnviar.setAttribute('aria-label', 'Enviar');
+  btnEnviar.disabled = true;
+  btnEnviar.innerHTML = ICO.enviar;
+  form.appendChild(campo);
+  form.appendChild(btnMic);
+  form.appendChild(btnEnviar);
+  raiz.appendChild(msgs);
+  raiz.appendChild(chips);
+  raiz.appendChild(faixaVoz);
+  raiz.appendChild(form);
+  cartao.appendChild(raiz);
+
+  function semLogin() { return typeof tokenAtual !== 'function' || !tokenAtual(); }
+  function rolarFim() { msgs.scrollTop = msgs.scrollHeight; }
+  function ajustarCampo() {
+    campo.style.height = 'auto';
+    campo.style.height = Math.min(campo.scrollHeight, 120) + 'px';
+    btnEnviar.disabled = as.ocupado || !campo.value.trim();
+  }
+  function mensagem(classe, texto) {
+    var m = h('div', 'nf-as-msg ' + classe, texto);
+    msgs.appendChild(m);
+    chips.hidden = true;
+    btnLimpar.hidden = false;
+    rolarFim();
+    return m;
+  }
+  function bloco() {
+    var b = h('div', 'nf-as-resultados');
+    msgs.appendChild(b);
+    rolarFim();
+    return b;
+  }
+  function linha(pai, ok, texto) {
+    var l = h('div', 'nf-as-linha ' + (ok ? 'ok' : 'erro'));
+    var i = document.createElement('span');
+    i.innerHTML = ok ? ICO.ok : ICO.aviso;
+    l.appendChild(i.firstChild);
+    l.appendChild(h('span', null, texto));
+    pai.appendChild(l);
+    rolarFim();
+  }
+
+  campo.addEventListener('input', ajustarCampo);
+  campo.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && !e.shiftKey && !e.isComposing && window.matchMedia('(pointer:fine)').matches) {
+      e.preventDefault();
+      form.requestSubmit ? form.requestSubmit() : btnEnviar.click();
+    }
+  });
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var t = campo.value.trim();
+    if (!t || as.ocupado) return;
+    campo.value = '';
+    ajustarCampo();
+    enviarPedido(t);
+  });
+  btnLimpar.addEventListener('click', function () {
+    as.historico = [];
+    as.desfazer = [];
+    msgs.textContent = '';
+    chips.hidden = false;
+    btnLimpar.hidden = true;
+  });
+
+  /* ---------- o que o assistente enxerga ---------- */
+  var cacheEventos = {};
+  async function eventosDaJanela() {
+    cacheEventos = {};
+    var ini = new Date(); ini.setHours(0, 0, 0, 0); ini.setDate(ini.getDate() - 7);
+    var fim = new Date(); fim.setHours(0, 0, 0, 0); fim.setDate(fim.getDate() + 60);
+    var qs = '?inicio=' + encodeURIComponent(ini.toISOString()) + '&fim=' + encodeURIComponent(fim.toISOString()) + '&tipo=todos';
+    var lista = [];
+    try {
+      var r = await apiEventosHome(qs, 'GET');
+      if (r.dados && r.dados.ok) lista = r.dados.eventos || [];
+      lista.forEach(function (e) { cacheEventos[e.id] = e; });
+    } catch (e) {}
+    var recebidos = [];
+    try {
+      var c = await apiEventosHome('/convidados' + qs, 'GET');
+      if (c.dados && c.dados.ok) recebidos = c.dados.recebidos || [];
+    } catch (e) {}
+    return { meus: lista, recebidos: recebidos };
+  }
+  async function avulsosComTarefas() {
+    var saida = [];
+    try {
+      var r = await apiBruta('', 'GET');
+      var lista = ((r.j && r.j.espacos) || []).filter(function (e) { return e.tipo === 'projeto'; }).slice(0, 10);
+      await Promise.all(lista.map(async function (e) {
+        var item = { id: e.id, n: e.nome, tarefas: [] };
+        try {
+          var p = await apiBruta('/projetos?id=' + encodeURIComponent(e.id), 'GET');
+          var proj = ((p.j && p.j.projetos) || [])[0];
+          if (proj) {
+            var d = JSON.parse(proj.conteudo);
+            (d.tarefas || []).slice(0, 40).forEach(function (t) {
+              item.tarefas.push({ id: t.id, t: String(t.texto || '').slice(0, 100), s: t.status, p: t.prazo || undefined });
+            });
+          }
+        } catch (er) {}
+        saida.push(item);
+      }));
+    } catch (e) {}
+    return saida;
+  }
+  async function montarContexto() {
+    var ev = await eventosDaJanela();
+    var agora = new Date();
+    var tarefas = (dados.itens || []).filter(function (i) { return i.status !== 'validado'; })
+      .sort(function (a, b) { return String(b.criadoEm || '').localeCompare(String(a.criadoEm || '')); }).slice(0, 200)
+      .map(function (i) {
+        var o = { id: i.id, t: String(i.texto || '').slice(0, 100), s: i.status, tp: i.tipo };
+        if (i.prazo) o.p = String(i.prazo).slice(0, 10);
+        if (i.projetoId) o.pr = i.projetoId;
+        if (i.urgente) o.u = 1;
+        if (i.importante) o.im = 1;
+        return o;
+      });
+    var notas = (dados.notas || []).slice().sort(function (a, b) { return String(b.atualizadoEm || '').localeCompare(String(a.atualizadoEm || '')); })
+      .slice(0, 40).map(function (n, idx) {
+        return { id: n.id, t: n.titulo || 'Sem título', x: htmlParaTexto(n.html).slice(0, idx < 8 ? 1500 : 120) };
+      });
+    var eventos = ev.meus.slice(0, 150).map(function (e) {
+      var o = { id: e.id, t: e.titulo, i: iso16(new Date(e.inicio)), f: iso16(new Date(e.fim)), tp: e.tipo };
+      if (Number(e.dia_inteiro) === 1 || e.dia_inteiro === true) o.d = 1;
+      if (e.local) o.l = e.local;
+      return o;
+    });
+    ev.recebidos.slice(0, 30).forEach(function (e) {
+      eventos.push({ id: e.id, t: e.titulo + ' (convite, não editável)', i: iso16(new Date(e.inicio)), f: iso16(new Date(e.fim)), tp: e.tipo, c: 1 });
+    });
+    return {
+      agora: iso16(agora),
+      ambiente: ambiente(),
+      eventos: eventos,
+      tarefas: tarefas,
+      projetos: (dados.projetos || []).slice(0, 60).map(function (p) { return { id: p.id, n: p.nome, tp: p.tipo }; }),
+      notas: notas,
+      avulsos: await avulsosComTarefas()
+    };
+  }
+
+  /* ---------- executar as ações ---------- */
+  function resolverProjeto(idOuNome) {
+    if (!idOuNome) return null;
+    var p = acharProjeto(idOuNome);
+    if (p) return p;
+    var n = norm(idOuNome);
+    return (dados.projetos || []).filter(function (x) { return norm(x.nome) === n; })[0] || null;
+  }
+  var avulsosCriados = {};     /* nome -> id, para tarefas no projeto avulso criado no mesmo pedido */
+  async function listaAvulsos() {
+    var r = await apiBruta('', 'GET');
+    return ((r.j && r.j.espacos) || []).filter(function (e) { return e.tipo === 'projeto'; });
+  }
+  async function resolverAvulso(idOuNome) {
+    if (avulsosCriados[norm(idOuNome)]) return avulsosCriados[norm(idOuNome)];
+    var lista = await listaAvulsos();
+    var achado = lista.filter(function (e) { return e.id === idOuNome; })[0] ||
+      lista.filter(function (e) { return norm(e.nome) === norm(idOuNome); })[0];
+    return achado ? achado.id : null;
+  }
+  async function lerDocAvulso(espId) {
+    var r = await apiBruta('/projetos?id=' + encodeURIComponent(espId), 'GET');
+    var p = ((r.j && r.j.projetos) || [])[0];
+    if (!p) throw new Error('Não achei o conteúdo deste projeto avulso.');
+    var d = {};
+    try { d = JSON.parse(p.conteudo); } catch (e) { d = {}; }
+    if (!Array.isArray(d.tarefas)) d.tarefas = [];
+    if (!Array.isArray(d.removidas)) d.removidas = [];
+    return { pid: p.id, versao: p.versao, d: d };
+  }
+  /* lê, aplica a mudança e grava; se alguém gravou antes, repete uma vez */
+  async function alterarAvulso(espId, mudar) {
+    for (var tentativa = 0; tentativa < 2; tentativa++) {
+      var doc = await lerDocAvulso(espId);
+      var resultado = mudar(doc.d);
+      doc.d.atualizadoEm = new Date().toISOString();
+      var r = await apiBruta('/projetos', 'POST', { espaco_id: espId, projeto_id: doc.pid, conteudo: JSON.stringify(doc.d), versao: doc.versao });
+      if (r.j && r.j.ok) return resultado;
+      if (r.status !== 409) throw new Error((r.j && r.j.erro) || 'Não foi possível salvar o projeto avulso.');
+    }
+    throw new Error('Outra pessoa alterou o projeto ao mesmo tempo. Tente de novo.');
+  }
+  function corpoEvento(e) {
+    return {
+      titulo: e.titulo, tipo: e.tipo, inicio: e.inicio, fim: e.fim, dia_inteiro: !!(Number(e.dia_inteiro) === 1 || e.dia_inteiro === true),
+      local: e.local || '', descricao: e.descricao || '', lembrete_minutos: e.lembrete_minutos == null ? null : e.lembrete_minutos,
+      repeticao: e.repeticao || 'nenhuma', repeticao_config: e.repeticao_config || null
+    };
+  }
+  async function salvarEvento(corpo) {
+    var r = await apiEventosHome('/salvar', 'POST', corpo);
+    if (!r.dados || !r.dados.ok) throw new Error((r.dados && r.dados.erro) || 'Não foi possível salvar o evento.');
+    return r.dados.evento;
+  }
+  async function excluirEventoApi(id) {
+    var r = await apiEventosHome('/excluir', 'POST', { id: id });
+    if (!r.dados || !r.dados.ok) throw new Error((r.dados && r.dados.erro) || 'Não foi possível excluir o evento.');
+  }
+
+  /* cada ação devolve o texto do resultado e registra como desfazer */
+  var EXEC = {
+    async evento_criar(a, U) {
+      var ini = paraData(a.inicio);
+      if (!ini) throw new Error('Não entendi a data do evento ' + aspas(a.titulo) + '.');
+      var inteiro = !!a.dia_inteiro || !/T\d{2}:\d{2}/.test(a.inicio);
+      var fim;
+      if (inteiro) {
+        ini.setHours(0, 0, 0, 0);
+        fim = a.fim ? paraData(String(a.fim).slice(0, 10)) : new Date(ini);
+        fim.setHours(23, 59, 0, 0);
+        if (fim.getTime() < ini.getTime()) fim = new Date(ini.getTime() + 86399000);
+      } else {
+        fim = a.fim ? paraData(a.fim) : null;
+        if (!fim || fim.getTime() <= ini.getTime()) fim = new Date(ini.getTime() + 3600000);
+      }
+      var salvo = await salvarEvento({
+        titulo: a.titulo, tipo: a.tipo || ambiente(), inicio: ini.toISOString(), fim: fim.toISOString(), dia_inteiro: inteiro,
+        local: a.local || '', descricao: a.descricao || '', lembrete_minutos: null, repeticao: 'nenhuma'
+      });
+      U.eventos = true;
+      var extra = '';
+      if (a.convidados && a.convidados.length && salvo && salvo.id) {
+        try {
+          var rc = await apiEventosHome('/convidados', 'POST', { evento_id: salvo.id, emails: a.convidados, reenviar: false });
+          extra = rc.dados && rc.dados.ok ? ' Convidei ' + a.convidados.length + (a.convidados.length === 1 ? ' pessoa.' : ' pessoas.') : ' Não consegui enviar os convites.';
+        } catch (e) { extra = ' Não consegui enviar os convites.'; }
+      }
+      if (salvo && salvo.id) U.desfazer.push(function () { return excluirEventoApi(salvo.id); });
+      return 'Evento criado: ' + aspas(a.titulo) + ', ' + (inteiro ? fmtData(ini, false) + ' (dia todo)' : fmtData(ini, true)) + '.' + extra;
+    },
+    async evento_editar(a, U) {
+      var antigo = cacheEventos[a.id];
+      if (!antigo) throw new Error('Não encontrei esse evento para editar.');
+      var novo = corpoEvento(antigo);
+      novo.id = a.id;
+      if (a.titulo) novo.titulo = a.titulo;
+      if (a.tipo) novo.tipo = a.tipo;
+      if (a.local !== undefined) novo.local = a.local;
+      if (a.descricao !== undefined) novo.descricao = a.descricao;
+      if (a.dia_inteiro !== undefined) novo.dia_inteiro = !!a.dia_inteiro;
+      if (a.inicio || a.fim || a.dia_inteiro !== undefined) {
+        var iniD = a.inicio ? paraData(a.inicio) : new Date(antigo.inicio);
+        var fimD = a.fim ? paraData(a.fim) : new Date(antigo.fim);
+        if (a.inicio && !a.fim && !novo.dia_inteiro) {
+          var dur = new Date(antigo.fim).getTime() - new Date(antigo.inicio).getTime();
+          fimD = new Date(iniD.getTime() + (dur > 0 ? dur : 3600000));
+        }
+        if (novo.dia_inteiro) {
+          iniD = new Date(iniD); iniD.setHours(0, 0, 0, 0);
+          fimD = new Date(fimD); fimD.setHours(23, 59, 0, 0);
+        }
+        if (fimD.getTime() <= iniD.getTime()) fimD = new Date(iniD.getTime() + 3600000);
+        novo.inicio = iniD.toISOString();
+        novo.fim = fimD.toISOString();
+      }
+      var antes = corpoEvento(antigo);
+      antes.id = a.id;
+      await salvarEvento(novo);
+      U.eventos = true;
+      U.desfazer.push(function () { return salvarEvento(antes); });
+      var d = new Date(novo.inicio);
+      return 'Evento atualizado: ' + aspas(novo.titulo) + ', ' + fmtData(d, !novo.dia_inteiro) + '.';
+    },
+    async evento_excluir(a, U) {
+      var antigo = cacheEventos[a.id];
+      if (!antigo) throw new Error('Não encontrei esse evento para excluir.');
+      await excluirEventoApi(a.id);
+      U.eventos = true;
+      var copia = corpoEvento(antigo);
+      U.desfazer.push(function () { return salvarEvento(copia); });
+      return 'Evento excluído: ' + aspas(antigo.titulo) + '.';
+    },
+    async tarefa_criar(a, U) {
+      var proj = a.projeto_id ? resolverProjeto(a.projeto_id) : null;
+      if (a.projeto_id && !proj) throw new Error('Não encontrei o projeto ' + aspas(a.projeto_id) + ' para a tarefa ' + aspas(a.texto) + '.');
+      var item = {
+        id: novoIdItem(), texto: a.texto, tipo: proj ? proj.tipo : (a.tipo || ambiente()), projetoId: proj ? proj.id : null,
+        origem: 'assistente', status: a.status || 'afazer', urgente: !!a.urgente, importante: !!a.importante,
+        prazo: a.prazo || null, analiseIA: null, criadoEm: new Date().toISOString(), atualizadoEm: new Date().toISOString()
+      };
+      dados.itens.unshift(item);
+      U.local = true;
+      U.desfazer.push(function () { dados.itens = dados.itens.filter(function (i) { return i.id !== item.id; }); U.local = true; });
+      return 'Tarefa criada: ' + aspas(a.texto) + (proj ? ' no projeto ' + aspas(proj.nome) : ' (sem projeto)') + (item.prazo ? ', prazo ' + fmtPrazo(item.prazo) : '') + '.';
+    },
+    async tarefa_editar(a, U) {
+      var item = acharItem(a.id);
+      if (!item) throw new Error('Não encontrei essa tarefa para editar.');
+      var antes = JSON.parse(JSON.stringify(item));
+      if (a.texto) item.texto = a.texto;
+      if (a.tipo) item.tipo = a.tipo;
+      if (a.prazo !== undefined) item.prazo = a.prazo;
+      if (a.urgente !== undefined) item.urgente = !!a.urgente;
+      if (a.importante !== undefined) item.importante = !!a.importante;
+      if (a.projeto_id !== undefined) {
+        if (a.projeto_id === null) item.projetoId = null;
+        else {
+          var p = resolverProjeto(a.projeto_id);
+          if (!p) { Object.assign(item, antes); throw new Error('Não encontrei o projeto ' + aspas(a.projeto_id) + '.'); }
+          item.projetoId = p.id;
+          item.tipo = p.tipo;
+        }
+      }
+      item.atualizadoEm = new Date().toISOString();
+      U.local = true;
+      U.desfazer.push(function () { var i = acharItem(a.id); if (i) { Object.keys(i).forEach(function (k) { delete i[k]; }); Object.assign(i, antes); } U.local = true; });
+      return 'Tarefa atualizada: ' + aspas(item.texto) + '.';
+    },
+    async tarefa_mover(a, U) {
+      var item = acharItem(a.id);
+      if (!item) throw new Error('Não encontrei essa tarefa para mover.');
+      var antes = { status: item.status, atualizadoEm: item.atualizadoEm };
+      item.status = a.status;
+      item.atualizadoEm = new Date().toISOString();
+      U.local = true;
+      U.desfazer.push(function () { var i = acharItem(a.id); if (i) { i.status = antes.status; i.atualizadoEm = antes.atualizadoEm; } U.local = true; });
+      return aspas(item.texto) + ' foi para ' + STATUS_NOMES[a.status] + '.';
+    },
+    async tarefa_excluir(a, U) {
+      var idx = dados.itens.findIndex(function (i) { return i.id === a.id; });
+      if (idx < 0) throw new Error('Não encontrei essa tarefa para excluir.');
+      var item = dados.itens.splice(idx, 1)[0];
+      U.local = true;
+      U.desfazer.push(function () { dados.itens.splice(Math.min(idx, dados.itens.length), 0, item); U.local = true; });
+      return 'Tarefa excluída: ' + aspas(item.texto) + '.';
+    },
+    async projeto_criar(a, U) {
+      var existente = resolverProjeto(a.nome);
+      if (existente) return 'O projeto ' + aspas(existente.nome) + ' já existe. Não criei de novo.';
+      var p = { id: 'p' + Date.now() + pad(as.seq = (as.seq + 1) % 100), nome: a.nome, tipo: a.tipo || ambiente(), objetivo: a.objetivo || '', criadoEm: new Date().toISOString() };
+      dados.projetos.unshift(p);
+      U.local = true;
+      U.desfazer.push(function () { dados.projetos = dados.projetos.filter(function (x) { return x.id !== p.id; }); U.local = true; });
+      return 'Projeto criado: ' + aspas(a.nome) + '.';
+    },
+    async projeto_renomear(a, U) {
+      var p = acharProjeto(a.id);
+      if (!p) throw new Error('Não encontrei esse projeto para renomear.');
+      var antes = p.nome;
+      p.nome = a.nome;
+      U.local = true;
+      U.desfazer.push(function () { var x = acharProjeto(a.id); if (x) x.nome = antes; U.local = true; });
+      return 'Projeto ' + aspas(antes) + ' agora se chama ' + aspas(a.nome) + '.';
+    },
+    async projeto_excluir(a, U) {
+      var p = acharProjeto(a.id);
+      if (!p) throw new Error('Não encontrei esse projeto para excluir.');
+      var idx = dados.projetos.indexOf(p);
+      var soltas = [];
+      dados.itens.forEach(function (i) { if (i.projetoId === p.id) { soltas.push(i.id); i.projetoId = null; } });
+      dados.projetos.splice(idx, 1);
+      if (typeof listarArquivos === 'function' && typeof pedido === 'function') {
+        listarArquivos(p.id).then(function (l) {
+          return Promise.all(l.map(function (ar) { return pedido('readwrite', function (s) { return s.delete(ar.id); }); }));
+        }).catch(function () {});
+      }
+      U.local = true;
+      U.desfazer.push(function () {
+        dados.projetos.splice(Math.min(idx, dados.projetos.length), 0, p);
+        soltas.forEach(function (id) { var i = acharItem(id); if (i) i.projetoId = p.id; });
+        U.local = true;
+      });
+      return 'Projeto excluído: ' + aspas(p.nome) + (soltas.length ? '. As ' + soltas.length + ' tarefas ficaram sem projeto' : '') + '.';
+    },
+    async nota_criar(a, U) {
+      var n = {
+        id: 'n' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), titulo: a.titulo, html: textoParaHtml(a.texto || ''),
+        criadoEm: new Date().toISOString(), atualizadoEm: new Date().toISOString()
+      };
+      if (!Array.isArray(dados.notas)) dados.notas = [];
+      dados.notas.unshift(n);
+      U.local = true;
+      U.desfazer.push(function () { dados.notas = (dados.notas || []).filter(function (x) { return x.id !== n.id; }); U.local = true; });
+      return 'Anotação criada: ' + aspas(a.titulo) + '.';
+    },
+    async nota_editar(a, U) {
+      var n = (dados.notas || []).filter(function (x) { return x.id === a.id; })[0];
+      if (!n) throw new Error('Não encontrei essa anotação para editar.');
+      var antes = { titulo: n.titulo, html: n.html, atualizadoEm: n.atualizadoEm };
+      if (a.titulo) n.titulo = a.titulo;
+      if (a.texto !== undefined) n.html = textoParaHtml(a.texto);
+      if (a.acrescentar) n.html = (n.html || '') + textoParaHtml(a.acrescentar);
+      n.atualizadoEm = new Date().toISOString();
+      U.local = true;
+      U.desfazer.push(function () { var x = (dados.notas || []).filter(function (y) { return y.id === a.id; })[0]; if (x) Object.assign(x, antes); U.local = true; });
+      return 'Anotação atualizada: ' + aspas(n.titulo || 'Sem título') + '.';
+    },
+    async nota_excluir(a, U) {
+      var idx = (dados.notas || []).findIndex(function (x) { return x.id === a.id; });
+      if (idx < 0) throw new Error('Não encontrei essa anotação para excluir.');
+      var n = dados.notas.splice(idx, 1)[0];
+      U.local = true;
+      U.desfazer.push(function () { dados.notas.splice(Math.min(idx, dados.notas.length), 0, n); U.local = true; });
+      return 'Anotação excluída: ' + aspas(n.titulo || 'Sem título') + '.';
+    },
+    async avulso_criar(a, U) {
+      var r = await apiBruta('', 'POST', { nome: a.nome, tipo: 'projeto' });
+      if (!r.j || !r.j.ok) throw new Error((r.j && r.j.erro) || 'Não foi possível criar o projeto avulso.');
+      var eid = r.j.espaco.id;
+      var pid = 'pj' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+      var d = { id: pid, nome: a.nome, objetivo: '', criadoPor: typeof meuId === 'function' ? meuId() : '', atualizadoEm: new Date().toISOString(), tarefas: [], removidas: [] };
+      var r2 = await apiBruta('/projetos', 'POST', { espaco_id: eid, projeto_id: pid, conteudo: JSON.stringify(d), versao: 0 });
+      if (!r2.j || !r2.j.ok) {
+        await apiBruta('/excluir', 'POST', { espaco_id: eid });
+        throw new Error((r2.j && r2.j.erro) || 'Não foi possível criar o projeto avulso.');
+      }
+      avulsosCriados[norm(a.nome)] = eid;
+      U.avulsos = true;
+      U.desfazer.push(function () { return apiBruta('/excluir', 'POST', { espaco_id: eid }); });
+      return 'Projeto avulso criado: ' + aspas(a.nome) + '.';
+    },
+    async avulso_renomear(a, U) {
+      var eid = await resolverAvulso(a.id);
+      if (!eid) throw new Error('Não encontrei esse projeto avulso para renomear.');
+      var lista = await listaAvulsos();
+      var antigo = (lista.filter(function (e) { return e.id === eid; })[0] || {}).nome || '';
+      var r = await apiBruta('/renomear', 'POST', { espaco_id: eid, nome: a.nome });
+      if (!r.j || !r.j.ok) throw new Error((r.j && r.j.erro) || 'Não foi possível renomear o projeto avulso.');
+      try { await alterarAvulso(eid, function (d) { d.nome = a.nome; }); } catch (e) {}
+      U.avulsos = true;
+      U.desfazer.push(async function () {
+        await apiBruta('/renomear', 'POST', { espaco_id: eid, nome: antigo });
+        try { await alterarAvulso(eid, function (d) { d.nome = antigo; }); } catch (e) {}
+      });
+      return 'Projeto avulso ' + aspas(antigo) + ' agora se chama ' + aspas(a.nome) + '.';
+    },
+    async avulso_excluir(a, U) {
+      var eid = await resolverAvulso(a.id);
+      if (!eid) throw new Error('Não encontrei esse projeto avulso para excluir.');
+      var r = await apiBruta('/excluir', 'POST', { espaco_id: eid });
+      if (!r.j || !r.j.ok) throw new Error((r.j && r.j.erro) || 'Só o dono pode excluir este projeto avulso.');
+      U.avulsos = true;
+      U.semDesfazer = true;
+      return 'Projeto avulso excluído (não dá para desfazer).';
+    },
+    async avulso_tarefa_criar(a, U) {
+      var eid = await resolverAvulso(a.projeto_id);
+      if (!eid) throw new Error('Não encontrei o projeto avulso ' + aspas(a.projeto_id) + '.');
+      var tid = 't' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+      await alterarAvulso(eid, function (d) {
+        d.tarefas.push({
+          id: tid, texto: a.texto, descricao: '', status: 'afazer', prazo: a.prazo || null, prioridade: 'geral',
+          responsaveis: typeof meuId === 'function' ? [meuId()] : [], criadoPor: typeof meuId === 'function' ? meuId() : '',
+          criadoEm: new Date().toISOString(), atualizadoEm: new Date().toISOString()
+        });
+      });
+      U.avulsos = true;
+      U.desfazer.push(function () { return alterarAvulso(eid, function (d) { d.tarefas = d.tarefas.filter(function (t) { return t.id !== tid; }); }); });
+      return 'Tarefa criada no projeto avulso: ' + aspas(a.texto) + '.';
+    },
+    async avulso_tarefa_mover(a, U) {
+      var eid = await resolverAvulso(a.projeto_id);
+      if (!eid) throw new Error('Não encontrei esse projeto avulso.');
+      var antes = null;
+      var nome = '';
+      await alterarAvulso(eid, function (d) {
+        var t = d.tarefas.filter(function (x) { return x.id === a.tarefa_id; })[0];
+        if (!t) throw new Error('Não encontrei essa tarefa no projeto avulso.');
+        antes = t.status;
+        nome = t.texto;
+        t.status = a.status;
+        t.atualizadoEm = new Date().toISOString();
+      });
+      U.avulsos = true;
+      U.desfazer.push(function () { return alterarAvulso(eid, function (d) { var t = d.tarefas.filter(function (x) { return x.id === a.tarefa_id; })[0]; if (t) t.status = antes; }); });
+      return aspas(nome) + ' foi para ' + STATUS_NOMES[a.status] + ' (projeto avulso).';
+    }
+  };
+
+  async function executarLista(acoes, pai) {
+    var U = { desfazer: [], local: false, eventos: false, avulsos: false, semDesfazer: false };
+    var ok = 0;
+    for (var i = 0; i < acoes.length; i++) {
+      var a = acoes[i];
+      try {
+        var fn = EXEC[a.t];
+        if (!fn) throw new Error('Não sei fazer isso ainda.');
+        var texto = await fn(a, U);
+        linha(pai, true, texto);
+        ok++;
+      } catch (e) {
+        linha(pai, false, e && e.message ? e.message : 'Não consegui executar uma das ações.');
+      }
+    }
+    if (U.local) {
+      salvarDados();
+      renderizar();
+    }
+    if (U.eventos && typeof carregarEventosHome === 'function') carregarEventosHome();
+    if (U.avulsos && typeof carregarEspacos === 'function') { try { carregarEspacos(); } catch (e) {} }
+    return { ok: ok, U: U };
+  }
+  function botaoDesfazer(pai, U) {
+    if (!U.desfazer.length) return;
+    var barra = h('div', 'nf-as-acoes');
+    var b = h('button');
+    b.type = 'button';
+    b.innerHTML = ICO.voltar;
+    b.appendChild(document.createTextNode('Desfazer'));
+    b.addEventListener('click', async function () {
+      b.disabled = true;
+      var falhou = 0;
+      for (var i = U.desfazer.length - 1; i >= 0; i--) {
+        try { await U.desfazer[i](); } catch (e) { falhou++; }
+      }
+      if (U.local) { salvarDados(); renderizar(); }
+      if (typeof carregarEventosHome === 'function') carregarEventosHome();
+      barra.remove();
+      linha(pai, !falhou, falhou ? 'Desfiz o que foi possível. ' + falhou + ' item(ns) não voltaram ao que eram.' : 'Pronto, desfiz tudo.');
+    });
+    barra.appendChild(b);
+    pai.appendChild(barra);
+  }
+
+  /* descrição das ações que pedem confirmação */
+  function descreverExclusao(a) {
+    if (a.t === 'evento_excluir') { var e = cacheEventos[a.id]; return e ? 'Evento ' + aspas(e.titulo) + ' (' + fmtData(new Date(e.inicio), Number(e.dia_inteiro) !== 1) + ')' : 'Um evento que não encontrei'; }
+    if (a.t === 'tarefa_excluir') { var t = acharItem(a.id); return t ? 'Tarefa ' + aspas(t.texto) : 'Uma tarefa que não encontrei'; }
+    if (a.t === 'projeto_excluir') { var p = acharProjeto(a.id); return p ? 'Projeto ' + aspas(p.nome) + ' (as tarefas ficam sem projeto)' : 'Um projeto que não encontrei'; }
+    if (a.t === 'nota_excluir') { var n = (dados.notas || []).filter(function (x) { return x.id === a.id; })[0]; return n ? 'Anotação ' + aspas(n.titulo || 'Sem título') : 'Uma anotação que não encontrei'; }
+    if (a.t === 'avulso_excluir') return 'Projeto avulso ' + aspas(a.id) + ' e todas as tarefas dele, para todos os participantes (não dá para desfazer)';
+    return 'Uma exclusão';
+  }
+  function pedirConfirmacao(destrutivas) {
+    var c = h('div', 'nf-as-resultados nf-as-confirma');
+    c.appendChild(h('b', null, destrutivas.length === 1 ? 'Confirma a exclusão?' : 'Confirma as ' + destrutivas.length + ' exclusões?'));
+    destrutivas.forEach(function (a) {
+      var l = h('div', 'nf-as-linha erro');
+      var i = document.createElement('span');
+      i.innerHTML = ICO.aviso;
+      l.appendChild(i.firstChild);
+      l.appendChild(h('span', null, descreverExclusao(a)));
+      c.appendChild(l);
+    });
+    var acoes = h('div', 'nf-as-acoes');
+    var sim = h('button', 'perigo', 'Excluir');
+    sim.type = 'button';
+    var nao = h('button', null, 'Cancelar');
+    nao.type = 'button';
+    acoes.appendChild(sim);
+    acoes.appendChild(nao);
+    c.appendChild(acoes);
+    msgs.appendChild(c);
+    rolarFim();
+    sim.addEventListener('click', async function () {
+      sim.disabled = true;
+      nao.disabled = true;
+      acoes.remove();
+      var r = await executarLista(destrutivas, c);
+      if (!r.U.semDesfazer || r.U.desfazer.length) botaoDesfazer(c, r.U);
+    });
+    nao.addEventListener('click', function () {
+      c.remove();
+      mensagem('ia', 'Certo, não excluí nada.');
+    });
+  }
+
+  /* ---------- conversa ---------- */
+  async function enviarPedido(texto) {
+    if (as.ocupado) return;
+    if (semLogin()) { mensagem('ia', 'Entre na sua conta para usar o assistente.'); return; }
+    as.ocupado = true;
+    btnEnviar.disabled = true;
+    mensagem('eu', texto);
+    var pensando = mensagem('ia pensando', 'Pensando...');
+    try {
+      var contexto = await montarContexto();
+      var r = await fetch(URL_CONTA + '/ia/assistente', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tokenAtual() },
+        body: JSON.stringify({ mensagem: texto, historico: as.historico.slice(-6), contexto: contexto })
+      });
+      var j = {};
+      try { j = await r.json(); } catch (e) {}
+      pensando.remove();
+      if (!r.ok || !j.ok) {
+        mensagem('ia', j.erro || 'Não consegui falar com o assistente agora. Tente de novo.');
+        return;
+      }
+      var fala = [j.resposta, j.pergunta].filter(Boolean).join(' ');
+      if (fala) mensagem('ia', fala);
+      as.historico.push({ r: 'u', t: texto });
+      as.historico.push({ r: 'a', t: fala || 'Ok.' });
+      var acoes = j.acoes || [];
+      if (!acoes.length) {
+        if (!fala) mensagem('ia', 'Não encontrei nada para fazer com esse pedido.');
+        return;
+      }
+      var seguras = acoes.filter(function (a) { return !DESTRUTIVAS[a.t]; });
+      var destrutivas = acoes.filter(function (a) { return DESTRUTIVAS[a.t]; });
+      if (seguras.length) {
+        var pai = bloco();
+        var res = await executarLista(seguras, pai);
+        botaoDesfazer(pai, res.U);
+      }
+      if (destrutivas.length) pedirConfirmacao(destrutivas);
+    } catch (e) {
+      pensando.remove();
+      mensagem('ia', 'Não consegui falar com o assistente agora. Verifique a internet e tente de novo.');
+    } finally {
+      as.ocupado = false;
+      ajustarCampo();
+    }
+  }
+
+  /* ---------- voz ---------- */
+  function tempoTxt(s) { return Math.floor(s / 60) + ':' + pad(s % 60); }
+  function pararFluxo() {
+    if (as.fluxo) { as.fluxo.getTracks().forEach(function (t) { t.stop(); }); as.fluxo = null; }
+    clearInterval(as.timer);
+    as.timer = null;
+  }
+  function fimGravacao() {
+    as.gravando = false;
+    btnMic.classList.remove('gravando');
+    btnMic.innerHTML = ICO.mic;
+    btnMic.setAttribute('aria-label', 'Falar com o assistente');
+    faixaVoz.classList.remove('ativo');
+    pararFluxo();
+  }
+  async function transcrever(blob) {
+    vozTxt.textContent = 'Entendendo o que você disse...';
+    faixaVoz.classList.add('ativo');
+    btnCancelaVoz.hidden = true;
+    try {
+      var r = await fetch(NOWFIND_IA_URL + '/api/audio', {
+        method: 'POST',
+        headers: { 'Content-Type': blob.type || 'application/octet-stream', 'X-NowFind-Tipo': ambiente(), 'Authorization': 'Bearer ' + tokenAtual() },
+        body: blob
+      });
+      var j = {};
+      try { j = await r.json(); } catch (e) {}
+      if (!r.ok || !j.ok) throw new Error(j.erro || 'Não consegui entender o áudio.');
+      var t = String(j.transcricao || '').trim();
+      if (!t) throw new Error('Não ouvi nada. Tente falar de novo, mais perto do microfone.');
+      faixaVoz.classList.remove('ativo');
+      btnCancelaVoz.hidden = false;
+      enviarPedido(t);
+    } catch (e) {
+      faixaVoz.classList.remove('ativo');
+      btnCancelaVoz.hidden = false;
+      mensagem('ia', e.message || 'Não consegui entender o áudio.');
+    }
+  }
+  async function comecarGravacao() {
+    if (as.ocupado) return;
+    if (semLogin()) { mensagem('ia', 'Entre na sua conta para usar o assistente.'); return; }
+    if (!navigator.mediaDevices || !window.MediaRecorder) {
+      mensagem('ia', 'Este navegador não permite gravar áudio. Escreva o pedido no campo.');
+      return;
+    }
+    try {
+      as.fluxo = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch (e) {
+      mensagem('ia', 'Não consegui usar o microfone. Libere a permissão do microfone no navegador e tente de novo.');
+      return;
+    }
+    var partes = [];
+    var gravador;
+    try { gravador = new MediaRecorder(as.fluxo); } catch (e) { pararFluxo(); mensagem('ia', 'Não consegui iniciar a gravação neste aparelho.'); return; }
+    as.gravador = gravador;
+    as.cancelar = false;
+    gravador.ondataavailable = function (e) { if (e.data && e.data.size) partes.push(e.data); };
+    gravador.onstop = function () {
+      var cancelado = as.cancelar;
+      var tipo = gravador.mimeType || 'audio/webm';
+      fimGravacao();
+      if (cancelado) return;
+      var blob = new Blob(partes, { type: tipo });
+      if (!blob.size) { mensagem('ia', 'Não captei áudio. Tente de novo.'); return; }
+      transcrever(blob);
+    };
+    gravador.start();
+    as.gravando = true;
+    as.segundos = 0;
+    btnMic.classList.add('gravando');
+    btnMic.innerHTML = ICO.parar;
+    btnMic.setAttribute('aria-label', 'Parar e enviar');
+    vozTxt.textContent = 'Ouvindo... 0:00 (toque no quadrado para enviar)';
+    faixaVoz.classList.add('ativo');
+    as.timer = setInterval(function () {
+      as.segundos++;
+      vozTxt.textContent = 'Ouvindo... ' + tempoTxt(as.segundos) + ' (toque no quadrado para enviar)';
+      if (as.segundos >= MAX_GRAVACAO) pararGravacao(false);
+    }, 1000);
+  }
+  function pararGravacao(cancelar) {
+    as.cancelar = !!cancelar;
+    if (as.gravador && as.gravador.state !== 'inactive') as.gravador.stop();
+    else fimGravacao();
+  }
+  btnMic.addEventListener('click', function () {
+    if (as.gravando) pararGravacao(false);
+    else comecarGravacao();
+  });
+  btnCancelaVoz.addEventListener('click', function () { pararGravacao(true); });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && as.gravando) pararGravacao(true);
+  });
+
+  ajustarCampo();
+  window.NowFindAssistente = { enviar: enviarPedido };
+})();
+/* ===== AJUSTES 44 - FIM ===== */
 
 carregarSortable();
 restaurarSessao();
