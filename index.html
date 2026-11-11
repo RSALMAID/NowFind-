@@ -17694,6 +17694,1273 @@ function escreverTexto(alvo, texto){
   }).observe(document.body, { childList: true, subtree: true });
 })();
 /* ===== AJUSTES 41 - FIM ===== */
+/* ===== AJUSTES 43 - TELA HOJE COM AS CORES DO KANBAN E MODO LISTA ALINHADO ===== */
+(function () {
+  if (document.getElementById('nfEstiloHojeLista')) return;
+  var s = document.createElement('style');
+  s.id = 'nfEstiloHojeLista';
+  s.textContent = [
+    /* resumo da tela Hoje: uma coluna do kanban por cartão, com as mesmas cores */
+    '#painelHoje .stats{grid-template-columns:repeat(5,minmax(0,1fr))}',
+    '#painelHoje .stats div{--c:#8E96B5;border-top:4px solid var(--c);background:color-mix(in srgb,var(--c) 9%,var(--card,#fff))}',
+    '#painelHoje .stats div[data-alvo="afazer"]{--c:#8E96B5}',
+    '#painelHoje .stats div[data-alvo="andamento"]{--c:#FFD600}',
+    '#painelHoje .stats div[data-alvo="aguardando"]{--c:#FF8A1F}',
+    '#painelHoje .stats div[data-alvo="realizado"]{--c:#22B573}',
+    '#painelHoje .stats div[data-alvo="validado"]{--c:#2F5BFF}',
+    '#painelHoje .stats div::before{content:"";display:block;width:9px;height:9px;margin:0 auto 6px;border-radius:50%;background:var(--c)}',
+    '@media (max-width:700px){#painelHoje .stats{grid-template-columns:repeat(3,minmax(0,1fr))}}',
+    /* modo lista: colunas com largura fixa, tudo alinhado */
+    '.lista-esp .card-esp{display:grid;grid-template-columns:minmax(190px,200px) minmax(0,1fr) auto;align-items:center;gap:12px}',
+    '.lista-esp .ce-topo{display:grid;grid-template-columns:118px 20px 32px;align-items:center;gap:6px;min-width:0;margin:0}',
+    '.lista-esp .ce-topo .chip-status{grid-column:1;white-space:nowrap}',
+    '.lista-esp .ce-topo .ce-prio{grid-column:2;justify-self:center}',
+    '.lista-esp .ce-topo .ce-avancar{grid-column:3;justify-self:end}',
+    '.lista-esp .ce-titulo{min-width:0;margin:0;overflow:hidden;text-overflow:ellipsis}',
+    '.lista-esp .ce-rodape{min-width:90px;display:flex;justify-content:flex-end;align-items:center;gap:8px}',
+    '@media (max-width:760px){',
+    '  .lista-esp .card-esp{grid-template-columns:minmax(0,1fr) auto;gap:6px 10px}',
+    '  .lista-esp .ce-titulo{grid-column:1 / -1;grid-row:1;white-space:normal}',
+    '  .lista-esp .ce-topo{grid-column:1;grid-row:2;grid-template-columns:auto auto auto;justify-content:start}',
+    '  .lista-esp .ce-rodape{grid-column:2;grid-row:2;min-width:0}',
+    '}',
+    /* prioridades sem emoji: ponto vermelho (urgente) e estrela (importante) */
+    '.ce-prio{font-size:0;display:inline-grid;place-items:center;width:18px;height:18px;line-height:0}',
+    '.ce-prio[title="Urgente"]::before{content:"";width:10px;height:10px;border-radius:50%;background:#E5202E;box-shadow:0 0 0 3px rgba(229,32,46,.22)}',
+    '.ce-prio:not([title="Urgente"])::before{content:"";width:14px;height:14px;background:#FFB300;',
+    '  clip-path:polygon(50% 0,62% 36%,100% 38%,70% 60%,80% 100%,50% 76%,20% 100%,30% 60%,0 38%,38% 36%)}',
+    /* ícones padronizados na tela Hoje (no lugar de ⏳ 📥 📋 🔴 ⭐) */
+    '.nf-ico-tit{display:inline-grid;place-items:center;vertical-align:-4px;margin-right:7px;line-height:0}',
+    '.nf-ico-tit svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}',
+    '.nf-pr{display:inline-block;flex:none;width:10px;height:10px;margin-right:8px;border-radius:50%;vertical-align:0}',
+    '.nf-pr.urg{background:#E5202E;box-shadow:0 0 0 3px rgba(229,32,46,.22)}',
+    '.nf-pr.imp{width:13px;height:13px;background:#FFB300;border-radius:0;',
+    '  clip-path:polygon(50% 0,62% 36%,100% 38%,70% 60%,80% 100%,50% 76%,20% 100%,30% 60%,0 38%,38% 36%)}'
+  ].join('\n');
+  document.head.appendChild(s);
+
+  /* título "Foco agora" sem o raio */
+  var h = document.querySelector('#painelHoje .secao h3');
+  if (h && /Foco agora/.test(h.textContent)) h.textContent = 'Foco agora';
+
+  /* cartão novo: Realizado (entre Aguardando e Validado) */
+  var stats = document.querySelector('#painelHoje .stats');
+  var validados = stats && stats.querySelector('[data-alvo="validado"]');
+  if (stats && validados && !document.getElementById('hjRealizados')) {
+    var card = document.createElement('div');
+    card.setAttribute('data-alvo', 'realizado');
+    var n = document.createElement('strong');
+    n.id = 'hjRealizados';
+    n.textContent = '0';
+    var r = document.createElement('span');
+    r.textContent = 'Realizado';
+    card.appendChild(n);
+    card.appendChild(r);
+    stats.insertBefore(card, validados);
+    card.addEventListener('click', function () {
+      if (typeof irParaColuna === 'function') irParaColuna('realizado');
+    });
+    var validSpan = validados.querySelector('span');
+    if (validSpan) validSpan.textContent = 'Validado (7 dias)';
+  }
+  /* troca os emojis da tela Hoje pelos ícones do app */
+  var SVG_TIT = {
+    '⏳': '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+    '📥': '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 13l2.5-7h11L20 13"/><path d="M4 13v5a1.5 1.5 0 0 0 1.5 1.5h13A1.5 1.5 0 0 0 20 18v-5h-4.5l-1 2h-5l-1-2z"/></svg>',
+    '📋': '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2.6"/><path d="M9 4h6v3H9z"/><path d="M9 14l2 2 4-4"/></svg>'
+  };
+  function padronizarIcones() {
+    document.querySelectorAll('#view-hoje h3, #view-hoje b, #cardRevisao b, #view-hoje h4').forEach(function (e) {
+      var no = e.firstChild;
+      if (!no || no.nodeType !== 3) return;
+      var m = /^\s*(⏳|📥|📋)\s*/.exec(no.nodeValue);
+      if (!m) return;
+      var ic = document.createElement('span');
+      ic.className = 'nf-ico-tit';
+      ic.innerHTML = SVG_TIT[m[1]];
+      no.nodeValue = no.nodeValue.slice(m[0].length);
+      e.insertBefore(ic, no);
+    });
+    var alvo = document.getElementById('view-hoje');
+    if (!alvo) return;
+    var it = document.createTreeWalker(alvo, NodeFilter.SHOW_TEXT, null);
+    var lista = [];
+    var n;
+    while ((n = it.nextNode())) if (/^\s*(🔴|⭐)\s/.test(n.nodeValue)) lista.push(n);
+    lista.forEach(function (no) {
+      var m = /^(\s*)(🔴|⭐)\s/.exec(no.nodeValue);
+      var pt = document.createElement('span');
+      pt.className = 'nf-pr ' + (m[2] === '🔴' ? 'urg' : 'imp');
+      no.nodeValue = no.nodeValue.slice(m[0].length);
+      no.parentNode.insertBefore(pt, no);
+    });
+  }
+  function contarRealizados() {
+    var el = document.getElementById('hjRealizados');
+    if (!el) return;
+    el.textContent = dados.itens.filter(function (i) { return i.status === 'realizado'; }).length;
+  }
+  var renderPainelBase = renderPainelHoje;
+  renderPainelHoje = function () {
+    renderPainelBase.apply(this, arguments);
+    contarRealizados();
+    padronizarIcones();
+  };
+  contarRealizados();
+  padronizarIcones();
+})();
+/* ===== AJUSTES 43 - FIM ===== */
+/* ===== AJUSTES 42 - CALENDÁRIO (AMBIENTE PRÓPRIO) ===== */
+(function () {
+  if (typeof apiEventosHome !== 'function' || document.getElementById('nfCal')) return;
+
+  var HH = 56;                       /* altura de uma hora na linha do tempo, em px */
+  var MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+  var MESES_CURTOS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+  var DIAS_CURTOS = ['seg', 'ter', 'qua', 'qui', 'sex', 'sáb', 'dom'];
+  var DIAS_LONGOS = ['segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado', 'domingo'];
+  var COR = { pessoal: '#22B573', profissional: '#5B5BD6' };
+
+  var cal = {
+    aberto: false, modo: 'dia', visaoDia: 'linha', ref: iniDia(new Date()), filtro: 'todos',
+    eventos: [], carregando: false, timerAgora: null, timerRecarga: null, inline: null
+  };
+
+  /* ---------- datas ---------- */
+  function pad(n) { return n < 10 ? '0' + n : '' + n; }
+  function iniDia(d) { var x = new Date(d); x.setHours(0, 0, 0, 0); return x; }
+  function somaDias(d, n) { var x = new Date(d); x.setDate(x.getDate() + n); return x; }
+  function iniSemana(d) { var x = iniDia(d); return somaDias(x, -((x.getDay() + 6) % 7)); }
+  function iniMes(d) { return new Date(d.getFullYear(), d.getMonth(), 1); }
+  function mesmoDia(a, b) { return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate(); }
+  function ymd(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+  function parseYmd(s) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(s || ''));
+    return m ? new Date(+m[1], +m[2] - 1, +m[3]) : null;
+  }
+  function hhmm(d) { return pad(d.getHours()) + ':' + pad(d.getMinutes()); }
+  function diaSemana(d) { return (d.getDay() + 6) % 7; }
+  function hoje() { return iniDia(new Date()); }
+
+  function h(tag, cls, txt) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (txt != null) e.textContent = txt;
+    return e;
+  }
+  function svg(corpo) {
+    return '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">' + corpo + '</svg>';
+  }
+  var ICO = {
+    cal: svg('<rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/>'),
+    esq: svg('<path d="M14.5 6l-6 6 6 6"/>'),
+    dir: svg('<path d="M9.5 6l6 6-6 6"/>'),
+    mais: svg('<path d="M12 5v14M5 12h14"/>'),
+    x: svg('<path d="M6 6l12 12M18 6L6 18"/>'),
+    check: svg('<path d="M5 12.5l4.5 4.5L19 7.5"/>'),
+    volta: svg('<path d="M15 6l-6 6 6 6"/>'),
+    clock: svg('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'),
+    pessoas: svg('<circle cx="9" cy="8.5" r="3.2"/><path d="M3 20c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"/><circle cx="17" cy="9.5" r="2.4"/><path d="M16.5 14.6c2.6.1 4.5 1.9 4.5 4.4"/>')
+  };
+
+  /* ---------- dados: eventos e tarefas com prazo ---------- */
+  function normalizar(ev) {
+    var ini = new Date(ev.inicio);
+    var fim = new Date(ev.fim);
+    if (isNaN(ini.getTime())) return null;
+    if (isNaN(fim.getTime()) || fim.getTime() <= ini.getTime()) fim = new Date(ini.getTime() + 3600000);
+    return {
+      ev: ev, ini: ini, fim: fim,
+      inteiro: ev.dia_inteiro === true || Number(ev.dia_inteiro) === 1,
+      tipo: ev.tipo === 'profissional' ? 'profissional' : 'pessoal'
+    };
+  }
+  function passaFiltro(tipo) { return cal.filtro === 'todos' || cal.filtro === tipo; }
+  function listaNormalizada() {
+    var out = [];
+    cal.eventos.forEach(function (ev) {
+      var n = normalizar(ev);
+      if (n && passaFiltro(n.tipo)) out.push(n);
+    });
+    return out;
+  }
+  function eventosDoDia(dia, lista) {
+    var a = iniDia(dia).getTime();
+    var b = somaDias(iniDia(dia), 1).getTime();
+    var inteiros = [];
+    var horarios = [];
+    lista.forEach(function (n) {
+      if (!(n.ini.getTime() < b && n.fim.getTime() > a)) return;
+      if (n.inteiro) { inteiros.push(n); return; }
+      var ini = Math.max(n.ini.getTime(), a);
+      var fim = Math.min(n.fim.getTime(), b);
+      horarios.push({ n: n, ini: Math.round((ini - a) / 60000), fim: Math.max(Math.round((fim - a) / 60000), Math.round((ini - a) / 60000) + 20) });
+    });
+    horarios.sort(function (x, y) { return x.ini - y.ini || y.fim - x.fim; });
+    return { inteiros: inteiros, horarios: horarios };
+  }
+  function tarefasDoDia(dia) {
+    var chave = ymd(dia);
+    return (dados.itens || []).filter(function (i) {
+      return typeof prazoEhData === 'function' && prazoEhData(i.prazo) && String(i.prazo).slice(0, 10) === chave &&
+        i.status !== 'validado' && (cal.filtro === 'todos' || cal.filtro === i.tipo);
+    });
+  }
+  function indiceDoPeriodo(lista) {
+    var mapa = {};
+    function ao(chave) { return mapa[chave] || (mapa[chave] = { ev: 0, tar: 0, min: 0 }); }
+    lista.forEach(function (n) {
+      var d = iniDia(n.ini);
+      for (var k = 0; k < 40 && d.getTime() < n.fim.getTime(); k++) {
+        var reg = ao(ymd(d));
+        reg.ev++;
+        if (!n.inteiro) {
+          var a = Math.max(n.ini.getTime(), d.getTime());
+          var b = Math.min(n.fim.getTime(), somaDias(d, 1).getTime());
+          reg.min += Math.max(0, Math.round((b - a) / 60000));
+        }
+        d = somaDias(d, 1);
+      }
+    });
+    (dados.itens || []).forEach(function (i) {
+      if (typeof prazoEhData !== 'function' || !prazoEhData(i.prazo) || i.status === 'validado') return;
+      if (!(cal.filtro === 'todos' || cal.filtro === i.tipo)) return;
+      ao(String(i.prazo).slice(0, 10)).tar++;
+    });
+    return mapa;
+  }
+
+  /* ---------- carregar do servidor ---------- */
+  function periodoParaCarregar() {
+    var base = cal.ref;
+    var iniMesGrade = iniSemana(iniMes(base));
+    var fimMesGrade = somaDias(iniSemana(new Date(base.getFullYear(), base.getMonth() + 1, 0)), 7);
+    var iniSem = iniSemana(base);
+    var a = new Date(Math.min(iniMesGrade.getTime(), iniSem.getTime()));
+    var b = new Date(Math.max(fimMesGrade.getTime(), somaDias(iniSem, 28).getTime()));
+    return [a, b];
+  }
+  async function carregar() {
+    if (cal.carregando) { cal.recarregarDepois = true; return; }
+    cal.carregando = true;
+    try {
+      var p = periodoParaCarregar();
+      var qs = '?inicio=' + encodeURIComponent(p[0].toISOString()) + '&fim=' + encodeURIComponent(p[1].toISOString()) + '&tipo=todos';
+      var r = await apiEventosHome(qs, 'GET');
+      var lista = (r.dados && r.dados.ok && r.dados.eventos) ? r.dados.eventos : [];
+      try {
+        var c = await apiEventosHome('/convidados' + qs, 'GET');
+        if (c.dados && c.dados.ok) {
+          lista.forEach(function (ev) {
+            var g = c.dados.doMeu && c.dados.doMeu[ev.id];
+            if (g) ev.convidados = g;
+          });
+          (c.dados.recebidos || []).forEach(function (ev) {
+            if (!lista.some(function (x) { return x.id === ev.id; })) lista.push(ev);
+          });
+        }
+      } catch (e) { /* convidados são opcionais */ }
+      cal.eventos = lista;
+      /* a janela de edição do app procura o evento aqui */
+      lista.forEach(function (ev) {
+        if (typeof eventoHomePorId === 'function' && !eventoHomePorId(ev.id)) homeEventos.push(ev);
+      });
+    } catch (e) {
+      /* sem internet: mantém o que já tinha */
+    } finally {
+      cal.carregando = false;
+      if (cal.recarregarDepois) { cal.recarregarDepois = false; carregar(); return; }
+      if (cal.aberto && !cal.inline) desenhar();
+    }
+  }
+
+  /* ---------- criar evento: escrever em qualquer horário ---------- */
+  async function criarEvento(dia, minutos, titulo, tipo, inteiro) {
+    var ini = iniDia(dia);
+    var fim;
+    if (inteiro) {
+      fim = new Date(ini); fim.setHours(23, 59, 0, 0);
+    } else {
+      ini.setHours(0, minutos, 0, 0);
+      fim = new Date(ini.getTime() + 3600000);
+    }
+    var corpo = {
+      titulo: titulo.slice(0, 200), tipo: tipo, inicio: ini.toISOString(), fim: fim.toISOString(),
+      dia_inteiro: !!inteiro, local: '', descricao: '', lembrete_minutos: null, repeticao: 'nenhuma'
+    };
+    var r = await apiEventosHome('/salvar', 'POST', corpo);
+    if (!r.dados || !r.dados.ok) throw new Error((r.dados && r.dados.erro) || 'Não foi possível criar o evento.');
+    if (typeof toast === 'function') toast('Evento criado.', false);
+    await carregar();
+    if (typeof carregarEventosHome === 'function') carregarEventosHome();
+    return r.dados.evento;
+  }
+  function tipoPadrao() { return cal.filtro === 'profissional' ? 'profissional' : 'pessoal'; }
+
+  /* "Reunião amanhã 14h", "Dentista sexta 9:30", "Pagar boleto hoje" */
+  function interpretarRapido(texto, base) {
+    var t = ' ' + String(texto || '').trim() + ' ';
+    var dia = iniDia(base || new Date());
+    var minutos = null;
+    var m;
+    if (/\sdepois de amanh[ãa]\s/i.test(t)) { dia = somaDias(hoje(), 2); t = t.replace(/\sdepois de amanh[ãa]\s/i, ' '); }
+    else if (/\samanh[ãa]\s/i.test(t)) { dia = somaDias(hoje(), 1); t = t.replace(/\samanh[ãa]\s/i, ' '); }
+    else if (/\shoje\s/i.test(t)) { dia = hoje(); t = t.replace(/\shoje\s/i, ' '); }
+    else {
+      var nomes = [/segunda/i, /ter[çc]a/i, /quarta/i, /quinta/i, /sexta/i, /s[áa]bado/i, /domingo/i];
+      for (var i = 0; i < nomes.length; i++) {
+        var re = new RegExp('\\s(?:na |no |para |pra )?(' + nomes[i].source + ')(?:-feira)?\\s', 'i');
+        if (re.test(t)) {
+          var alvo = hoje();
+          do { alvo = somaDias(alvo, 1); } while (diaSemana(alvo) !== i);
+          dia = alvo;
+          t = t.replace(re, ' ');
+          break;
+        }
+      }
+    }
+    m = /\s(?:às|as|a)?\s*(\d{1,2})\s*(?:h|:)\s*(\d{2})?(?=\s|$)/i.exec(t);
+    if (m) {
+      var hh = +m[1];
+      var mm = m[2] ? +m[2] : 0;
+      if (hh <= 23 && mm <= 59) {
+        minutos = hh * 60 + mm;
+        t = t.replace(m[0], ' ');
+      }
+    }
+    var titulo = t.replace(/\s+/g, ' ').replace(/^\s*(?:às|as|a|na|no|para|pra)\s+/i, '').trim();
+    if (!titulo) return null;
+    return { titulo: titulo.charAt(0).toUpperCase() + titulo.slice(1), dia: dia, minutos: minutos };
+  }
+  window.__nfCalInterpretar = interpretarRapido;
+
+  /* ---------- editar ---------- */
+  function abrirEvento(n) {
+    if (typeof eventoHomePorId === 'function' && !eventoHomePorId(n.ev.id)) homeEventos.push(n.ev);
+    abrirEditarEventoHome(n.ev.id);
+  }
+
+  /* ---------- tela: estrutura ---------- */
+  var tela = h('div', 'nf-cal');
+  tela.id = 'nfCal';
+  tela.setAttribute('role', 'dialog');
+  tela.setAttribute('aria-label', 'Calendário');
+  var topo = h('div', 'nf-cal-topo'); /* não usar <header>: o app esconde os botões de qualquer <header> */
+  topo.setAttribute('role', 'banner');
+  var btnVoltar = h('button', 'nf-cal-voltar');
+  btnVoltar.type = 'button';
+  btnVoltar.innerHTML = ICO.volta + '<span>Início</span>';
+  var tit = h('div', 'nf-cal-titulo');
+  var titPeq = h('small', null, 'CALENDÁRIO');
+  var titH = h('h2', null, '');
+  tit.appendChild(titPeq);
+  tit.appendChild(titH);
+  var nav = h('div', 'nf-cal-nav');
+  var btnAnt = h('button', 'nf-cal-icone');
+  btnAnt.type = 'button'; btnAnt.setAttribute('aria-label', 'Anterior'); btnAnt.innerHTML = ICO.esq;
+  var btnHoje = h('button', 'nf-cal-hoje', 'Hoje');
+  btnHoje.type = 'button';
+  var btnProx = h('button', 'nf-cal-icone');
+  btnProx.type = 'button'; btnProx.setAttribute('aria-label', 'Próximo'); btnProx.innerHTML = ICO.dir;
+  nav.appendChild(btnAnt); nav.appendChild(btnHoje); nav.appendChild(btnProx);
+  var modos = h('div', 'nf-cal-seg');
+  modos.setAttribute('role', 'tablist');
+  [['dia', 'Dia'], ['semana', 'Semana'], ['mes', 'Mês'], ['projetos', 'Projetos']].forEach(function (m) {
+    var b = h('button', null, m[1]);
+    b.type = 'button';
+    b.setAttribute('data-modo', m[0]);
+    b.setAttribute('role', 'tab');
+    b.addEventListener('click', function () { cal.modo = m[0]; fecharInline(); desenhar(); rolarParaAgora(); });
+    modos.appendChild(b);
+  });
+  var filtros = h('div', 'nf-cal-seg nf-cal-filtros');
+  [['todos', 'Todos'], ['pessoal', 'Pessoal'], ['profissional', 'Profissional']].forEach(function (f) {
+    var b = h('button', null, f[1]);
+    b.type = 'button';
+    b.setAttribute('data-filtro', f[0]);
+    b.addEventListener('click', function () { cal.filtro = f[0]; fecharInline(); desenhar(); });
+    filtros.appendChild(b);
+  });
+  var btnNovo = h('button', 'nf-cal-novo');
+  btnNovo.type = 'button';
+  btnNovo.innerHTML = ICO.mais + '<span>Evento</span>';
+  topo.appendChild(btnVoltar);
+  topo.appendChild(tit);
+  topo.appendChild(nav);
+  topo.appendChild(modos);
+  topo.appendChild(filtros);
+  topo.appendChild(btnNovo);
+
+  var rapido = h('form', 'nf-cal-rapido');
+  var inRapido = document.createElement('input');
+  inRapido.type = 'text';
+  inRapido.id = 'nfCalRapido';
+  inRapido.maxLength = 200;
+  inRapido.autocomplete = 'off';
+  inRapido.placeholder = 'Escreva um evento: "Reunião amanhã 14h", "Dentista sexta 9:30"...';
+  inRapido.setAttribute('aria-label', 'Escrever um evento');
+  var btnRapido = h('button', null, 'Adicionar');
+  btnRapido.type = 'submit';
+  rapido.appendChild(inRapido);
+  rapido.appendChild(btnRapido);
+  var msgRapido = h('span', 'nf-cal-msg');
+  rapido.appendChild(msgRapido);
+
+  var corpo = h('div', 'nf-cal-corpo');
+  var principal = h('main', 'nf-cal-principal');
+  var lateral = h('aside', 'nf-cal-lateral');
+  corpo.appendChild(principal);
+  corpo.appendChild(lateral);
+  tela.appendChild(topo);
+  tela.appendChild(rapido);
+  tela.appendChild(corpo);
+
+  /* ---------- estilo ---------- */
+  var estilo = document.createElement('style');
+  estilo.id = 'nfEstiloCal';
+  estilo.textContent = [
+    'body.nf-cal-aberto{overflow:hidden}',
+    'body.nf-cal-aberto .modal{z-index:100010}',
+    'body.nf-cal-aberto .toast{z-index:100020}',
+    '.nf-cal{position:fixed;inset:0;z-index:99990;display:none;flex-direction:column;background:var(--bg,#F5F6FB);color:var(--tx,#14172B);font-size:14px}',
+    '.nf-cal.nf-aberto{display:flex}',
+    '.nf-cal button{font:inherit;color:inherit;cursor:pointer}',
+    '.nf-cal svg{width:20px;height:20px;display:block}',
+    '.nf-cal-topo{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:calc(12px + env(safe-area-inset-top,0px)) 18px 10px;border-bottom:1px solid var(--borda,#E2E5F0);background:var(--card,#fff)}',
+    '.nf-cal-voltar{display:inline-flex;align-items:center;gap:6px;padding:8px 14px 8px 8px;border-radius:12px;border:1px solid var(--borda,#E2E5F0);background:transparent;font-weight:700}',
+    '.nf-cal-titulo{flex:1;min-width:150px}',
+    '.nf-cal-titulo small{display:block;font-size:10px;font-weight:800;letter-spacing:1.2px;opacity:.7;color:inherit}',
+    '.nf-cal-titulo h2{margin:0;font-size:20px;line-height:1.25}',
+    '.nf-cal-nav{display:flex;align-items:center;gap:6px}',
+    '.nf-cal-icone{width:36px;height:36px;display:grid;place-items:center;border-radius:12px;border:1px solid var(--borda,#E2E5F0);background:transparent}',
+    '.nf-cal-hoje{padding:8px 14px;border-radius:12px;border:1px solid var(--borda,#E2E5F0);background:transparent;font-weight:700}',
+    '.nf-cal-seg{display:inline-flex;padding:3px;gap:2px;border-radius:13px;background:rgba(127,127,127,.14)}',
+    '.nf-cal-seg button{padding:7px 13px;border:none;border-radius:10px;background:transparent;font-weight:700;font-size:13px;opacity:.75}',
+    '.nf-cal-seg button.nf-sel{background:var(--card,#fff);opacity:1;box-shadow:0 1px 4px rgba(0,0,0,.18)}',
+    '.nf-cal-novo{display:inline-flex;align-items:center;gap:6px;padding:9px 16px 9px 12px;border:none;border-radius:13px;font-weight:800;',
+    '  background:var(--grad-acento,var(--azul,#2F5BFF));color:var(--on-acento,#fff)}',
+    '.nf-cal-novo svg{width:18px;height:18px}',
+    '.nf-cal-rapido{display:flex;align-items:center;gap:10px;padding:10px 18px;border-bottom:1px solid var(--borda,#E2E5F0);background:var(--card,#fff);flex-wrap:wrap}',
+    '.nf-cal-rapido input{flex:1;min-width:200px;padding:11px 16px;border-radius:14px;border:1px solid var(--borda,#DDDDE8);background:transparent;color:inherit;font:inherit;outline:none}',
+    '.nf-cal-rapido input:focus{border-color:var(--azul,#2F5BFF)}',
+    '.nf-cal-rapido button{padding:10px 18px;border-radius:13px;border:1px solid var(--borda,#DDDDE8);background:transparent;font-weight:700}',
+    '.nf-cal-msg{flex-basis:100%;font-size:12px;opacity:.8}',
+    '.nf-cal-msg.nf-erro{color:#E5202E;opacity:1}',
+    '.nf-cal-corpo{flex:1;min-height:0;display:flex}',
+    '.nf-cal-principal{flex:1;min-width:0;overflow:auto;padding:16px 18px 28px}',
+    '.nf-cal-lateral{width:310px;flex:none;overflow:auto;padding:16px 16px 28px 0}',
+    '@media (max-width:980px){.nf-cal-corpo{flex-direction:column;overflow:auto}.nf-cal-principal{overflow:visible;flex:none}.nf-cal-lateral{width:auto;padding:0 18px 28px;overflow:visible}}',
+    '@media (max-width:700px){.nf-cal-topo{gap:8px;padding-bottom:8px}.nf-cal-voltar span{display:none}.nf-cal-voltar{padding:8px}.nf-cal-seg button{padding:7px 10px}.nf-cal-filtros{order:9}.nf-cal-novo span{display:none}.nf-cal-novo{padding:9px}.nf-cal-principal{padding:12px 12px 20px}',
+    '  .nf-cal-titulo small{display:none}.nf-cal-titulo h2{font-size:16px}',
+    '  .nf-cal-corpo{order:2}',
+    '  .nf-cal-rapido{order:5;border-bottom:none;border-top:1px solid var(--borda,#E2E5F0);padding:8px 12px calc(8px + env(safe-area-inset-bottom,0px))}',
+    '  .nf-cal-rapido input{min-width:0}}',
+    /* cabeçalho do dia, como uma folha de calendário */
+    '.nf-cal-folha{position:relative;display:flex;align-items:center;gap:18px;padding:18px 22px;margin-bottom:14px;border-radius:20px;color:var(--on-acento,#fff);',
+    '  background:var(--grad-acento,var(--azul,#2F5BFF));box-shadow:0 12px 30px rgba(0,0,0,.18);overflow:hidden}',
+    '.nf-cal-folha::before,.nf-cal-folha::after{content:"";position:absolute;top:-9px;width:12px;height:26px;border-radius:7px;background:rgba(255,255,255,.55);box-shadow:0 2px 4px rgba(0,0,0,.25)}',
+    '.nf-cal-folha::before{left:30px}.nf-cal-folha::after{right:30px}',
+    '.nf-cal-folha .nf-num{font-size:54px;font-weight:800;line-height:1;min-width:64px;text-align:center}',
+    '.nf-cal-folha .nf-txt h3{margin:0 0 3px;font-size:20px}',
+    '.nf-cal-folha .nf-txt p{margin:0;font-size:13px;opacity:.9;line-height:1.4}',
+    '.nf-cal-tabs{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 10px}',
+    '.nf-cal-tabs h4{margin:0;font-size:15px}',
+    /* linha do tempo */
+    '.nf-cal-diatodo{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}',
+    '.nf-chip-dia{display:inline-flex;align-items:center;gap:6px;max-width:100%;padding:6px 11px;border-radius:999px;border:1px solid var(--borda,#DDDDE8);background:var(--card,#fff);font-size:12px;font-weight:600;cursor:pointer}',
+    '.nf-chip-dia i{flex:none;width:8px;height:8px;border-radius:50%;background:var(--c,#999)}',
+    '.nf-chip-dia span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+    '.nf-chip-dia.nf-tarefa{border-style:dashed}',
+    '.nf-chip-dia.nf-tarefa svg{width:14px;height:14px;color:var(--azul,#2F5BFF)}',
+    '.nf-cal-grade{position:relative;display:flex;border:1px solid var(--borda,#E2E5F0);border-radius:18px;background:var(--card,#fff);overflow:hidden}',
+    '.nf-cal-gutter{flex:none;width:54px;position:relative;border-right:1px solid var(--borda,#E2E5F0)}',
+    '.nf-cal-gutter .nf-h{position:absolute;right:8px;transform:translateY(-50%);font-size:11px;opacity:.65;font-weight:600}',
+    '.nf-cal-cols{flex:1;display:flex;min-width:0}',
+    '.nf-cal-col{position:relative;flex:1;min-width:0;border-left:1px solid var(--borda,#E2E5F0);cursor:cell}',
+    '.nf-cal-col:first-child{border-left:none}',
+    '.nf-cal-col .nf-linha{position:absolute;left:0;right:0;border-top:1px solid var(--borda,#E2E5F0);opacity:.7;pointer-events:none}',
+    '.nf-cal-col.nf-hoje{background:color-mix(in srgb,var(--azul,#2F5BFF) 5%,transparent)}',
+    '.nf-cal-ev{position:absolute;overflow:hidden;padding:4px 8px;text-align:left;border:none;border-left:4px solid var(--c);border-radius:9px;',
+    '  background:color-mix(in srgb,var(--c) 18%,var(--card,#fff));box-shadow:0 1px 3px rgba(0,0,0,.14);cursor:pointer;line-height:1.25}',
+    '.nf-cal-ev:hover{z-index:3;box-shadow:0 4px 12px rgba(0,0,0,.25)}',
+    '.nf-cal-ev b{display:block;font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+    '.nf-cal-ev small{display:block;font-size:11px;opacity:.75;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+    '.nf-cal-ev.nf-conv{border-left-style:dashed}',
+    '.nf-cal-agora{position:absolute;left:0;right:0;height:0;border-top:2px solid #E5202E;z-index:4;pointer-events:none}',
+    '.nf-cal-agora::before{content:"";position:absolute;left:-5px;top:-6px;width:10px;height:10px;border-radius:50%;background:#E5202E}',
+    '.nf-cal-agora-pill{position:absolute;left:4px;transform:translateY(-50%);z-index:5;padding:2px 7px;border-radius:999px;background:#E5202E;color:#fff;font-size:11px;font-weight:800;pointer-events:none}',
+    '.nf-cal-inline{position:absolute;left:4px;right:4px;z-index:6;display:flex;gap:6px;padding:5px;border-radius:12px;background:var(--card,#fff);border:2px solid var(--azul,#2F5BFF);box-shadow:0 8px 22px rgba(0,0,0,.3)}',
+    '.nf-cal-inline input{flex:1;min-width:0;border:none;background:transparent;color:inherit;font:inherit;outline:none;padding:4px 6px}',
+    '.nf-cal-inline small{align-self:center;opacity:.65;font-weight:700;white-space:nowrap}',
+    /* semana */
+    '.nf-cal-semana-cab{display:flex;margin:0 0 6px 54px;position:sticky;top:-16px;z-index:7;padding-top:6px;background:var(--bg,#F5F6FB)}',
+    '.nf-cal-semana-cab>div{flex:1;min-width:0;padding:8px 4px;text-align:center;border-radius:12px;cursor:pointer}',
+    '.nf-cal-semana-cab>div small{display:block;font-size:10px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;opacity:.65}',
+    '.nf-cal-semana-cab>div b{font-size:19px}',
+    '.nf-cal-semana-cab>div.nf-hoje{background:var(--grad-acento,var(--azul,#2F5BFF));color:var(--on-acento,#fff)}',
+    '.nf-cal-semana-cab>div.nf-hoje small{opacity:.9}',
+    '.nf-cal-semana-dt{display:flex;margin:0 0 8px 54px;gap:0}',
+    '.nf-cal-semana-dt>div{flex:1;min-width:0;padding:0 3px;display:flex;flex-direction:column;gap:3px}',
+    /* lista do dia */
+    '.nf-cal-lista{display:flex;flex-direction:column;gap:8px}',
+    '.nf-cal-item{display:flex;align-items:center;gap:12px;width:100%;padding:11px 14px;border-radius:14px;border:1px solid var(--borda,#E2E5F0);background:var(--card,#fff);text-align:left;border-left:5px solid var(--c,#999)}',
+    '.nf-cal-item .nf-hora{flex:none;width:92px;font-size:12px;font-weight:800;opacity:.85}',
+    '.nf-cal-item .nf-t{flex:1;min-width:0}',
+    '.nf-cal-item .nf-t b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+    '.nf-cal-item .nf-t small{display:block;opacity:.7;font-size:12px}',
+    '.nf-cal-item.nf-tarefa{border-style:dashed;border-left-style:solid}',
+    '.nf-cal-item .nf-ck{flex:none;width:24px;height:24px;display:grid;place-items:center;border-radius:8px;border:2px solid var(--borda,#BBB);background:transparent;color:#fff;padding:0}',
+    '.nf-cal-item .nf-ck svg{width:15px;height:15px;opacity:0}',
+    '.nf-cal-item.nf-feita .nf-ck{background:#22B573;border-color:#22B573}.nf-cal-item.nf-feita .nf-ck svg{opacity:1}',
+    '.nf-cal-item.nf-feita .nf-t b{text-decoration:line-through;opacity:.6}',
+    '.nf-cal-vazio{padding:22px;text-align:center;opacity:.65;font-size:13px;border:1px dashed var(--borda,#DDD);border-radius:14px}',
+    /* mês */
+    '.nf-cal-mes{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));border:1px solid var(--borda,#E2E5F0);border-radius:18px;overflow:hidden;background:var(--card,#fff)}',
+    '.nf-cal-mes .nf-cabm{padding:8px 4px;text-align:center;font-size:10px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;opacity:.65;border-bottom:1px solid var(--borda,#E2E5F0)}',
+    '.nf-cal-cel{min-height:104px;padding:6px 6px 4px;border-top:1px solid var(--borda,#E2E5F0);border-left:1px solid var(--borda,#E2E5F0);background:transparent;border-right:none;border-bottom:none;text-align:left;display:flex;flex-direction:column;gap:3px;cursor:pointer}',
+    '.nf-cal-cel:nth-child(7n+8){border-left:none}',
+    '.nf-cal-cel.nf-fora{opacity:.45}',
+    '.nf-cal-cel .nf-n{align-self:flex-start;min-width:26px;height:26px;display:grid;place-items:center;border-radius:50%;font-weight:700;font-size:13px}',
+    '.nf-cal-cel.nf-hoje .nf-n{background:var(--grad-acento,var(--azul,#2F5BFF));color:var(--on-acento,#fff)}',
+    '.nf-cal-cel .nf-ch{display:flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;overflow:hidden;white-space:nowrap}',
+    '.nf-cal-cel .nf-ch i{flex:none;width:7px;height:7px;border-radius:50%;background:var(--c)}',
+    '.nf-cal-cel .nf-ch span{overflow:hidden;text-overflow:ellipsis}',
+    '.nf-cal-cel .nf-mais{font-size:11px;opacity:.7;font-weight:700}',
+    '@media (max-width:700px){.nf-cal-cel{min-height:62px}.nf-cal-cel .nf-ch span{display:none}}',
+    /* projetos (linha do tempo) */
+    '.nf-gantt{border:1px solid var(--borda,#E2E5F0);border-radius:18px;background:var(--card,#fff);overflow:auto}',
+    '.nf-gantt-grade{display:grid;min-width:720px}',
+    '.nf-gantt .nf-g-cab{padding:8px 4px;text-align:center;font-size:10.5px;font-weight:700;border-bottom:1px solid var(--borda,#E2E5F0);border-left:1px solid var(--borda,#E2E5F0);opacity:.85}',
+    '.nf-gantt .nf-g-cab.nf-hoje{background:color-mix(in srgb,#E5202E 14%,transparent);color:#E5202E;opacity:1}',
+    '.nf-gantt .nf-g-nome{padding:10px 12px;border-bottom:1px solid var(--borda,#E2E5F0);font-weight:700;font-size:13px;position:sticky;left:0;background:var(--card,#fff);z-index:2;display:flex;flex-direction:column;gap:2px}',
+    '.nf-gantt .nf-g-nome small{font-weight:500;opacity:.65;font-size:11px}',
+    '.nf-gantt .nf-g-trilha{position:relative;border-bottom:1px solid var(--borda,#E2E5F0);border-left:1px solid var(--borda,#E2E5F0);min-height:50px}',
+    '.nf-gantt .nf-g-barra{position:absolute;top:14px;height:22px;border-radius:8px;background:color-mix(in srgb,var(--c) 30%,var(--card,#fff));border:1px solid var(--c);display:flex;align-items:center;padding:0 8px;font-size:11px;font-weight:700;overflow:hidden;white-space:nowrap}',
+    '.nf-gantt .nf-g-ponto{position:absolute;top:19px;width:12px;height:12px;border-radius:50%;background:var(--c);border:2px solid var(--card,#fff);box-shadow:0 0 0 1px var(--c);z-index:1}',
+    '.nf-gantt .nf-g-ponto.nf-g-feito{opacity:.45}',
+    '.nf-gantt .nf-g-hoje{position:absolute;top:0;bottom:0;width:2px;background:#E5202E;z-index:1;pointer-events:none}',
+    /* painel lateral */
+    '.nf-cal-card{margin:0 0 14px;padding:14px;border:1px solid var(--borda,#E2E5F0);border-radius:18px;background:var(--card,#fff)}',
+    '.nf-cal-card h4{margin:0 0 10px;font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;opacity:.7}',
+    '.nf-mini-cab{display:flex;align-items:center;justify-content:space-between;margin:0 0 8px}',
+    '.nf-mini-cab b{font-size:14px}',
+    '.nf-mini-cab button{width:28px;height:28px;display:grid;place-items:center;border:none;border-radius:9px;background:transparent}',
+    '.nf-mini-cab button svg{width:16px;height:16px}',
+    '.nf-mini{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;text-align:center}',
+    '.nf-mini .nf-s{font-size:10px;font-weight:800;opacity:.55;padding:2px 0}',
+    '.nf-mini button{position:relative;height:32px;border:none;border-radius:10px;background:transparent;font-size:12.5px;font-weight:600}',
+    '.nf-mini button.nf-fora{opacity:.35}',
+    '.nf-mini button.nf-hoje{background:var(--grad-acento,var(--azul,#2F5BFF));color:var(--on-acento,#fff);font-weight:800}',
+    '.nf-mini button.nf-sel:not(.nf-hoje){box-shadow:inset 0 0 0 2px var(--azul,#2F5BFF)}',
+    '.nf-mini button i{position:absolute;left:50%;bottom:3px;width:5px;height:5px;margin-left:-2.5px;border-radius:50%;background:var(--azul,#2F5BFF)}',
+    '.nf-mini button.nf-hoje i{background:currentColor}',
+    '.nf-sem{display:flex;align-items:flex-end;gap:6px;height:74px;margin-top:4px}',
+    '.nf-sem>div{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;height:100%;justify-content:flex-end}',
+    '.nf-sem .nf-b{width:100%;min-height:3px;border-radius:6px 6px 3px 3px;background:var(--azul,#2F5BFF);opacity:.85}',
+    '.nf-sem .nf-b.nf-hoje{background:#E5202E}',
+    '.nf-sem small{font-size:10px;font-weight:700;opacity:.65}',
+    '.nf-sem-resumo{margin:8px 0 0;font-size:12px;opacity:.8}',
+    '.nf-cal-card .nf-cal-item{padding:8px 10px}',
+    '.nf-cal-card .nf-cal-item .nf-hora{width:72px}',
+    /* destaque na Home e botão no menu */
+    '.nf-cal-destaque{display:flex;align-items:center;gap:16px;width:100%;margin:0 0 14px;padding:18px 22px;border:none;border-radius:20px;text-align:left;cursor:pointer;position:relative;overflow:hidden;',
+    '  background:var(--grad-acento,var(--azul,#2F5BFF));color:var(--on-acento,#fff);box-shadow:0 14px 34px rgba(0,0,0,.22);font:inherit}',
+    '.nf-cal-destaque::after{content:"";position:absolute;right:-30px;top:-40px;width:150px;height:150px;border-radius:50%;background:rgba(255,255,255,.14)}',
+    '.nf-cal-destaque .nf-d-ic{flex:none;width:54px;height:54px;border-radius:16px;display:grid;place-items:center;background:rgba(255,255,255,.22)}',
+    '.nf-cal-destaque .nf-d-ic svg{width:28px;height:28px}',
+    '.nf-cal-destaque .nf-d-tx{flex:1;min-width:0;position:relative;z-index:1}',
+    '.nf-cal-destaque small{display:block;font-size:10px;font-weight:800;letter-spacing:1.2px;opacity:.85;color:inherit}',
+    '.nf-cal-destaque b{display:block;font-size:19px;margin:2px 0}',
+    '.nf-cal-destaque span.nf-d-p{display:block;font-size:13px;opacity:.92}',
+    '.nf-cal-destaque .nf-d-ir{flex:none;position:relative;z-index:1;display:inline-flex;align-items:center;gap:4px;padding:9px 14px;border-radius:12px;background:rgba(255,255,255,.24);font-weight:800;font-size:13px}',
+    '.nf-cal-destaque .nf-d-ir svg{width:16px;height:16px}',
+    '@media (max-width:700px){.nf-cal-destaque{padding:14px 16px}.nf-cal-destaque .nf-d-ir span{display:none}.nf-cal-destaque b{font-size:16px}}'
+  ].join('\n');
+  document.head.appendChild(estilo);
+  document.body.appendChild(tela);
+
+  /* ---------- desenhar ---------- */
+  function maiuscula(t) { return String(t).charAt(0).toUpperCase() + String(t).slice(1); }
+  function rotuloTitulo() {
+    var d = cal.ref;
+    if (cal.modo === 'dia') return maiuscula(DIAS_LONGOS[diaSemana(d)] + ', ' + d.getDate() + ' de ' + MESES[d.getMonth()]);
+    if (cal.modo === 'semana') {
+      var a = iniSemana(d), b = somaDias(a, 6);
+      return a.getMonth() === b.getMonth()
+        ? a.getDate() + ' a ' + b.getDate() + ' de ' + MESES[a.getMonth()] + ' de ' + a.getFullYear()
+        : a.getDate() + ' ' + MESES_CURTOS[a.getMonth()] + ' a ' + b.getDate() + ' ' + MESES_CURTOS[b.getMonth()] + ' de ' + b.getFullYear();
+    }
+    if (cal.modo === 'mes') return maiuscula(MESES[d.getMonth()] + ' de ' + d.getFullYear());
+    var i = iniSemana(d), f = somaDias(i, 27);
+    return i.getDate() + ' ' + MESES_CURTOS[i.getMonth()] + ' a ' + f.getDate() + ' ' + MESES_CURTOS[f.getMonth()] + ' de ' + f.getFullYear();
+  }
+  function desenharTopo() {
+    titH.textContent = rotuloTitulo();
+    modos.querySelectorAll('button').forEach(function (b) {
+      var s = b.getAttribute('data-modo') === cal.modo;
+      b.classList.toggle('nf-sel', s);
+      b.setAttribute('aria-selected', s ? 'true' : 'false');
+    });
+    filtros.querySelectorAll('button').forEach(function (b) {
+      b.classList.toggle('nf-sel', b.getAttribute('data-filtro') === cal.filtro);
+    });
+  }
+
+  function horaLabel(min) { return pad(Math.floor(min / 60)) + ':' + pad(min % 60); }
+  function itemChip(texto, cor, aoClicar, tarefa) {
+    var c = h('button', 'nf-chip-dia' + (tarefa ? ' nf-tarefa' : ''));
+    c.type = 'button';
+    c.style.setProperty('--c', cor);
+    if (tarefa) c.innerHTML = ICO.check;
+    else c.appendChild(document.createElement('i'));
+    c.appendChild(h('span', null, texto));
+    if (aoClicar) c.addEventListener('click', aoClicar);
+    return c;
+  }
+  function chipEvento(n) {
+    return itemChip(n.ev.titulo, COR[n.tipo], function () { abrirEvento(n); }, false);
+  }
+  function chipTarefa(i) {
+    return itemChip(i.texto, i.tipo === 'profissional' ? COR.profissional : COR.pessoal, null, true);
+  }
+
+  function colunaDoDia(dia, lista) {
+    var col = h('div', 'nf-cal-col' + (mesmoDia(dia, new Date()) ? ' nf-hoje' : ''));
+    col.style.height = (24 * HH) + 'px';
+    col.setAttribute('data-dia', ymd(dia));
+    for (var k = 1; k < 24; k++) {
+      var l = h('div', 'nf-linha');
+      l.style.top = (k * HH) + 'px';
+      col.appendChild(l);
+    }
+    var info = eventosDoDia(dia, lista);
+    /* posições lado a lado quando se sobrepõem */
+    var grupos = [];
+    var atual = [];
+    var fimGrupo = -1;
+    info.horarios.forEach(function (x) {
+      if (atual.length && x.ini >= fimGrupo) { grupos.push(atual); atual = []; fimGrupo = -1; }
+      atual.push(x);
+      fimGrupo = Math.max(fimGrupo, x.fim);
+    });
+    if (atual.length) grupos.push(atual);
+    grupos.forEach(function (g) {
+      var cols = [];
+      g.forEach(function (x) {
+        var c = 0;
+        while (cols[c] !== undefined && cols[c] > x.ini) c++;
+        cols[c] = x.fim;
+        x.col = c;
+      });
+      g.forEach(function (x) { x.cols = cols.length; });
+    });
+    info.horarios.forEach(function (x) {
+      var b = h('button', 'nf-cal-ev' + (x.n.ev.convite ? ' nf-conv' : ''));
+      b.type = 'button';
+      b.style.setProperty('--c', COR[x.n.tipo]);
+      b.style.top = (x.ini / 60 * HH) + 'px';
+      b.style.height = Math.max(22, (x.fim - x.ini) / 60 * HH - 2) + 'px';
+      b.style.left = (x.col / x.cols * 100) + '%';
+      b.style.width = 'calc(' + (100 / x.cols) + '% - 4px)';
+      b.appendChild(h('b', null, x.n.ev.titulo));
+      var sub = hhmm(x.n.ini) + ' – ' + hhmm(x.n.fim) + (x.n.ev.local ? ' · ' + x.n.ev.local : '');
+      if ((x.fim - x.ini) >= 40) b.appendChild(h('small', null, sub));
+      b.title = x.n.ev.titulo + ' (' + hhmm(x.n.ini) + ' – ' + hhmm(x.n.fim) + ')';
+      b.addEventListener('click', function (e) { e.stopPropagation(); fecharInline(); abrirEvento(x.n); });
+      col.appendChild(b);
+    });
+    if (mesmoDia(dia, new Date())) {
+      var ag = h('div', 'nf-cal-agora');
+      ag.setAttribute('data-agora', '1');
+      col.appendChild(ag);
+    }
+    col.addEventListener('click', function (e) {
+      if (e.target !== col && !e.target.classList.contains('nf-linha')) return;
+      var y = e.clientY - col.getBoundingClientRect().top;
+      var min = Math.max(0, Math.min(23 * 60 + 30, Math.floor(y / HH * 2) * 30));
+      abrirInline(col, dia, min);
+    });
+    return { el: col, info: info };
+  }
+  function gutter() {
+    var g = h('div', 'nf-cal-gutter');
+    g.style.height = (24 * HH) + 'px';
+    for (var k = 1; k < 24; k++) {
+      var t = h('span', 'nf-h', pad(k) + ':00');
+      t.style.top = (k * HH) + 'px';
+      g.appendChild(t);
+    }
+    var pill = h('span', 'nf-cal-agora-pill', hhmm(new Date()));
+    pill.setAttribute('data-pill', '1');
+    pill.style.display = 'none';
+    g.appendChild(pill);
+    return g;
+  }
+  function atualizarAgora() {
+    if (!cal.aberto) return;
+    var agora = new Date();
+    var top = (agora.getHours() * 60 + agora.getMinutes()) / 60 * HH;
+    tela.querySelectorAll('[data-agora]').forEach(function (a) { a.style.top = top + 'px'; });
+    var pill = tela.querySelector('[data-pill]');
+    if (pill) {
+      var temHoje = !!tela.querySelector('[data-agora]');
+      pill.style.display = temHoje ? 'block' : 'none';
+      pill.style.top = top + 'px';
+      pill.textContent = hhmm(agora);
+    }
+  }
+  /* leva a tela ao horário de agora (ou às 7h30 em outros dias) */
+  function rolarParaAgora() {
+    if (cal.modo !== 'dia' && cal.modo !== 'semana') return;
+    var grade = principal.querySelector('.nf-cal-grade');
+    if (!grade) return;
+    var agora = new Date();
+    var usarHoje = cal.modo === 'dia' ? mesmoDia(cal.ref, agora) : (iniSemana(cal.ref).getTime() === iniSemana(agora).getTime());
+    var alvo = usarHoje ? ((agora.getHours() * 60 + agora.getMinutes()) / 60 - 1.5) * HH : 7.5 * HH;
+    var topoGrade = grade.getBoundingClientRect().top - principal.getBoundingClientRect().top + principal.scrollTop;
+    var janelaCol = window.matchMedia('(max-width:980px)').matches;
+    var rolagem = janelaCol ? document.querySelector('.nf-cal-corpo') : principal;
+    var base = janelaCol ? (grade.getBoundingClientRect().top - rolagem.getBoundingClientRect().top + rolagem.scrollTop) : topoGrade;
+    rolagem.scrollTop = Math.max(0, base + Math.max(0, alvo));
+  }
+
+  /* escrever em qualquer horário */
+  function fecharInline() {
+    if (cal.inline && cal.inline.parentNode) cal.inline.parentNode.removeChild(cal.inline);
+    cal.inline = null;
+  }
+  function abrirInline(col, dia, min) {
+    fecharInline();
+    var box = h('div', 'nf-cal-inline');
+    box.style.top = (min / 60 * HH + 2) + 'px';
+    var inp = document.createElement('input');
+    inp.type = 'text';
+    inp.maxLength = 200;
+    inp.placeholder = 'Escreva neste horário...';
+    inp.setAttribute('aria-label', 'Novo evento às ' + horaLabel(min));
+    var hr = h('small', null, horaLabel(min));
+    box.appendChild(hr);
+    box.appendChild(inp);
+    var enviado = false;
+    inp.addEventListener('keydown', async function (e) {
+      if (e.key === 'Escape') { e.stopPropagation(); fecharInline(); return; }
+      if (e.key !== 'Enter' || enviado) return;
+      e.preventDefault();
+      var t = inp.value.trim();
+      if (!t) { fecharInline(); return; }
+      enviado = true;
+      fecharInline();
+      try {
+        await criarEvento(dia, min, t, tipoPadrao(), false);
+      } catch (er) {
+        mostrarMsg(er.message, true);
+      }
+    });
+    box.addEventListener('click', function (e) { e.stopPropagation(); });
+    col.appendChild(box);
+    cal.inline = box;
+    setTimeout(function () { inp.focus(); }, 20);
+  }
+
+  /* dia */
+  function desenharDia() {
+    principal.textContent = '';
+    var d = cal.ref;
+    var lista = listaNormalizada();
+    var info = eventosDoDia(d, lista);
+    var tarefas = tarefasDoDia(d);
+    var folha = h('div', 'nf-cal-folha');
+    folha.appendChild(h('div', 'nf-num', String(d.getDate())));
+    var txt = h('div', 'nf-txt');
+    txt.appendChild(h('h3', null, mesmoDia(d, new Date()) ? 'Seu dia, hora por hora' : DIAS_LONGOS[diaSemana(d)].replace(/^./, function (c) { return c.toUpperCase(); })));
+    var total = info.inteiros.length + info.horarios.length;
+    txt.appendChild(h('p', null,
+      (total ? total + (total === 1 ? ' evento' : ' eventos') : 'Nenhum evento') +
+      (tarefas.length ? ' · ' + tarefas.length + (tarefas.length === 1 ? ' tarefa com prazo' : ' tarefas com prazo') : '') +
+      '. Toque em um horário para escrever nele.' + (mesmoDia(d, new Date()) ? ' A linha vermelha mostra onde você está agora.' : '')));
+    folha.appendChild(txt);
+    principal.appendChild(folha);
+
+    var tabs = h('div', 'nf-cal-tabs');
+    tabs.appendChild(h('h4', null, mesmoDia(d, new Date()) ? 'Hoje' : 'Agenda do dia'));
+    var seg = h('div', 'nf-cal-seg');
+    [['linha', 'Linha do tempo'], ['lista', 'Lista']].forEach(function (v) {
+      var b = h('button', cal.visaoDia === v[0] ? 'nf-sel' : null, v[1]);
+      b.type = 'button';
+      b.addEventListener('click', function () { cal.visaoDia = v[0]; fecharInline(); desenharDia(); desenharLateral(); rolarParaAgora(); atualizarAgora(); });
+      seg.appendChild(b);
+    });
+    tabs.appendChild(seg);
+    principal.appendChild(tabs);
+
+    if (info.inteiros.length || tarefas.length) {
+      var dt = h('div', 'nf-cal-diatodo');
+      info.inteiros.forEach(function (n) { dt.appendChild(chipEvento(n)); });
+      tarefas.forEach(function (i) { dt.appendChild(chipTarefa(i)); });
+      principal.appendChild(dt);
+    }
+    if (cal.visaoDia === 'lista') {
+      principal.appendChild(listaDoDia(d, lista));
+      return;
+    }
+    var grade = h('div', 'nf-cal-grade');
+    grade.appendChild(gutter());
+    var cols = h('div', 'nf-cal-cols');
+    cols.appendChild(colunaDoDia(d, lista).el);
+    grade.appendChild(cols);
+    principal.appendChild(grade);
+  }
+
+  function listaDoDia(d, lista) {
+    var info = eventosDoDia(d, lista);
+    var tarefas = tarefasDoDia(d);
+    var box = h('div', 'nf-cal-lista');
+    var vazio = true;
+    info.inteiros.forEach(function (n) { box.appendChild(itemEvento(n, 'Dia todo')); vazio = false; });
+    info.horarios.forEach(function (x) { box.appendChild(itemEvento(x.n, hhmm(x.n.ini) + ' – ' + hhmm(x.n.fim))); vazio = false; });
+    tarefas.forEach(function (i) { box.appendChild(itemTarefa(i)); vazio = false; });
+    if (vazio) box.appendChild(h('div', 'nf-cal-vazio', 'Nada marcado para este dia. Escreva um evento no campo acima.'));
+    return box;
+  }
+  function itemEvento(n, hora) {
+    var b = h('button', 'nf-cal-item');
+    b.type = 'button';
+    b.style.setProperty('--c', COR[n.tipo]);
+    b.appendChild(h('span', 'nf-hora', hora));
+    var t = h('span', 'nf-t');
+    t.appendChild(h('b', null, n.ev.titulo));
+    var sub = [];
+    if (n.ev.local) sub.push(n.ev.local);
+    if (n.ev.convite) sub.push('convite de ' + String(n.ev.convite.organizador_nome || n.ev.convite.organizador_email || '').split(' ')[0]);
+    else if (n.ev.convidados && n.ev.convidados.length) sub.push(n.ev.convidados.length + ' convidado' + (n.ev.convidados.length > 1 ? 's' : ''));
+    if (sub.length) t.appendChild(h('small', null, sub.join(' · ')));
+    b.appendChild(t);
+    b.addEventListener('click', function () { abrirEvento(n); });
+    return b;
+  }
+  function itemTarefa(i) {
+    var feita = i.status === 'realizado';
+    var b = h('div', 'nf-cal-item nf-tarefa' + (feita ? ' nf-feita' : ''));
+    b.style.setProperty('--c', i.tipo === 'profissional' ? COR.profissional : COR.pessoal);
+    var ck = h('button', 'nf-ck');
+    ck.type = 'button';
+    ck.setAttribute('aria-label', feita ? 'Reabrir tarefa' : 'Marcar como realizada');
+    ck.innerHTML = ICO.check;
+    ck.addEventListener('click', function () {
+      if (typeof mover === 'function') mover(i.id, feita ? 'afazer' : 'realizado');
+      desenhar();
+    });
+    b.appendChild(h('span', 'nf-hora', 'Prazo'));
+    var t = h('span', 'nf-t');
+    t.appendChild(h('b', null, i.texto));
+    var p = i.projetoId && typeof acharProjeto === 'function' ? acharProjeto(i.projetoId) : null;
+    t.appendChild(h('small', null, (p ? p.nome + ' · ' : '') + 'Tarefa'));
+    b.appendChild(t);
+    b.appendChild(ck);
+    return b;
+  }
+
+  /* semana */
+  function desenharSemana() {
+    principal.textContent = '';
+    var ini = iniSemana(cal.ref);
+    var lista = listaNormalizada();
+    var cab = h('div', 'nf-cal-semana-cab');
+    var dt = h('div', 'nf-cal-semana-dt');
+    var cols = h('div', 'nf-cal-cols');
+    var haDiaTodo = false;
+    for (var k = 0; k < 7; k++) {
+      (function (dia) {
+        var c = h('div', mesmoDia(dia, new Date()) ? 'nf-hoje' : '');
+        c.appendChild(h('small', null, DIAS_CURTOS[diaSemana(dia)]));
+        c.appendChild(h('b', null, String(dia.getDate())));
+        c.addEventListener('click', function () { cal.ref = dia; cal.modo = 'dia'; desenhar(); });
+        cab.appendChild(c);
+        var info = eventosDoDia(dia, lista);
+        var tarefas = tarefasDoDia(dia);
+        var celula = h('div');
+        info.inteiros.forEach(function (n) { celula.appendChild(chipEvento(n)); haDiaTodo = true; });
+        tarefas.forEach(function (i) { celula.appendChild(chipTarefa(i)); haDiaTodo = true; });
+        dt.appendChild(celula);
+        cols.appendChild(colunaDoDia(dia, lista).el);
+      })(somaDias(ini, k));
+    }
+    principal.appendChild(cab);
+    if (haDiaTodo) principal.appendChild(dt);
+    var grade = h('div', 'nf-cal-grade');
+    grade.appendChild(gutter());
+    grade.appendChild(cols);
+    principal.appendChild(grade);
+  }
+
+  /* mês */
+  function desenharMes() {
+    principal.textContent = '';
+    var lista = listaNormalizada();
+    var indice = indiceDoPeriodo(lista);
+    var mes = cal.ref.getMonth();
+    var ini = iniSemana(iniMes(cal.ref));
+    var grade = h('div', 'nf-cal-mes');
+    DIAS_CURTOS.forEach(function (n) { grade.appendChild(h('div', 'nf-cabm', n)); });
+    for (var k = 0; k < 42; k++) {
+      (function (dia) {
+        var c = h('button', 'nf-cal-cel' + (dia.getMonth() !== mes ? ' nf-fora' : '') + (mesmoDia(dia, new Date()) ? ' nf-hoje' : ''));
+        c.type = 'button';
+        c.appendChild(h('span', 'nf-n', String(dia.getDate())));
+        var info = eventosDoDia(dia, lista);
+        var itens = [];
+        info.inteiros.forEach(function (n) { itens.push({ t: n.ev.titulo, c: COR[n.tipo] }); });
+        info.horarios.forEach(function (x) { itens.push({ t: hhmm(x.n.ini) + ' ' + x.n.ev.titulo, c: COR[x.n.tipo] }); });
+        tarefasDoDia(dia).forEach(function (i) { itens.push({ t: i.texto, c: i.tipo === 'profissional' ? COR.profissional : COR.pessoal }); });
+        itens.slice(0, 3).forEach(function (it) {
+          var ch = h('div', 'nf-ch');
+          ch.style.setProperty('--c', it.c);
+          ch.appendChild(document.createElement('i'));
+          ch.appendChild(h('span', null, it.t));
+          c.appendChild(ch);
+        });
+        if (itens.length > 3) c.appendChild(h('div', 'nf-mais', '+' + (itens.length - 3) + ' mais'));
+        c.addEventListener('click', function () { cal.ref = dia; cal.modo = 'dia'; desenhar(); });
+        grade.appendChild(c);
+      })(somaDias(ini, k));
+    }
+    principal.appendChild(grade);
+  }
+
+  /* linha do tempo dos projetos */
+  function desenharProjetos() {
+    principal.textContent = '';
+    var ini = iniSemana(cal.ref);
+    var DIAS = 28;
+    var fimJ = somaDias(ini, DIAS);
+    var hojeD = hoje();
+    var projetos = (dados.projetos || []).filter(function (p) { return cal.filtro === 'todos' || cal.filtro === p.tipo; });
+    var linhas = [];
+    projetos.forEach(function (p) {
+      var ts = (dados.itens || []).filter(function (i) {
+        return i.projetoId === p.id && typeof prazoEhData === 'function' && prazoEhData(i.prazo);
+      }).map(function (i) { return { i: i, d: parseYmd(i.prazo) }; }).filter(function (x) { return x.d; });
+      if (!ts.length) return;
+      linhas.push({ p: p, ts: ts });
+    });
+    var wrap = h('div', 'nf-gantt');
+    var g = h('div', 'nf-gantt-grade');
+    g.style.gridTemplateColumns = '190px repeat(' + DIAS + ', minmax(26px, 1fr))';
+    g.appendChild(h('div', 'nf-g-cab', 'Projeto'));
+    for (var k = 0; k < DIAS; k++) {
+      var dia = somaDias(ini, k);
+      var cb = h('div', 'nf-g-cab' + (mesmoDia(dia, hojeD) ? ' nf-hoje' : ''), dia.getDate() === 1 || k === 0 ? dia.getDate() + ' ' + MESES_CURTOS[dia.getMonth()] : String(dia.getDate()));
+      g.appendChild(cb);
+    }
+    if (!linhas.length) {
+      wrap.appendChild(g);
+      principal.appendChild(wrap);
+      principal.appendChild(h('div', 'nf-cal-vazio', 'Nenhum projeto com tarefas que tenham prazo. Defina o prazo nas tarefas para ver a linha do tempo.'));
+      return;
+    }
+    linhas.forEach(function (l) {
+      var cor = l.p.tipo === 'profissional' ? COR.profissional : COR.pessoal;
+      var feitas = (dados.itens || []).filter(function (i) { return i.projetoId === l.p.id && (i.status === 'realizado' || i.status === 'validado'); }).length;
+      var total = (dados.itens || []).filter(function (i) { return i.projetoId === l.p.id; }).length;
+      var nome = h('div', 'nf-g-nome');
+      nome.appendChild(h('span', null, l.p.nome));
+      nome.appendChild(h('small', null, feitas + ' de ' + total + ' concluídas'));
+      g.appendChild(nome);
+      var trilha = h('div', 'nf-g-trilha');
+      trilha.style.gridColumn = '2 / span ' + DIAS;
+      trilha.style.setProperty('--c', cor);
+      var menor = l.ts.reduce(function (a, x) { return x.d < a ? x.d : a; }, l.ts[0].d);
+      var maior = l.ts.reduce(function (a, x) { return x.d > a ? x.d : a; }, l.ts[0].d);
+      var de = Math.max(0, Math.round((menor - ini) / 86400000));
+      var ate = Math.min(DIAS - 1, Math.round((maior - ini) / 86400000));
+      if (ate >= 0 && de <= DIAS - 1 && ate > de) {
+        var barra = h('div', 'nf-g-barra', 'prazos ' + menor.getDate() + '/' + (menor.getMonth() + 1) + ' a ' + maior.getDate() + '/' + (maior.getMonth() + 1));
+        barra.style.left = 'calc(' + (de / DIAS * 100) + '% + 1px)';
+        barra.style.width = 'calc(' + ((ate - de + 1) / DIAS * 100) + '% - 2px)';
+        trilha.appendChild(barra);
+      }
+      l.ts.forEach(function (x) {
+        var pos = Math.round((x.d - ini) / 86400000);
+        if (pos < 0 || pos >= DIAS) return;
+        var pt = h('div', 'nf-g-ponto' + (x.i.status === 'realizado' || x.i.status === 'validado' ? ' nf-g-feito' : ''));
+        pt.style.left = 'calc(' + ((pos + .5) / DIAS * 100) + '% - 6px)';
+        pt.title = x.i.texto + ' (prazo ' + x.d.getDate() + '/' + (x.d.getMonth() + 1) + ')';
+        trilha.appendChild(pt);
+      });
+      var pos0 = Math.round((hojeD - ini) / 86400000);
+      if (pos0 >= 0 && pos0 < DIAS) {
+        var lh = h('div', 'nf-g-hoje');
+        lh.style.left = ((pos0 + .5) / DIAS * 100) + '%';
+        trilha.appendChild(lh);
+      }
+      g.appendChild(trilha);
+    });
+    wrap.appendChild(g);
+    principal.appendChild(wrap);
+  }
+
+  /* painel lateral: mini mês, agenda do dia e resumo da semana */
+  function desenharLateral() {
+    lateral.textContent = '';
+    var lista = listaNormalizada();
+    var indice = indiceDoPeriodo(lista);
+
+    var c1 = h('div', 'nf-cal-card');
+    var cab = h('div', 'nf-mini-cab');
+    var bA = h('button'); bA.type = 'button'; bA.setAttribute('aria-label', 'Mês anterior'); bA.innerHTML = ICO.esq;
+    var bP = h('button'); bP.type = 'button'; bP.setAttribute('aria-label', 'Próximo mês'); bP.innerHTML = ICO.dir;
+    bA.addEventListener('click', function () { cal.ref = new Date(cal.ref.getFullYear(), cal.ref.getMonth() - 1, 1); fecharInline(); desenhar(); carregar(); });
+    bP.addEventListener('click', function () { cal.ref = new Date(cal.ref.getFullYear(), cal.ref.getMonth() + 1, 1); fecharInline(); desenhar(); carregar(); });
+    cab.appendChild(bA);
+    cab.appendChild(h('b', null, maiuscula(MESES[cal.ref.getMonth()]) + ' de ' + cal.ref.getFullYear()));
+    cab.appendChild(bP);
+    c1.appendChild(cab);
+    var mini = h('div', 'nf-mini');
+    DIAS_CURTOS.forEach(function (n) { mini.appendChild(h('div', 'nf-s', n.charAt(0).toUpperCase())); });
+    var ini = iniSemana(iniMes(cal.ref));
+    for (var k = 0; k < 42; k++) {
+      (function (dia) {
+        var b = h('button', (dia.getMonth() !== cal.ref.getMonth() ? 'nf-fora ' : '') + (mesmoDia(dia, new Date()) ? 'nf-hoje ' : '') + (mesmoDia(dia, cal.ref) ? 'nf-sel' : ''), String(dia.getDate()));
+        b.type = 'button';
+        var reg = indice[ymd(dia)];
+        if (reg && (reg.ev || reg.tar)) b.appendChild(document.createElement('i'));
+        b.addEventListener('click', function () {
+          cal.ref = dia;
+          if (cal.modo === 'mes' || cal.modo === 'projetos') cal.modo = 'dia';
+          fecharInline();
+          desenhar();
+          rolarParaAgora();
+        });
+        mini.appendChild(b);
+      })(somaDias(ini, k));
+    }
+    c1.appendChild(mini);
+    lateral.appendChild(c1);
+
+    var c2 = h('div', 'nf-cal-card');
+    c2.appendChild(h('h4', null, mesmoDia(cal.ref, new Date()) ? 'Hoje' : DIAS_LONGOS[diaSemana(cal.ref)] + ', ' + cal.ref.getDate() + ' ' + MESES_CURTOS[cal.ref.getMonth()]));
+    c2.appendChild(listaDoDia(cal.ref, lista));
+    lateral.appendChild(c2);
+
+    var c3 = h('div', 'nf-cal-card');
+    c3.appendChild(h('h4', null, 'Esta semana'));
+    var semIni = iniSemana(cal.ref);
+    var sem = h('div', 'nf-sem');
+    var maxMin = 60;
+    var totalMin = 0;
+    var totalEv = 0;
+    for (var d = 0; d < 7; d++) {
+      var dia = somaDias(semIni, d);
+      var reg = indice[ymd(dia)] || { ev: 0, min: 0 };
+      maxMin = Math.max(maxMin, reg.min);
+      totalMin += reg.min;
+      totalEv += reg.ev;
+    }
+    for (var d2 = 0; d2 < 7; d2++) {
+      var dd = somaDias(semIni, d2);
+      var rg = indice[ymd(dd)] || { ev: 0, min: 0 };
+      var col = h('div');
+      var barra = h('div', 'nf-b' + (mesmoDia(dd, new Date()) ? ' nf-hoje' : ''));
+      barra.style.height = Math.max(3, Math.round(rg.min / maxMin * 52)) + 'px';
+      barra.title = (rg.min / 60).toFixed(1).replace('.', ',') + ' h agendadas';
+      col.appendChild(barra);
+      col.appendChild(h('small', null, DIAS_CURTOS[d2].charAt(0).toUpperCase()));
+      sem.appendChild(col);
+    }
+    c3.appendChild(sem);
+    c3.appendChild(h('p', 'nf-sem-resumo', (totalMin / 60).toFixed(1).replace('.', ',') + ' h agendadas · ' + totalEv + (totalEv === 1 ? ' evento' : ' eventos')));
+    lateral.appendChild(c3);
+  }
+
+  function desenhar() {
+    if (!cal.aberto) return;
+    /* só mantém a rolagem quando é a mesma tela (atualização); ao trocar de visão ou de dia, volta ao topo */
+    var chave = cal.modo + '|' + ymd(cal.ref) + '|' + cal.filtro + '|' + cal.visaoDia;
+    var mesma = cal.ultimaChave === chave;
+    cal.ultimaChave = chave;
+    var rolagemAntes = mesma ? principal.scrollTop : 0;
+    var corpoAntes = mesma ? corpo.scrollTop : 0;
+    desenharTopo();
+    if (cal.modo === 'dia') desenharDia();
+    else if (cal.modo === 'semana') desenharSemana();
+    else if (cal.modo === 'mes') desenharMes();
+    else desenharProjetos();
+    desenharLateral();
+    atualizarAgora();
+    atualizarDestaque();
+    principal.scrollTop = rolagemAntes;
+    corpo.scrollTop = corpoAntes;
+  }
+
+  function mostrarMsg(txt, erro) {
+    msgRapido.textContent = txt || '';
+    msgRapido.className = 'nf-cal-msg' + (erro ? ' nf-erro' : '');
+    clearTimeout(mostrarMsg.t);
+    if (txt) mostrarMsg.t = setTimeout(function () { msgRapido.textContent = ''; }, 5000);
+  }
+
+  /* ---------- ações do topo ---------- */
+  function passo(sentido) {
+    fecharInline();
+    if (cal.modo === 'dia') cal.ref = somaDias(cal.ref, sentido);
+    else if (cal.modo === 'semana') cal.ref = somaDias(cal.ref, 7 * sentido);
+    else if (cal.modo === 'mes') cal.ref = new Date(cal.ref.getFullYear(), cal.ref.getMonth() + sentido, 1);
+    else cal.ref = somaDias(cal.ref, 7 * sentido);
+    desenhar();
+    carregar();
+    if (cal.modo === 'dia' || cal.modo === 'semana') rolarParaAgora();
+  }
+  btnAnt.addEventListener('click', function () { passo(-1); });
+  btnProx.addEventListener('click', function () { passo(1); });
+  btnHoje.addEventListener('click', function () { cal.ref = hoje(); fecharInline(); desenhar(); carregar(); rolarParaAgora(); });
+  btnVoltar.addEventListener('click', fechar);
+  btnNovo.addEventListener('click', function () { abrirNovoEventoHome(cal.ref); });
+  rapido.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    var r = interpretarRapido(inRapido.value, cal.ref);
+    if (!r) { mostrarMsg('Escreva o título do evento.', true); return; }
+    btnRapido.disabled = true;
+    try {
+      await criarEvento(r.dia, r.minutos == null ? 0 : r.minutos, r.titulo, tipoPadrao(), r.minutos == null);
+      inRapido.value = '';
+      mostrarMsg('Evento "' + r.titulo + '" criado para ' + r.dia.getDate() + ' de ' + MESES[r.dia.getMonth()] +
+        (r.minutos == null ? ' (dia todo).' : ' às ' + horaLabel(r.minutos) + '.'), false);
+      cal.ref = r.dia;
+      desenhar();
+    } catch (er) {
+      mostrarMsg(er.message, true);
+    } finally {
+      btnRapido.disabled = false;
+    }
+  });
+
+  /* ---------- abrir e fechar ---------- */
+  function aoTeclar(e) {
+    if (!cal.aberto) return;
+    var modalAberto = document.querySelector('.modal:not(.oculto)');
+    if (modalAberto) return;
+    var emCampo = /^(INPUT|TEXTAREA|SELECT)$/.test((document.activeElement || {}).tagName || '');
+    if (e.key === 'Escape') {
+      if (cal.inline) { fecharInline(); return; }
+      fechar();
+      return;
+    }
+    if (emCampo) return;
+    if (e.key === 'ArrowLeft') { passo(-1); e.preventDefault(); }
+    else if (e.key === 'ArrowRight') { passo(1); e.preventDefault(); }
+    else if (e.key === 't' || e.key === 'T') { btnHoje.click(); }
+  }
+  function abrir(modo) {
+    if (typeof tokenAtual !== 'function' || !tokenAtual()) return;
+    if (modo) cal.modo = modo;
+    cal.aberto = true;
+    cal.ref = hoje();
+    var sobre = document.documentElement.style.getPropertyValue('--on-acento');
+    if (sobre) tela.style.setProperty('--on-acento', sobre.trim());
+    tela.classList.add('nf-aberto');
+    document.body.classList.add('nf-cal-aberto');
+    document.addEventListener('keydown', aoTeclar);
+    desenhar();
+    rolarParaAgora();
+    carregar();
+    clearInterval(cal.timerAgora);
+    cal.timerAgora = setInterval(atualizarAgora, 30000);
+    clearInterval(cal.timerRecarga);
+    cal.timerRecarga = setInterval(function () { if (document.visibilityState === 'visible') carregar(); }, 60000);
+  }
+  function fechar() {
+    cal.aberto = false;
+    fecharInline();
+    tela.classList.remove('nf-aberto');
+    document.body.classList.remove('nf-cal-aberto');
+    document.removeEventListener('keydown', aoTeclar);
+    clearInterval(cal.timerAgora);
+    clearInterval(cal.timerRecarga);
+    if (typeof carregarEventosHome === 'function') carregarEventosHome();
+  }
+  window.NowFindCalendario = { abrir: abrir, fechar: fechar };
+
+  /* mantém a tela em dia quando o app salva ou carrega eventos e tarefas */
+  var carregarEventosBase = carregarEventosHome;
+  carregarEventosHome = async function () {
+    await carregarEventosBase.apply(this, arguments);
+    atualizarDestaque();
+    if (cal.aberto && !cal.carregando) carregar();
+  };
+  var renderizarBase = renderizar;
+  renderizar = function () {
+    renderizarBase.apply(this, arguments);
+    if (cal.aberto) desenhar();
+  };
+
+  /* ---------- destaque na Home e atalho no menu ---------- */
+  var destaque = h('button', 'nf-cal-destaque');
+  destaque.type = 'button';
+  destaque.id = 'nfCalDestaque';
+  var dIc = h('span', 'nf-d-ic');
+  dIc.innerHTML = ICO.cal;
+  var dTx = h('span', 'nf-d-tx');
+  var dPeq = h('small', null, 'CALENDÁRIO');
+  var dTit = h('b', null, 'Abra sua agenda');
+  var dSub = h('span', 'nf-d-p', 'Dia, semana, mês e linha do tempo dos projetos');
+  dTx.appendChild(dPeq); dTx.appendChild(dTit); dTx.appendChild(dSub);
+  var dIr = h('span', 'nf-d-ir');
+  dIr.appendChild(h('span', null, 'Abrir'));
+  var dSeta = document.createElement('span');
+  dSeta.innerHTML = ICO.dir;
+  dIr.appendChild(dSeta.firstChild);
+  destaque.appendChild(dIc); destaque.appendChild(dTx); destaque.appendChild(dIr);
+  destaque.addEventListener('click', function () { abrir('dia'); });
+  var gradeAmb = document.querySelector('.home-ambientes');
+  if (gradeAmb && gradeAmb.parentNode) gradeAmb.parentNode.insertBefore(destaque, gradeAmb);
+
+  function atualizarDestaque() {
+    try {
+      var agora = new Date();
+      var lista = [];
+      (typeof homeEventos !== 'undefined' ? homeEventos : []).forEach(function (ev) {
+        var n = normalizar(ev);
+        if (n) lista.push(n);
+      });
+      var info = eventosDoDia(agora, lista);
+      var total = info.inteiros.length + info.horarios.length;
+      var tarefas = tarefasDoDia(agora).length;
+      dTit.textContent = DIAS_LONGOS[diaSemana(agora)].replace(/^./, function (c) { return c.toUpperCase(); }) + ', ' + agora.getDate() + ' de ' + MESES[agora.getMonth()] +
+        (total ? ' · ' + total + (total === 1 ? ' evento' : ' eventos') : ' · sem eventos');
+      var minAgora = agora.getHours() * 60 + agora.getMinutes();
+      var prox = info.horarios.filter(function (x) { return x.fim > minAgora; })[0];
+      dSub.textContent = prox
+        ? (prox.ini <= minAgora ? 'Agora: ' : 'Próximo: ' + horaLabel(prox.ini) + ' · ') + prox.n.ev.titulo + (tarefas ? ' · ' + tarefas + ' tarefa(s) com prazo hoje' : '')
+        : (tarefas ? tarefas + ' tarefa(s) com prazo hoje' : 'Dia, semana, mês e linha do tempo dos projetos');
+    } catch (e) {}
+  }
+  atualizarDestaque();
+  setInterval(atualizarDestaque, 60000);
+
+  /* atalho no menu lateral e na barra de baixo */
+  function botaoNoMenu() {
+    var nav = document.querySelector('nav');
+    if (!nav || document.getElementById('navCalendario')) return;
+    /* depois do "+" (que fica no centro da barra do celular); no computador o "+" some e a ordem é Hoje, Projetos, Calendário */
+    var ref = nav.querySelector('#btnMais') || nav.querySelector('button[data-view="projetos"]');
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.id = 'navCalendario';
+    b.className = 'nav-item nf-nav-cal';
+    var ico = h('span', 'nav-ico');
+    ico.innerHTML = ICO.cal;
+    var rot = h('span', 'nav-rot', 'Calendário');
+    b.appendChild(ico);
+    b.appendChild(rot);
+    b.setAttribute('data-tip', 'Calendário');
+    b.addEventListener('click', function () { abrir('dia'); });
+    if (ref && ref.nextSibling) nav.insertBefore(b, ref.nextSibling);
+    else nav.appendChild(b);
+  }
+  botaoNoMenu();
+  new MutationObserver(function () { botaoNoMenu(); }).observe(document.body, { childList: true, subtree: true });
+})();
+/* ===== AJUSTES 42 - FIM ===== */
 
 carregarSortable();
 restaurarSessao();
