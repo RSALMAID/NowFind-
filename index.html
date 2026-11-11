@@ -15976,6 +15976,306 @@ function escreverTexto(alvo, texto){
   };
 })();
 /* ===== AJUSTES 36 - FIM ===== */
+    /* ===== AJUSTES 37 - MENU ESTREITO, RENOMEAR ESPAÇO E CONVITE COM ACEITE ===== */
+(function () {
+  if (document.getElementById('nfEstiloLote2')) return;
+
+  var s = document.createElement('style');
+  s.id = 'nfEstiloLote2';
+  s.textContent = [
+    'nav button[data-view="revisao"],nav button[data-view="ia"]{display:none !important}',
+    '@media (min-width:900px){',
+    '  .app{padding-left:84px !important}',
+    '  body[class] nav{width:84px;padding:16px 0;align-items:center;gap:6px;overflow:visible;',
+    '    border-radius:0 26px 26px 0;box-shadow:10px 0 36px rgba(0,0,0,.22)}',
+    '  nav .lateral-logo{order:-5;margin:0 0 8px;justify-content:center}',
+    '  nav .lateral-logo > div:last-child{display:none}',
+    '  nav .lateral-logo .logo{width:44px;height:44px;border-radius:14px}',
+    '  body[class] nav button.nav-item{width:56px;height:56px;padding:0;justify-content:center;gap:0;border-radius:18px;position:relative}',
+    '  nav .nav-rot{display:none !important}',
+    '  nav .nav-ico{width:46px;height:46px;border-radius:15px;background:transparent}',
+    '  nav .nav-ico svg{width:23px;height:23px}',
+    '  body[class] nav button.nav-item.ativo{box-shadow:0 8px 22px rgba(0,0,0,.28)}',
+    '  nav .lateral-projetos{display:none !important}',
+    '  nav #btnVoltarHome{order:-4;width:56px;height:56px;padding:0;margin:0 0 6px;justify-content:center;border-radius:18px;position:relative}',
+    '  nav #btnVoltarHome .voltar-rot{display:none !important}',
+    '  body[class] nav #btnVoltarHome{background:transparent !important;box-shadow:none !important}',
+    '  nav #btnVoltarHome .voltar-ico{margin:0;width:46px;height:46px}',
+    '  nav #btnVoltarHome:hover{background:rgba(255,255,255,.14) !important}',
+    '  body[class] nav .btn-semproj.semproj-lat:not(.semproj-oculto){display:flex !important;order:1;width:56px;height:56px;padding:0;margin:0;',
+    '    justify-content:center;align-items:center;position:relative;border-radius:18px;font-size:22px}',
+    '  nav .semproj-lat .nf-rot{display:none}',
+    '  nav .semproj-lat .sp-n{position:absolute;top:3px;right:3px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;font-size:10px;line-height:18px}',
+    '  nav .amb-lateral{order:5;width:56px;margin:8px 0 0 !important;padding:4px;gap:4px;border-radius:18px}',
+    '  body[class] nav .amb-lateral button{width:100%;height:42px;padding:0;justify-content:center;font-size:19px;border-radius:14px;position:relative}',
+    '  nav .amb-lateral .nf-rot,nav .lateral-rodape .nf-rot,nav #nomeLateral{display:none}',
+    '  nav .lateral-rodape{order:9;margin-top:auto;border-top:none;padding-top:0;display:flex;flex-direction:column;align-items:center;gap:6px}',
+    '  nav .lateral-rodape .lateral-link{width:48px;height:48px;padding:0;display:flex;align-items:center;justify-content:center;border-radius:16px;font-size:20px;position:relative}',
+    '  nav .lateral-rodape .lateral-link:hover{background:rgba(255,255,255,.16)}',
+    '  nav .lateral-avatar{width:34px;height:34px;font-size:14px}',
+    '  nav [data-tip]{position:relative}',
+    '  nav [data-tip]::after{content:attr(data-tip);position:absolute;left:calc(100% + 14px);top:50%;transform:translateY(-50%) translateX(-4px);',
+    '    padding:7px 12px;border-radius:11px;background:#14172B;color:#fff;font-size:12px;font-weight:600;line-height:1;white-space:nowrap;',
+    '    opacity:0;pointer-events:none;transition:opacity .15s,transform .15s;z-index:200;box-shadow:0 6px 18px rgba(0,0,0,.3)}',
+    '  nav [data-tip]:hover::after,nav [data-tip]:focus-visible::after{opacity:1;transform:translateY(-50%)}',
+    '}',
+    '.nf-convites{margin:0 0 18px}',
+    '.nf-convite{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:14px 16px;margin-bottom:10px;border-radius:16px;',
+    '  border:1px solid var(--borda,#E6E9F2);background:var(--card,#fff);color:var(--tx,#14172B);box-shadow:0 6px 18px rgba(0,0,0,.08)}',
+    '.nf-convite-txt{flex:1;min-width:200px;font-size:14px;line-height:1.4}',
+    '.nf-convite-txt small{display:block;opacity:.65;font-size:11px;font-weight:700;letter-spacing:.5px;margin-bottom:2px}',
+    '.nf-convite-acoes{display:flex;gap:8px}',
+    '.nf-convite-bolha{margin-left:auto;padding:2px 8px;border-radius:10px;background:#2F5BFF;color:#fff;font-size:11px;font-weight:700;white-space:nowrap}',
+    '.nf-pendente{opacity:.9}'
+  ].join('\n');
+  document.head.appendChild(s);
+
+  function dividir(btn) {
+    if (btn.querySelector('.nf-rot')) return;
+    var t = btn.textContent.trim();
+    var m = t.match(/^(\S+)\s+(.+)$/);
+    if (!m) return;
+    btn.innerHTML = '';
+    var e = document.createElement('span');
+    e.className = 'nf-emo';
+    e.textContent = m[1];
+    var r = document.createElement('span');
+    r.className = 'nf-rot';
+    r.textContent = m[2];
+    btn.appendChild(e);
+    btn.appendChild(r);
+  }
+  function prepararMenu() {
+    var nav = document.querySelector('nav');
+    if (!nav) return;
+    nav.querySelectorAll('.amb-lateral button').forEach(function (b) {
+      dividir(b);
+      var r = b.querySelector('.nf-rot');
+      if (r) b.setAttribute('data-tip', r.textContent);
+    });
+    var cfg = document.getElementById('btnConfigLateral');
+    if (cfg) { dividir(cfg); cfg.setAttribute('data-tip', 'Configurações'); }
+    var volta = document.getElementById('btnVoltarHome');
+    if (volta) volta.setAttribute('data-tip', 'Voltar ao Início');
+    var sp = nav.querySelector('.btn-semproj.semproj-lat');
+    if (sp) {
+      var spRot = sp.querySelector('.sp-rot');
+      if (spRot && !spRot.querySelector('.nf-rot')) {
+        var m = spRot.textContent.trim().match(/^(\S+)\s+(.+)$/);
+        if (m) {
+          spRot.innerHTML = '';
+          var e1 = document.createElement('span'); e1.className = 'nf-emo'; e1.textContent = m[1];
+          var r1 = document.createElement('span'); r1.className = 'nf-rot'; r1.textContent = m[2];
+          spRot.appendChild(e1); spRot.appendChild(r1);
+        }
+      }
+      sp.setAttribute('data-tip', 'Tarefas sem projeto');
+    }
+    var perfil = document.getElementById('btnPerfilLateral');
+    if (perfil) perfil.setAttribute('data-tip', 'Perfil e conta');
+    nav.querySelectorAll('button.nav-item').forEach(function (b) {
+      var r = b.querySelector('.nav-rot');
+      if (r && r.textContent.trim()) b.setAttribute('data-tip', r.textContent.trim());
+    });
+  }
+  prepararMenu();
+  var navEl = document.querySelector('nav');
+  if (navEl) new MutationObserver(function () {
+    if (prepararMenu.ocupado) return;
+    prepararMenu.ocupado = true;
+    setTimeout(function () { prepararMenu(); prepararMenu.ocupado = false; }, 60);
+  }).observe(navEl, { childList: true, subtree: true });
+
+  /* renomear espaço */
+  function renomearEspaco() {
+    var esp = espacoSelecionado();
+    if (!esp) return;
+    pedirNome('RENOMEAR ESPAÇO', 'Novo nome do espaço', 'Nome do espaço', 'Salvar nome', async function (nome) {
+      nome = String(nome || '').trim();
+      if (!nome || nome === esp.nome) return;
+      try {
+        var r = await apiBruta('/renomear', 'POST', { espaco_id: esp.id, nome: nome });
+        if (!r.j.ok) throw new Error(r.j.erro || 'Não foi possível renomear.');
+        esp.nome = nome;
+        renderEsp();
+        toast('Nome atualizado.', false);
+      } catch (e) { msgEspaco(e.message, true); }
+    });
+    $('inNomeEsp').value = esp.nome;
+    setTimeout(function () { $('inNomeEsp').select(); }, 170);
+  }
+  var menuEspacosBase = menuEspacos;
+  menuEspacos = function () {
+    var itens = menuEspacosBase();
+    if (souDono() && espacoSelecionado() && !ehAvulso()) {
+      var item = { rot: '✏️ Renomear este espaço', aoClicar: renomearEspaco };
+      var pos = -1;
+      itens.forEach(function (i, n) { if (i.perigo && pos < 0) pos = n; });
+      if (pos >= 0) itens.splice(pos, 0, item); else itens.push(item);
+    }
+    return itens;
+  };
+
+  /* convite com aceite */
+  var espPendentes = [];
+  var convitesRecebidos = [];
+  var convitesVistos = null;
+
+  carregarMembros = async function () {
+    var esp = espacoSelecionado();
+    if (!esp) return;
+    try {
+      var r = await apiBruta('/membros?id=' + encodeURIComponent(esp.id));
+      if (!r.j.ok) throw new Error(r.j.erro || 'Não foi possível carregar as pessoas.');
+      espMembros = r.j.membros || [];
+      espPendentes = r.j.pendentes || [];
+      renderEsp();
+    } catch (e) { msgEspaco(e.message, true); }
+  };
+
+  async function enviarConviteComAceite(ev) {
+    ev.stopImmediatePropagation();
+    var esp = espacoSelecionado();
+    var email = $('inConvite').value.trim().toLowerCase();
+    if (!esp || !email) { msgEspaco('Digite o e-mail da pessoa.', true); return; }
+    try {
+      var r = await apiBruta('/convidar', 'POST', { espaco_id: esp.id, email: email });
+      if (!r.j.ok) throw new Error(r.j.erro || 'Não foi possível convidar.');
+      esconder('modalConvite');
+      await carregarMembros();
+      renderPessoas();
+      msgEspaco(
+        r.j.repetido
+          ? 'Esse convite já estava aguardando resposta.'
+          : 'Convite enviado para ' + email + '. A pessoa precisa aceitar para entrar.',
+        false
+      );
+    } catch (e) { msgEspaco(e.message, true); }
+  }
+  $('btnEnviarConvite').addEventListener('click', enviarConviteComAceite, true);
+  $('inConvite').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); $('btnEnviarConvite').click(); }
+  });
+  var dicas = document.querySelectorAll('#modalConvite .folha .dica');
+  if (dicas.length) {
+    dicas[dicas.length - 1].textContent =
+      'A pessoa recebe o convite ao entrar no NowFind e só participa depois de aceitar. ' +
+      'Se ela ainda não tiver conta, o convite espera por ela.';
+  }
+
+  var renderPessoasBase = renderPessoas;
+  renderPessoas = function () {
+    renderPessoasBase();
+    var esp = espacoSelecionado();
+    var box = $('listaPessoas');
+    if (!esp || !box || !souDono() || !espPendentes.length) return;
+    var cab = el('div', 'sec-pessoas');
+    cab.appendChild(document.createTextNode('Aguardando aceite '));
+    cab.appendChild(el('small', null, '(ainda não participam)'));
+    box.appendChild(cab);
+    espPendentes.forEach(function (p) {
+      var linha = el('div', 'arq nf-pendente');
+      var info = el('div', 'arq-info');
+      info.appendChild(el('b', null, p.email));
+      info.appendChild(el('small', null, 'Convite enviado, aguardando resposta'));
+      linha.appendChild(info);
+      linha.appendChild(botao('Cancelar', 'b-cinza', async function () {
+        try {
+          var r = await apiBruta('/convites/cancelar', 'POST', { espaco_id: esp.id, id: p.id });
+          if (!r.j.ok) throw new Error(r.j.erro || 'Não foi possível cancelar.');
+          await carregarMembros();
+          renderPessoas();
+        } catch (e) { msgEspaco(e.message, true); }
+      }));
+      box.appendChild(linha);
+    });
+  };
+
+  var hub = $('espHub');
+  var caixaConvites = document.createElement('div');
+  caixaConvites.id = 'nfConvites';
+  caixaConvites.className = 'nf-convites oculto';
+  hub.insertBefore(caixaConvites, hub.firstChild);
+
+  function desenharConvites() {
+    caixaConvites.innerHTML = '';
+    caixaConvites.classList.toggle('oculto', !convitesRecebidos.length);
+    convitesRecebidos.forEach(function (c) {
+      var linha = el('div', 'nf-convite');
+      var txt = el('div', 'nf-convite-txt');
+      txt.appendChild(el('small', null, 'CONVITE'));
+      var tipo = c.espaco_tipo === 'projeto' ? 'o projeto' : 'o espaço';
+      var quem = c.de_nome ? String(c.de_nome).trim().split(' ')[0] : 'Alguém';
+      txt.appendChild(document.createTextNode(quem + ' convidou você para ' + tipo + ' '));
+      txt.appendChild(el('b', null, c.espaco_nome));
+      var acoes = el('div', 'nf-convite-acoes');
+      acoes.appendChild(botao('Aceitar', 'btn-prim', function () { responderConvite(c, true); }));
+      acoes.appendChild(botao('Recusar', 'chip-filtro', function () { responderConvite(c, false); }));
+      linha.appendChild(txt);
+      linha.appendChild(acoes);
+      caixaConvites.appendChild(linha);
+    });
+  }
+
+  async function responderConvite(c, aceitar) {
+    try {
+      var r = await apiBruta(aceitar ? '/convites/aceitar' : '/convites/recusar', 'POST', { id: c.id });
+      if (!r.j.ok) throw new Error(r.j.erro || 'Não foi possível responder ao convite.');
+      toast(aceitar ? 'Você entrou em "' + c.espaco_nome + '".' : 'Convite recusado.', false);
+    } catch (e) { toast(e.message, true); }
+    await carregarConvites();
+    if (aceitar) await carregarEspacos();
+  }
+
+  function marcarConvitesNaHome() {
+    var cartao = document.querySelector('[data-home-ambiente="compartilhado"]');
+    if (!cartao) return;
+    var b = cartao.querySelector('.nf-convite-bolha');
+    var n = convitesRecebidos.length;
+    if (n > 0) {
+      if (!b) {
+        b = document.createElement('span');
+        b.className = 'nf-convite-bolha';
+        cartao.insertBefore(b, cartao.querySelector('.home-amb-seta'));
+      }
+      b.textContent = '✉ ' + n;
+      b.title = n + ' convite(s) aguardando resposta';
+    } else if (b) {
+      b.parentNode.removeChild(b);
+    }
+  }
+
+  async function carregarConvites() {
+    if (typeof tokenAtual !== 'function' || !tokenAtual() || typeof usuario === 'undefined' || !usuario) return;
+    try {
+      var r = await apiBruta('/convites');
+      if (!r.j.ok) return;
+      var lista = r.j.convites || [];
+      var antes = convitesRecebidos.length;
+      convitesRecebidos = lista;
+      desenharConvites();
+      marcarConvitesNaHome();
+      if (convitesVistos !== null && lista.length > antes && typeof toast === 'function') {
+        toast('✉ Você recebeu um convite para "' + lista[0].espaco_nome + '".', false);
+      }
+      convitesVistos = lista.length;
+    } catch (e) {}
+  }
+
+  var carregarEspacosBase = carregarEspacos;
+  carregarEspacos = async function () {
+    await carregarEspacosBase();
+    carregarConvites();
+  };
+  setInterval(function () {
+    if (document.visibilityState === 'visible') carregarConvites();
+  }, 30000);
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'visible') carregarConvites();
+  });
+  setTimeout(carregarConvites, 2500);
+})();
+/* ===== AJUSTES 37 - FIM ===== */
 carregarSortable();
 restaurarSessao();
 
