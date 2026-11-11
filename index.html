@@ -16276,6 +16276,333 @@ function escreverTexto(alvo, texto){
   setTimeout(carregarConvites, 2500);
 })();
 /* ===== AJUSTES 37 - FIM ===== */
+    /* ===== AJUSTES 38 - CONVIDADOS NA AGENDA ===== */
+(function () {
+  var localEl = document.getElementById('eventoHomeLocal');
+  if (!localEl || document.getElementById('nfConvCampo')) return;
+
+  var estilo = document.createElement('style');
+  estilo.textContent = [
+    '.nf-conv-linha{display:flex;gap:8px;align-items:center}',
+    '.nf-conv-linha input{flex:1;min-width:0}',
+    '.nf-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}',
+    '.nf-chip{display:inline-flex;align-items:center;gap:6px;padding:5px 6px 5px 11px;border-radius:999px;border:1px solid var(--borda,#DDDDE8);',
+    '  background:rgba(127,127,127,.12);font-size:12px;max-width:100%}',
+    '.nf-chip-email{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+    '.nf-chip small{color:inherit !important;opacity:.75;white-space:nowrap;font-size:11px}',
+    '.nf-chips + .dica{margin-top:10px}',
+    '.nf-chip button{border:none;background:transparent;color:inherit;cursor:pointer;font-size:15px;line-height:1;padding:0 4px}',
+    '.nf-chip-aceito{border-color:#22B573}',
+    '.nf-chip-recusado{border-color:#E5202E;opacity:.85}',
+    '.nf-conv-barra{margin:12px 0;padding:12px 14px;border-radius:14px;border:1px solid var(--borda,#DDDDE8);background:rgba(127,127,127,.1);font-size:14px;line-height:1.45}',
+    '.nf-conv-barra .nf-conv-acoes{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}',
+    '.nf-conv-eventos{margin:0 0 16px}',
+    '.nf-conv-evento{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:13px 16px;margin-bottom:10px;border-radius:16px;',
+    '  border:1px solid var(--borda,#E6E9F2);background:var(--card,#fff);color:var(--tx,#14172B);box-shadow:0 6px 18px rgba(0,0,0,.08)}',
+    '.nf-conv-evento-txt{flex:1;min-width:210px;font-size:14px;line-height:1.4}',
+    '.nf-conv-evento-txt small{display:block;color:inherit !important;opacity:.65;font-size:11px;font-weight:700;letter-spacing:.5px;margin-bottom:2px}',
+    '.nf-conv-evento-txt span{display:block;opacity:.75;font-size:12px;margin-top:2px}',
+    '.nf-conv-evento-acoes{display:flex;gap:8px}'
+  ].join('\n');
+  document.head.appendChild(estilo);
+
+  var EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+  var convEv = [];
+
+  function primeiroNome(t) {
+    return String(t || '').trim().split(/[\s@]/)[0] || 'Alguém';
+  }
+
+  var campo = document.createElement('div');
+  campo.id = 'nfConvCampo';
+  var rotulo = el('label', null, 'Convidados (e-mails)');
+  rotulo.setAttribute('for', 'nfConvInput');
+  var linha = el('div', 'nf-conv-linha');
+  var entrada = document.createElement('input');
+  entrada.id = 'nfConvInput';
+  entrada.type = 'text';
+  entrada.setAttribute('autocapitalize', 'off');
+  entrada.setAttribute('autocomplete', 'off');
+  entrada.placeholder = 'pessoa@email.com e Enter para adicionar';
+  var botaoAdd = el('button', 'mini-btn', 'Adicionar');
+  botaoAdd.type = 'button';
+  linha.appendChild(entrada);
+  linha.appendChild(botaoAdd);
+  var chips = el('div', 'nf-chips');
+  chips.id = 'nfConvChips';
+  var dica = el('p', 'dica', 'Quem for convidado vê o convite dentro do NowFind e precisa aceitar. O app não envia e-mail, então avise a pessoa.');
+  campo.appendChild(rotulo);
+  campo.appendChild(linha);
+  campo.appendChild(chips);
+  campo.appendChild(dica);
+  localEl.parentNode.insertBefore(campo, localEl.nextSibling);
+
+  var barra = el('div', 'nf-conv-barra oculto');
+  barra.id = 'nfConvBarra';
+  campo.parentNode.insertBefore(barra, campo);
+
+  function rotuloStatus(s) {
+    if (s === 'aceito') return 'aceitou ✓';
+    if (s === 'recusado') return 'recusou ✗';
+    if (s === 'pendente') return 'aguardando';
+    return 'novo';
+  }
+  function desenhar() {
+    chips.textContent = '';
+    convEv.forEach(function (c) {
+      var chip = el('span', 'nf-chip nf-chip-' + (c.status || 'novo'));
+      chip.appendChild(el('span', 'nf-chip-email', c.email));
+      chip.appendChild(el('small', null, rotuloStatus(c.status)));
+      var x = el('button', null, '×');
+      x.type = 'button';
+      x.setAttribute('aria-label', 'Remover ' + c.email);
+      x.addEventListener('click', function () {
+        convEv = convEv.filter(function (o) { return o.email !== c.email; });
+        desenhar();
+      });
+      chip.appendChild(x);
+      chips.appendChild(chip);
+    });
+  }
+  function adicionar(texto) {
+    var partes = String(texto || '').split(/[\s,;]+/).filter(Boolean);
+    var invalidos = [];
+    partes.forEach(function (p) {
+      var em = p.toLowerCase();
+      if (!EMAIL.test(em)) { invalidos.push(p); return; }
+      if (convEv.some(function (c) { return c.email === em; })) return;
+      if (convEv.length >= 30) return;
+      convEv.push({ email: em, status: 'novo' });
+    });
+    desenhar();
+    if (invalidos.length && typeof homeMostrarAvisoEvento === 'function') {
+      homeMostrarAvisoEvento('E-mail inválido: ' + invalidos.join(', '), true);
+    }
+    return invalidos.length === 0;
+  }
+  botaoAdd.addEventListener('click', function () {
+    if (adicionar(entrada.value)) entrada.value = '';
+    entrada.focus();
+  });
+  entrada.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      e.stopPropagation();
+      if (adicionar(entrada.value)) entrada.value = '';
+    }
+  });
+
+  function entrarModoConvidado(ev) {
+    var folha = document.querySelector('#modalEventoHome .folha');
+    folha.querySelectorAll('input, textarea, select, button.evento-tipo').forEach(function (x) {
+      if (x.type === 'hidden' || x.disabled) return;
+      x.disabled = true;
+      x.setAttribute('data-nf-dis', '1');
+    });
+    ['btnSalvarEventoHome', 'btnExcluirEventoHome'].forEach(function (id) {
+      var b = document.getElementById(id);
+      if (b) b.classList.add('oculto');
+    });
+    campo.classList.add('oculto');
+    var org = ev.convite.organizador_nome || ev.convite.organizador_email;
+    document.getElementById('eventoHomeTituloJanela').textContent = 'Convite de evento';
+    barra.textContent = '';
+    barra.appendChild(document.createTextNode(primeiroNome(org) + ' convidou você para este evento.'));
+    barra.appendChild(el('br'));
+    barra.appendChild(el('small', null, 'Organizador: ' + (ev.convite.organizador_email || org) + '. Só o organizador pode editar.'));
+    var acoes = el('div', 'nf-conv-acoes');
+    acoes.appendChild(botao('Recusar convite', 'chip-filtro', function () { responderEvento(ev.id, 'recusado'); }));
+    barra.appendChild(acoes);
+    barra.classList.remove('oculto');
+  }
+  function sairModoConvidado() {
+    document.querySelectorAll('#modalEventoHome [data-nf-dis]').forEach(function (x) {
+      x.disabled = false;
+      x.removeAttribute('data-nf-dis');
+    });
+    var salvar = document.getElementById('btnSalvarEventoHome');
+    if (salvar) salvar.classList.remove('oculto');
+    campo.classList.remove('oculto');
+    barra.classList.add('oculto');
+  }
+
+  var abrirNovoBase = abrirNovoEventoHome;
+  abrirNovoEventoHome = function () {
+    abrirNovoBase.apply(this, arguments);
+    sairModoConvidado();
+    convEv = [];
+    entrada.value = '';
+    desenhar();
+  };
+  var abrirEditarBase = abrirEditarEventoHome;
+  abrirEditarEventoHome = function (id) {
+    abrirEditarBase.apply(this, arguments);
+    var ev = eventoHomePorId(id);
+    if (!ev) return;
+    if (ev.convite) { entrarModoConvidado(ev); return; }
+    sairModoConvidado();
+    convEv = (ev.convidados || []).map(function (c) { return { email: c.email, status: c.status }; });
+    entrada.value = '';
+    desenhar();
+  };
+
+  async function responderEvento(eventoId, status) {
+    try {
+      var r = await apiEventosHome('/convites/responder', 'POST', { evento_id: eventoId, status: status });
+      if (!r.dados.ok) throw new Error(r.dados.erro || 'Não foi possível responder.');
+      if (typeof fecharEventoHome === 'function') fecharEventoHome();
+      if (typeof toast === 'function') toast(status === 'aceito' ? 'Convite aceito.' : 'Convite recusado.', false);
+    } catch (e) {
+      if (typeof toast === 'function') toast(e.message, true);
+    }
+    await carregarEventosHome();
+    await carregarConvitesEvento();
+  }
+
+  async function anexarConvidados() {
+    try {
+      var espera = 0;
+      while (homeEventosCarregando && espera < 30) {
+        await new Promise(function (r) { setTimeout(r, 100); });
+        espera++;
+      }
+      var primeiroDia = homeInicioMes(homeMesExibido);
+      var ini = homeInicioSemanaSegunda(primeiroDia);
+      var ultimo = new Date(homeMesExibido.getFullYear(), homeMesExibido.getMonth() + 1, 0);
+      var fimD = homeFimSemanaDomingo(ultimo);
+      fimD.setDate(fimD.getDate() + 1);
+      fimD.setHours(0, 0, 0, 0);
+      var caminho = '/convidados?inicio=' + encodeURIComponent(ini.toISOString()) +
+        '&fim=' + encodeURIComponent(fimD.toISOString()) +
+        (homeFiltroCalendario && homeFiltroCalendario !== 'todos' ? '&tipo=' + encodeURIComponent(homeFiltroCalendario) : '');
+      var r = await apiEventosHome(caminho, 'GET');
+      if (!r.dados.ok) return;
+      homeEventos.forEach(function (ev) {
+        var l = r.dados.doMeu && r.dados.doMeu[ev.id];
+        if (l) ev.convidados = l;
+      });
+      (r.dados.recebidos || []).forEach(function (ev) {
+        if (!eventoHomePorId(ev.id)) homeEventos.push(ev);
+      });
+      renderizarCalendarioHome();
+      renderizarAgendaHome();
+    } catch (e) {}
+  }
+  var carregarEventosBase = carregarEventosHome;
+  carregarEventosHome = async function () {
+    await carregarEventosBase();
+    await anexarConvidados();
+  };
+
+  var criarItemBase = criarItemAgendaHome;
+  criarItemAgendaHome = function (evento) {
+    var item = criarItemBase(evento);
+    var pequeno = item.querySelector('.agenda-evento-info small');
+    if (pequeno) {
+      if (evento.convite) {
+        pequeno.textContent += ' · convite de ' + primeiroNome(evento.convite.organizador_nome || evento.convite.organizador_email);
+      } else if (evento.convidados && evento.convidados.length) {
+        var n = evento.convidados.length;
+        pequeno.textContent += ' · ' + n + ' convidado' + (n > 1 ? 's' : '');
+      }
+    }
+    return item;
+  };
+
+  var fetchAntes = window.fetch.bind(window);
+  window.fetch = async function (entradaFetch, opcoes) {
+    var caminho = '';
+    try {
+      var t = typeof entradaFetch === 'string' ? entradaFetch : ((entradaFetch && entradaFetch.url) || '');
+      caminho = new URL(t, location.href).pathname;
+    } catch (e) {}
+    var ehSalvar = /\/api\/conta\/eventos\/salvar$/.test(caminho) && opcoes && opcoes.method === 'POST';
+    var corpo = null;
+    if (ehSalvar) {
+      try { corpo = JSON.parse(opcoes.body); } catch (e) { corpo = null; }
+      if (corpo && entrada.value.trim()) {
+        if (adicionar(entrada.value)) entrada.value = '';
+      }
+    }
+    var antes = corpo && corpo.id ? eventoHomePorId(corpo.id) : null;
+    var resp = await fetchAntes(entradaFetch, opcoes);
+    if (ehSalvar && corpo && resp.ok) {
+      try {
+        var j = await resp.clone().json();
+        if (j && j.ok && j.evento) {
+          var emails = convEv.map(function (c) { return c.email; });
+          var tinha = !!(antes && antes.convidados && antes.convidados.length);
+          if (emails.length || tinha) {
+            var mudouHorario = !!(antes && (
+              new Date(antes.inicio).getTime() !== new Date(corpo.inicio).getTime() ||
+              new Date(antes.fim).getTime() !== new Date(corpo.fim).getTime()
+            ));
+            await apiEventosHome('/convidados', 'POST', {
+              evento_id: j.evento.id,
+              emails: emails,
+              reenviar: mudouHorario
+            });
+          }
+        }
+      } catch (e) {}
+    }
+    return resp;
+  };
+
+  var principal = document.querySelector('.home-grade-principal');
+  var banner = el('div', 'nf-conv-eventos oculto');
+  banner.id = 'nfConvitesEvento';
+  if (principal && principal.parentNode) principal.parentNode.insertBefore(banner, principal);
+  var convitesEvento = [];
+  var vistos = null;
+
+  function desenharBanner() {
+    banner.textContent = '';
+    banner.classList.toggle('oculto', !convitesEvento.length);
+    convitesEvento.forEach(function (c) {
+      var linhaC = el('div', 'nf-conv-evento');
+      var txt = el('div', 'nf-conv-evento-txt');
+      txt.appendChild(el('small', null, 'CONVITE PARA EVENTO'));
+      txt.appendChild(document.createTextNode(primeiroNome(c.organizador_nome || c.organizador_email) + ' convidou você para '));
+      txt.appendChild(el('b', null, c.titulo));
+      var quando = '';
+      try {
+        quando = homeFormatarDataCompleta(new Date(c.inicio)) +
+          (Number(c.dia_inteiro) ? ' · dia todo' : ' · ' + homeFormatarHora(c.inicio));
+      } catch (e) {}
+      if (c.local) quando += ' · ' + c.local;
+      if (quando) txt.appendChild(el('span', null, quando));
+      var acoes = el('div', 'nf-conv-evento-acoes');
+      acoes.appendChild(botao('Aceitar', 'btn-prim', function () { responderEvento(c.evento_id, 'aceito'); }));
+      acoes.appendChild(botao('Recusar', 'chip-filtro', function () { responderEvento(c.evento_id, 'recusado'); }));
+      linhaC.appendChild(txt);
+      linhaC.appendChild(acoes);
+      banner.appendChild(linhaC);
+    });
+  }
+  async function carregarConvitesEvento() {
+    if (typeof tokenAtual !== 'function' || !tokenAtual() || typeof usuario === 'undefined' || !usuario) return;
+    try {
+      var r = await apiEventosHome('/convites', 'GET');
+      if (!r.dados.ok) return;
+      var antes = convitesEvento.length;
+      convitesEvento = r.dados.convites || [];
+      desenharBanner();
+      if (vistos !== null && convitesEvento.length > antes && typeof toast === 'function') {
+        toast('✉ Novo convite para o evento "' + convitesEvento[0].titulo + '".', false);
+      }
+      vistos = convitesEvento.length;
+    } catch (e) {}
+  }
+  setInterval(function () {
+    if (document.visibilityState === 'visible') carregarConvitesEvento();
+  }, 30000);
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'visible') carregarConvitesEvento();
+  });
+  setTimeout(carregarConvitesEvento, 2500);
+})();
+/* ===== AJUSTES 38 - FIM ===== */
 carregarSortable();
 restaurarSessao();
 
