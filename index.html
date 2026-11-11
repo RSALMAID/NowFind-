@@ -15915,6 +15915,67 @@ function escreverTexto(alvo, texto){
   document.head.appendChild(s);
 })();
 /* ===== AJUSTES 35 - FIM ===== */
+    /* ===== AJUSTES 36 - EXCLUIR PROJETO PELO CARTÃO (LIXEIRA) ===== */
+(function () {
+  if (document.getElementById('nfEstiloLixeira')) return;
+  var s = document.createElement('style');
+  s.id = 'nfEstiloLixeira';
+  s.textContent =
+    '.nf-lixeira{margin-left:auto;flex:none;padding:3px 8px;border-radius:10px;font-size:15px;' +
+    'line-height:1.2;opacity:.65;cursor:pointer;border:1px solid transparent}' +
+    '.nf-lixeira:hover,.nf-lixeira:focus-visible{opacity:1;border-color:#E5202E;background:rgba(229,32,46,.12);outline:none}';
+  document.head.appendChild(s);
+
+  var renderHomeBase = renderHome;
+  renderHome = function () {
+    renderHomeBase();
+    var podeExcluir = modoLocal() || (souDono() && !ehAvulso());
+    if (!podeExcluir) return;
+    var ids = idsOrdenados().filter(function (id) {
+      var t = projEsp[id].dados.tarefas;
+      return !(soMinhas && !t.filter(minha).length);
+    });
+    var cartoes = $('gradeProj').querySelectorAll('.proj-card:not(.nova)');
+    if (cartoes.length !== ids.length) return;
+    ids.forEach(function (id, i) {
+      if (id === 'avulsas') return;
+      var topo = cartoes[i].querySelector('.pc-topo');
+      if (!topo) return;
+      var l = document.createElement('span');
+      l.className = 'nf-lixeira';
+      l.setAttribute('role', 'button');
+      l.setAttribute('tabindex', '0');
+      l.setAttribute('title', 'Excluir projeto');
+      l.setAttribute('aria-label', 'Excluir projeto');
+      l.textContent = '🗑';
+      function excluir(e) {
+        e.stopPropagation();
+        e.preventDefault();
+        excluirProjEsp(id);
+      }
+      l.addEventListener('click', excluir);
+      l.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ') excluir(e);
+      });
+      topo.appendChild(l);
+    });
+  };
+
+  var preencherDetalhesBase = preencherDetalhes;
+  preencherDetalhes = function () {
+    preencherDetalhesBase();
+    var b = $('btnExcluirProjEsp');
+    if (b) b.textContent = modoLocal() ? 'Excluir projeto' : 'Excluir projeto (só o dono)';
+  };
+
+  var renderEspChatBase = renderEsp;
+  renderEsp = function () {
+    renderEspChatBase.apply(this, arguments);
+    var c = $('btnChatEsp');
+    if (c) c.classList.toggle('oculto', modoLocal());
+  };
+})();
+/* ===== AJUSTES 36 - FIM ===== */
 carregarSortable();
 restaurarSessao();
 
