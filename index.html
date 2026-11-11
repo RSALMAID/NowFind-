@@ -15834,7 +15834,49 @@ function escreverTexto(alvo, texto){
   });
 })();
 /* ===== AJUSTES 32 - FIM ===== */
-  
+/* ===== AJUSTES 33 - CADASTRO POR CONVITE ===== */
+(function () {
+  var blocoNome = document.getElementById('blocoNome');
+  var blocoConfirmar = document.getElementById('blocoConfirmar');
+  if (!blocoNome || !blocoConfirmar || document.getElementById('blocoCodigo')) return;
+
+  var bloco = document.createElement('div');
+  bloco.id = 'blocoCodigo';
+  bloco.className = 'oculto';
+  var rotulo = document.createElement('label');
+  rotulo.textContent = 'Código de convite';
+  rotulo.setAttribute('for', 'inCodigoConvite');
+  var campo = document.createElement('input');
+  campo.id = 'inCodigoConvite';
+  campo.type = 'text';
+  campo.placeholder = 'Peça a quem convidou você';
+  campo.setAttribute('autocapitalize', 'off');
+  campo.setAttribute('autocomplete', 'off');
+  bloco.appendChild(rotulo);
+  bloco.appendChild(campo);
+  blocoConfirmar.parentNode.insertBefore(bloco, blocoConfirmar.nextSibling);
+
+  function sincronizar() {
+    bloco.classList.toggle('oculto', blocoNome.classList.contains('oculto'));
+  }
+  new MutationObserver(sincronizar).observe(blocoNome, { attributes: true, attributeFilter: ['class'] });
+  sincronizar();
+
+  var fetchAntes = window.fetch.bind(window);
+  window.fetch = function (entrada, opcoes) {
+    try {
+      var texto = typeof entrada === 'string' ? entrada : ((entrada && entrada.url) || '');
+      var caminho = new URL(texto, location.href).pathname;
+      if (/\/api\/conta\/cadastro$/.test(caminho) && opcoes && typeof opcoes.body === 'string') {
+        var corpo = JSON.parse(opcoes.body);
+        corpo.codigo = campo.value;
+        opcoes = Object.assign({}, opcoes, { body: JSON.stringify(corpo) });
+      }
+    } catch (e) {}
+    return fetchAntes(entrada, opcoes);
+  };
+})();
+/* ===== AJUSTES 33 - FIM ===== */  
 carregarSortable();
 restaurarSessao();
 
