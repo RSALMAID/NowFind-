@@ -22460,6 +22460,2068 @@ function escreverTexto(alvo, texto){
   NFV.abrirAgendaEspaco = abrir;
 })();
 /* ===== AJUSTES 49 - FIM ===== */
+/* ===== AJUSTES 50 - DIAGNÓSTICO DE RISCOS E IMPACTOS (base do módulo) ===== */
+(function () {
+  if (!window.NFV || window.NFD || typeof URL_CONTA === 'undefined') return;
+  var U = NFV.u, h = U.h, ICO = U.ICO;
+  var URL_DIAG = URL_CONTA + '/diagnostico';
+  var NFD = window.NFD = { ferramentas: {}, registrar: function (d) { NFD.ferramentas[d.id] = d; }, U: U };
+  var CATS = [['estimativa', 'Estimativa'], ['escopo', 'Escopo'], ['dependencia', 'Dependência externa'], ['capacidade', 'Capacidade e alocação'], ['qualidade', 'Qualidade técnica e retrabalho'], ['processo', 'Processo e comunicação']];
+  NFD.CATS = CATS;
+  NFD.catNome = function (id) { for (var i = 0; i < CATS.length; i++) if (CATS[i][0] === id) return CATS[i][1]; return 'Processo e comunicação'; };
+  NFD.normCat = function (c) { c = String(c || ''); if (c === 'comunicacao') return 'processo'; if (c === 'externo') return 'dependencia'; return CATS.some(function (x) { return x[0] === c; }) ? c : 'processo'; };
+  NFD.SEV = [['baixa', 'Baixa'], ['media', 'Média'], ['alta', 'Alta'], ['critica', 'Crítica']];
+  var SEV_COR = { baixa: '#22B573', media: '#E0A800', alta: '#FF8A1F', critica: '#E5202E' };
+  NFD.sevCor = function (s) { return SEV_COR[s] || SEV_COR.media; };
+
+  var S = NFD.S = { espacos: [], espacoId: '', aba: 'painel', filtro: '', ctx: { membros: [], registros: [], tarefas: [], projetos: [], hist: [] }, editor: null, carregando: false, erroCarga: '' };
+  var tela = null, corpo = null, selEsp = null, cartao = null;
+
+  /* ---------- utilidades ---------- */
+  function esc(t) { return String(t == null ? '' : t); }
+  function semAcento(s) { return String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(); }
+  function tokens(s) {
+    var stop = { para: 1, como: 1, esta: 1, esse: 1, essa: 1, isso: 1, mais: 1, muito: 1, sobre: 1, entre: 1, quando: 1, porque: 1, deve: 1, foram: 1, havia: 1, pelo: 1, pela: 1, uma: 1, que: 1, com: 1 };
+    var o = {};
+    semAcento(s).split(/[^a-z0-9]+/).forEach(function (p) { if (p.length >= 4 && !stop[p]) o[p] = 1; });
+    return o;
+  }
+  NFD.similar = function (a, b) {
+    var ta = tokens(a), tb = tokens(b), inter = 0, na = 0, nb = 0, k;
+    for (k in ta) { na++; if (tb[k]) inter++; }
+    for (k in tb) nb++;
+    var uniao = na + nb - inter;
+    return uniao ? inter / uniao : 0;
+  };
+  function hoje() { return U.hoje(); }
+  function fmtData(s) { var d = U.data(s); return d ? U.pad(d.getDate()) + '/' + U.pad(d.getMonth() + 1) : ''; }
+  function feita(t) { return t.status === 'realizado' || t.status === 'validado'; }
+  NFD.feita = feita;
+  function msg(txt, erro) { if (typeof toast === 'function') toast(txt, !!erro); }
+  function nomeMembro(id) { for (var i = 0; i < S.ctx.membros.length; i++) if (S.ctx.membros[i].id === id) return S.ctx.membros[i].nome; return ''; }
+  NFD.nomeMembro = nomeMembro;
+  /* ninguém é causa: aviso na hora de digitar, o servidor também confere */
+  NFD.achaPessoa = function (texto) {
+    var alvo = semAcento(texto);
+    for (var i = 0; i < S.ctx.membros.length; i++) {
+      var nome = semAcento(S.ctx.membros[i].nome).trim();
+      if (!nome) continue;
+      var p = nome.split(/\s+/).filter(function (x) { return x.length >= 3; })[0];
+      if (alvo.indexOf(nome) >= 0) return String(S.ctx.membros[i].nome).split(/\s+/)[0];
+      if (p && new RegExp('(^|[^a-z0-9])' + p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '([^a-z0-9]|$)').test(alvo)) return String(S.ctx.membros[i].nome).split(/\s+/)[0];
+    }
+    return '';
+  };
+  async function apiDiag(caminho, metodo, corpoReq) {
+    var r = await fetch(URL_DIAG + caminho, { method: metodo || 'GET', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tokenAtual() }, body: corpoReq ? JSON.stringify(corpoReq) : undefined });
+    var j = {};
+    try { j = await r.json(); } catch (e) {}
+    return { status: r.status, j: j };
+  }
+  NFD.api = apiDiag;
+  function dataMais(n) { var d = hoje(); d.setDate(d.getDate() + n); return U.ymd(d); }
+
+  /* ---------- estilo ---------- */
+  var estilo = document.createElement('style');
+  estilo.id = 'nfEstiloDiag';
+  estilo.textContent = [
+    'body.nf-dg-aberto{overflow:hidden}',
+    '.home-ambiente[hidden]{display:none!important}',
+    '.home-ambientes.nf-com-diag{grid-template-columns:repeat(auto-fit,minmax(230px,1fr))}',
+    '.home-ambiente.diagnostico .home-amb-icone{background:linear-gradient(135deg,#E5742F,#C2410C);color:#fff;display:grid;place-items:center}',
+    '.home-ambiente.diagnostico .home-amb-icone svg{width:22px;height:22px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}',
+    '.nf-dg,.nf-dg *{box-sizing:border-box}',
+    '.nf-dg{position:fixed;inset:0;z-index:99980;display:none;flex-direction:column;background:var(--bg,#F5F6FB);color:var(--tx,#14172B);font-size:14px}',
+    '.nf-dg.nf-aberto{display:flex}',
+    '.nf-dg button,.nf-dg input,.nf-dg select,.nf-dg textarea{font:inherit;color:inherit}',
+    '.nf-dg button{cursor:pointer}',
+    '.nf-dg svg{width:18px;height:18px;display:block}',
+    '.nf-dg-topo{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:calc(12px + env(safe-area-inset-top,0px)) 18px 10px;border-bottom:1px solid var(--borda,#E2E5F0);background:var(--card,#fff)}',
+    '.nf-dg-voltar{display:inline-flex;align-items:center;gap:6px;padding:8px 14px 8px 8px;border-radius:12px;border:1px solid var(--borda,#E2E5F0);background:transparent;font-weight:700}',
+    '.nf-dg-tit{flex:1;min-width:200px}',
+    '.nf-dg-tit small{display:block;font-size:10px;font-weight:800;letter-spacing:1.2px;opacity:.7}',
+    '.nf-dg-tit h2{margin:0;font-size:19px;line-height:1.25}',
+    '.nf-dg-sel{padding:9px 12px;border-radius:12px;border:1px solid var(--borda,#DDDDE8);background:var(--card,#fff);max-width:260px;font-weight:700}',
+    '.nf-dg-abas{display:flex;gap:6px;padding:10px 18px 0;border-bottom:1px solid var(--borda,#E2E5F0);background:var(--card,#fff);overflow-x:auto}',
+    '.nf-dg-abas button{padding:10px 16px;border:none;border-bottom:3px solid transparent;background:transparent;font-weight:700;opacity:.7;white-space:nowrap}',
+    '.nf-dg-abas button.nf-sel{opacity:1;border-bottom-color:var(--azul,#2F5BFF)}',
+    '.nf-dg-corpo{flex:1;min-height:0;overflow:auto;padding:18px}',
+    '.nf-dg-grade{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(250px,1fr))}',
+    '.nf-dg-card{padding:16px;border:1px solid var(--borda,#E2E5F0);border-radius:18px;background:var(--card,#fff)}',
+    '.nf-dg-card h3{margin:0 0 8px;font-size:15px}',
+    '.nf-dg-card h4{margin:0 0 8px;font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;opacity:.65}',
+    '.nf-dg-num{font-size:30px;font-weight:800;line-height:1.1}',
+    '.nf-dg-sub{font-size:12px;opacity:.7}',
+    '.nf-dg-secao{margin:22px 0 10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}',
+    '.nf-dg-secao h3{margin:0;font-size:16px;flex:1}',
+    '.nf-dg-btn{display:inline-flex;align-items:center;gap:7px;padding:9px 15px;border-radius:12px;border:1px solid var(--borda,#DDDDE8);background:transparent;font-weight:700;font-size:13px}',
+    '.nf-dg-btn.nf-prim{border:none;background:var(--grad-acento,var(--azul,#2F5BFF));color:var(--on-acento,#fff)}',
+    '.nf-dg-btn.nf-perigo{color:#E5202E;border-color:rgba(229,32,46,.5)}',
+    '.nf-dg-btn.nf-peq{padding:5px 10px;font-size:12px;border-radius:9px}',
+    '.nf-dg-btn:disabled{opacity:.5;cursor:default}',
+    '.nf-dg-chip{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;font-size:11.5px;font-weight:700;background:rgba(127,127,127,.16);white-space:nowrap}',
+    '.nf-dg-chip i{width:8px;height:8px;border-radius:50%;background:var(--c,#999)}',
+    '.nf-dg-vazio{padding:26px;text-align:center;border:1px dashed var(--borda,#DDD);border-radius:16px;opacity:.75}',
+    '.nf-dg-lista{display:flex;flex-direction:column;gap:9px}',
+    '.nf-dg-item{display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--borda,#E2E5F0);border-left:5px solid var(--c,#999);border-radius:14px;background:var(--card,#fff);text-align:left;width:100%}',
+    '.nf-dg-item .nf-t{flex:1;min-width:0}',
+    '.nf-dg-item .nf-t b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+    '.nf-dg-item .nf-t small{display:block;opacity:.7;font-size:12px;margin-top:2px}',
+    '.nf-dg-filtros{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 14px}',
+    '.nf-dg-filtros button{padding:6px 12px;border-radius:999px;border:1px solid var(--borda,#DDDDE8);background:transparent;font-size:12.5px;font-weight:700}',
+    '.nf-dg-filtros button.nf-sel{background:var(--azul,#2F5BFF);color:var(--on-acento,#fff);border-color:transparent}',
+    /* campos */
+    '.nf-dg-campo{display:block;margin:0 0 12px}',
+    '.nf-dg-campo>span{display:block;margin:0 0 5px;font-size:12px;font-weight:800;opacity:.75}',
+    '.nf-dg-campo input[type=text],.nf-dg-campo input[type=date],.nf-dg-campo input[type=number],.nf-dg-campo select,.nf-dg-campo textarea,.nf-dg-in{width:100%;padding:9px 12px;border-radius:11px;border:1px solid var(--borda,#DDDDE8);background:transparent;font-size:14px}',
+    '.nf-dg-campo select option,.nf-dg-in option{color:#14172B;background:#fff}',
+    '.nf-dg-campo textarea{min-height:80px;resize:vertical}',
+    '.nf-dg-linha{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}',
+    '.nf-dg-linha>*{flex:1;min-width:140px}',
+    '.nf-dg-aviso{margin:0 0 12px;padding:9px 12px;border-radius:12px;border-left:4px solid #FFB300;background:rgba(255,179,0,.14);font-size:13px;line-height:1.45}',
+    '.nf-dg-erro{margin:0 0 12px;padding:9px 12px;border-radius:12px;border-left:4px solid #E5202E;background:rgba(229,32,46,.12);font-size:13px;line-height:1.45}',
+    '.nf-dg-info{margin:0 0 12px;padding:9px 12px;border-radius:12px;border-left:4px solid var(--azul,#2F5BFF);background:rgba(47,91,255,.1);font-size:13px;line-height:1.45}',
+    /* editor */
+    '.nf-dg-ed{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:16px;align-items:start}',
+    '@media (max-width:1000px){.nf-dg-ed{grid-template-columns:1fr}}',
+    '.nf-dg-edtopo{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:0 0 14px}',
+    '.nf-dg-edtopo input.nf-titulo{flex:1;min-width:220px;font-size:18px;font-weight:800;padding:8px 12px;border:1px solid transparent;border-radius:11px;background:transparent}',
+    '.nf-dg-edtopo input.nf-titulo:hover,.nf-dg-edtopo input.nf-titulo:focus{border-color:var(--borda,#DDDDE8)}',
+    '.nf-dg-ro .nf-dg-campo input,.nf-dg-ro .nf-dg-campo select,.nf-dg-ro .nf-dg-campo textarea{opacity:.85}',
+    '.nf-dg-ia{position:sticky;top:0}',
+    '.nf-dg-ia h3{display:flex;align-items:center;gap:8px}',
+    '.nf-dg-ia-sec{margin:12px 0 0}',
+    '.nf-dg-ia-sec h5{margin:0 0 5px;font-size:11px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;opacity:.65}',
+    '.nf-dg-ia-sec ul{margin:0;padding:0 0 0 18px;font-size:13px;line-height:1.5}',
+    '.nf-dg-ia-sec li{margin:0 0 4px}',
+    '.nf-dg-botoes{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}',
+    '.nf-dg-chk{display:flex;align-items:center;gap:8px;font-size:12.5px;margin:6px 0;cursor:pointer;width:auto}',
+    /* tarefas */
+    '.nf-dg-kanban{display:grid;gap:14px;grid-template-columns:repeat(3,minmax(0,1fr));align-items:start}',
+    '@media (max-width:860px){.nf-dg-kanban{grid-template-columns:1fr}}',
+    '.nf-dg-col{padding:12px;border-radius:16px;background:rgba(127,127,127,.09);min-height:120px}',
+    '.nf-dg-col>h4{margin:0 0 10px;font-size:12px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;display:flex;justify-content:space-between}',
+    '.nf-dg-tarefa{padding:11px 12px;border-radius:13px;border:1px solid var(--borda,#E2E5F0);background:var(--card,#fff);margin:0 0 9px;border-left:4px solid var(--c,#8E96B5)}',
+    '.nf-dg-tarefa b{display:block;font-size:13.5px;line-height:1.35}',
+    '.nf-dg-tarefa small{display:block;opacity:.7;font-size:11.5px;margin-top:3px;line-height:1.4}',
+    '.nf-dg-tarefa .nf-ac{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}',
+    '.nf-dg-tarefa.nf-atrasada{border-left-color:#E5202E}',
+    /* janelas */
+    '.nf-v-folha.nf-dg-larga{width:min(980px,96vw);max-width:96vw;max-height:92vh;overflow:auto}',
+    '.nf-dg-ferrs{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(270px,1fr))}',
+    '.nf-dg-ferr{padding:14px;border:2px solid var(--borda,#E2E5F0);border-radius:16px;background:var(--card,#fff);display:flex;flex-direction:column;gap:8px}',
+    '.nf-dg-ferr.nf-rec{border-color:var(--azul,#2F5BFF);box-shadow:0 0 0 3px rgba(47,91,255,.18)}',
+    '.nf-dg-ferr h4{margin:0;font-size:15px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}',
+    '.nf-dg-ferr .nf-orig{font-size:11px;opacity:.65;font-weight:700}',
+    '.nf-dg-ferr p{margin:0;font-size:12.5px;line-height:1.45}',
+    '.nf-dg-ferr ul{margin:0;padding:0 0 0 17px;font-size:12px;line-height:1.45}',
+    '.nf-dg-ferr .nf-rot{font-size:10.5px;font-weight:800;letter-spacing:.7px;text-transform:uppercase;opacity:.6;margin:4px 0 0}',
+    '.nf-dg-sel-tipo{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}',
+    '.nf-dg-sel-tipo button{padding:18px;border-radius:18px;border:2px solid var(--borda,#E2E5F0);background:var(--card,#fff);text-align:left}',
+    '.nf-dg-sel-tipo button b{display:block;font-size:17px;margin:0 0 6px}',
+    '.nf-dg-sel-tipo button span{font-size:13px;opacity:.8;line-height:1.45}',
+    '.nf-dg-sel-tipo button:hover{border-color:var(--azul,#2F5BFF)}',
+    /* evidências */
+    '.nf-ev-chips{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}',
+    '.nf-ev-chip{display:inline-flex;align-items:center;gap:6px;padding:4px 9px;border-radius:9px;border:1px solid var(--borda,#DDD);font-size:12px;background:rgba(47,91,255,.08);max-width:100%}',
+    '.nf-ev-chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:340px}',
+    '.nf-ev-chip button{border:none;background:transparent;padding:0 2px;font-size:14px;line-height:1;opacity:.7}',
+    '.nf-ev-painel{margin:6px 0;padding:10px;border:1px solid var(--borda,#DDD);border-radius:12px;background:var(--card,#fff);max-height:260px;overflow:auto}',
+    '.nf-ev-painel label{display:flex;gap:8px;align-items:flex-start;padding:5px 3px;font-size:12.5px;cursor:pointer;line-height:1.35;width:auto;margin:0}',
+    '.nf-ev-painel input[type=checkbox]{margin-top:2px;flex:none}',
+    '.nf-ev-painel .nf-tp{flex:none;font-size:10px;font-weight:800;text-transform:uppercase;opacity:.6;min-width:78px;padding-top:2px}',
+    '.nf-dg-opiniao{border-left:4px dashed #FFB300}'
+  ].join('\n');
+  document.head.appendChild(estilo);
+
+  /* ---------- carga dos dados do espaço ---------- */
+  function resumirProjetos(lista) {
+    var out = [];
+    (lista || []).forEach(function (p) {
+      var d = {};
+      try { d = JSON.parse(p.conteudo); } catch (e) { return; }
+      var ts = (Array.isArray(d.tarefas) ? d.tarefas : []).map(function (t) {
+        return { id: t.id, texto: t.texto || '', status: t.status || 'afazer', prazo: /^\d{4}-\d{2}-\d{2}$/.test(t.prazo || '') ? t.prazo : '', inicio: /^\d{4}-\d{2}-\d{2}$/.test(t.inicio || '') ? t.inicio : '', deps: Array.isArray(t.deps) ? t.deps : [], responsaveis: Array.isArray(t.responsaveis) ? t.responsaveis : [], marco: !!t.marco, descricao: t.descricao || '' };
+      });
+      out.push({ id: p.id, nome: d.nome || 'Projeto', tarefas: ts });
+    });
+    return out;
+  }
+  async function carregar() {
+    var id = S.espacoId;
+    if (!id) return;
+    S.carregando = true;
+    S.erroCarga = '';
+    try {
+      var r = await Promise.all([apiDiag('/lista?espaco=' + encodeURIComponent(id)), apiDiag('/tarefas?espaco=' + encodeURIComponent(id)), apiBruta('/projetos?id=' + encodeURIComponent(id), 'GET')]);
+      if (id !== S.espacoId) return;
+      if (!r[0].j.ok) throw new Error(r[0].j.erro || 'Não foi possível carregar o diagnóstico.');
+      S.ctx.registros = r[0].j.registros || [];
+      S.ctx.membros = r[0].j.membros || [];
+      S.ctx.tarefas = (r[1].j && r[1].j.tarefas) || [];
+      S.ctx.projetos = resumirProjetos((r[2].j && r[2].j.projetos) || []);
+      var itens = [];
+      S.ctx.projetos.forEach(function (p) { p.tarefas.forEach(function (t) { itens.push({ projeto_id: p.id, tarefa_id: t.id, titulo: t.texto, prazo: t.prazo, status: t.status }); }); });
+      try { var sn = await apiDiag('/snapshot', 'POST', { espaco_id: id, itens: itens }); S.ctx.hist = (sn.j && sn.j.historico) || []; } catch (e) { S.ctx.hist = []; }
+    } catch (e) {
+      S.erroCarga = e.message || 'Não foi possível carregar o diagnóstico.';
+    } finally { S.carregando = false; }
+  }
+  NFD.carregar = carregar;
+
+  /* ---------- regras: o que costuma furar, lido dos dados de hoje ---------- */
+  NFD.PARAMS = { dias_bloqueio: 5, entrega_min: 70, janela_entrega: 14, adiamentos: 2, sobrecarga: 5 };
+  NFD.REGRAS = { atrasada: 'Tarefa atrasada', adiada: 'Prazo adiado várias vezes', retrabalho: 'Retrabalho (voltou de feita)', bloqueio: 'Dependência bloqueada', sem_responsavel: 'Prazo próximo sem responsável', entrega: 'Entrega abaixo da meta', sobrecarga: 'Pessoa sobrecarregada na semana', sem_prazo: 'Muitas tarefas sem prazo' };
+  NFD.regras = function (par) {
+    par = Object.assign({}, NFD.PARAMS, par || {});
+    var hj = hoje(), out = [], hm = {};
+    S.ctx.hist.forEach(function (x) { hm[x.projeto_id + '|' + x.tarefa_id] = x; });
+    function al(regra, sev, p, t, txt, dias) { return { id: regra + ':' + p.id + ':' + (t ? t.id : '-'), regra: regra, sev: sev, projeto_id: p.id, projeto_nome: p.nome, tarefa_id: t ? t.id : '', tarefa_titulo: t ? t.texto : '', texto: txt, dias: dias || 0 }; }
+    S.ctx.projetos.forEach(function (p) {
+      var mapa = {};
+      p.tarefas.forEach(function (t) { mapa[t.id] = t; });
+      var cargas = {};
+      p.tarefas.forEach(function (t) {
+        var hi = hm[p.id + '|' + t.id] || {};
+        var ativa = !feita(t);
+        if (ativa && t.prazo && U.data(t.prazo) < hj) { var d = U.dif(U.data(t.prazo), hj); out.push(al('atrasada', d >= 7 ? 'alta' : 'media', p, t, '"' + t.texto + '" está atrasada há ' + d + (d === 1 ? ' dia' : ' dias') + ' (prazo ' + fmtData(t.prazo) + ').', d)); }
+        if ((hi.mudancas_prazo || 0) >= par.adiamentos) out.push(al('adiada', hi.mudancas_prazo >= 3 ? 'alta' : 'media', p, t, 'O prazo de "' + t.texto + '" foi alterado ' + hi.mudancas_prazo + ' vezes desde que o diagnóstico passou a acompanhar.', hi.mudancas_prazo));
+        if ((hi.reaberturas || 0) >= 1) out.push(al('retrabalho', 'media', p, t, '"' + t.texto + '" voltou de feita para aberta ' + hi.reaberturas + (hi.reaberturas === 1 ? ' vez.' : ' vezes.'), hi.reaberturas));
+        if (ativa) (t.deps || []).forEach(function (did) {
+          var pr = mapa[did];
+          if (pr && !feita(pr) && pr.prazo && U.data(pr.prazo) < hj) { var dd = U.dif(U.data(pr.prazo), hj); if (dd > par.dias_bloqueio) out.push(al('bloqueio', 'alta', p, t, 'A predecessora "' + pr.texto + '" está atrasada há ' + dd + ' dias e bloqueia "' + t.texto + '".', dd)); }
+        });
+        if (ativa && !(t.responsaveis || []).length && t.prazo && U.dif(hj, U.data(t.prazo)) <= 7) out.push(al('sem_responsavel', 'media', p, t, '"' + t.texto + '" vence em até 7 dias e não tem responsável.', 0));
+        if (ativa && t.prazo && U.dif(hj, U.data(t.prazo)) >= 0 && U.dif(hj, U.data(t.prazo)) <= 6) (t.responsaveis || []).forEach(function (r) { cargas[r] = (cargas[r] || 0) + 1; });
+      });
+      var jan = p.tarefas.filter(function (t) { var d = U.data(t.prazo); return d && d <= hj && U.dif(d, hj) <= par.janela_entrega; });
+      if (jan.length >= 3) {
+        var ok = jan.filter(feita).length, pct = Math.round(ok / jan.length * 100);
+        if (pct < par.entrega_min) out.push(al('entrega', pct < 40 ? 'alta' : 'media', p, null, 'Nos últimos ' + par.janela_entrega + ' dias, só ' + pct + '% das tarefas com prazo foram concluídas (' + ok + ' de ' + jan.length + ').', 100 - pct));
+      }
+      Object.keys(cargas).forEach(function (r) { if (cargas[r] >= par.sobrecarga) out.push(al('sobrecarga', 'media', p, null, cargas[r] + ' tarefas vencem nesta semana para a mesma pessoa. Verifique a capacidade antes que algo escorregue.', cargas[r])); });
+      var ativas = p.tarefas.filter(function (t) { return !feita(t); });
+      if (ativas.length >= 5) { var sp = ativas.filter(function (t) { return !t.prazo; }).length; if (sp / ativas.length > 0.3) out.push(al('sem_prazo', 'baixa', p, null, sp + ' de ' + ativas.length + ' tarefas abertas estão sem prazo: não dá para prever o que vai furar.', sp)); }
+    });
+    var peso = { critica: 0, alta: 1, media: 2, baixa: 3 };
+    return out.sort(function (a, b) { return (peso[a.sev] - peso[b.sev]) || (b.dias - a.dias); });
+  };
+
+  /* ---------- evidências reais: o que o sistema já sabe ---------- */
+  NFD.banco = function (projetoId, externas) {
+    var hj = hoje(), out = [], hm = {};
+    S.ctx.hist.forEach(function (x) { hm[x.projeto_id + '|' + x.tarefa_id] = x; });
+    S.ctx.projetos.forEach(function (p) {
+      if (projetoId && p.id !== projetoId) return;
+      var mapa = {};
+      p.tarefas.forEach(function (t) { mapa[t.id] = t; });
+      p.tarefas.forEach(function (t) {
+        var hi = hm[p.id + '|' + t.id] || {}, ref = p.id + ':' + t.id, ativa = !feita(t);
+        function ev(tipo, resumo, extra) { out.push(Object.assign({ id: tipo + ':' + ref, tipo: tipo, resumo: resumo, ref: ref, projeto_id: p.id, tarefa_id: t.id }, extra || {})); }
+        if (ativa && t.prazo && U.data(t.prazo) < hj) { var d = U.dif(U.data(t.prazo), hj); ev('atraso', '"' + t.texto + '" atrasada há ' + d + ' dias (prazo ' + fmtData(t.prazo) + ').', { dias: d }); if (!(hi.mudancas_prazo || hi.reaberturas)) ev('lacuna', 'Lacuna: "' + t.texto + '" está atrasada e não há registro de ajuste de prazo ou de alerta.', { dias: d }); }
+        if ((hi.mudancas_prazo || 0) > 0) ev('mudanca_data', 'O prazo de "' + t.texto + '" foi alterado ' + hi.mudancas_prazo + (hi.mudancas_prazo === 1 ? ' vez' : ' vezes') + (hi.ultima_mudanca_em ? ' (última em ' + fmtData(String(hi.ultima_mudanca_em).slice(0, 10)) + ')' : '') + '.', { ocorrido_em: hi.ultima_mudanca_em || '', dias: hi.mudancas_prazo });
+        if ((hi.reaberturas || 0) > 0) ev('reabertura', '"' + t.texto + '" voltou de feita para aberta ' + hi.reaberturas + (hi.reaberturas === 1 ? ' vez.' : ' vezes.'), { ocorrido_em: hi.ultima_mudanca_em || '' });
+        if (ativa) (t.deps || []).forEach(function (did) { var pr = mapa[did]; if (pr && !feita(pr) && pr.prazo && U.data(pr.prazo) < hj) { var dd = U.dif(U.data(pr.prazo), hj); out.push({ id: 'bloqueio:' + ref + ':' + did, tipo: 'bloqueio', resumo: 'A predecessora "' + pr.texto + '" atrasada há ' + dd + ' dias bloqueia "' + t.texto + '".', ref: ref, projeto_id: p.id, tarefa_id: t.id, dias: dd }); } });
+        if (ativa && !(t.responsaveis || []).length) ev('sem_responsavel', '"' + t.texto + '" está sem responsável.');
+        if (ativa && !t.prazo) ev('sem_prazo', '"' + t.texto + '" está sem prazo.');
+      });
+    });
+    (externas || []).forEach(function (x) { out.push({ id: x.id, tipo: 'externa', resumo: x.resumo, ref: '', externa: true }); });
+    return out.slice(0, 300);
+  };
+  NFD.tipoEvNome = { atraso: 'Atraso', lacuna: 'Lacuna', mudanca_data: 'Mudança de data', reabertura: 'Retrabalho', bloqueio: 'Bloqueio', sem_responsavel: 'Sem responsável', sem_prazo: 'Sem prazo', externa: 'Externa', diagnostico: 'Diagnóstico', simulacao: 'Simulação', regra: 'Regra' };
+  /* seletor de evidências: cada afirmação aponta para algo real */
+  NFD.pickerEv = function (banco, sel, aoMudar, opcoes) {
+    opcoes = opcoes || {};
+    var raiz = h('div');
+    var chips = h('div', 'nf-ev-chips');
+    var painel = null;
+    function ids() { return sel.map(function (x) { return x.id; }); }
+    function desenharChips() {
+      chips.textContent = '';
+      sel.forEach(function (e, i) {
+        var c = h('span', 'nf-ev-chip');
+        c.appendChild(h('span', null, (NFD.tipoEvNome[e.tipo] || e.tipo) + ': ' + e.resumo));
+        c.title = e.resumo;
+        if (!opcoes.somenteLeitura) { var x = h('button', null, '×'); x.type = 'button'; x.setAttribute('aria-label', 'Remover evidência'); x.addEventListener('click', function () { sel.splice(i, 1); desenharChips(); aoMudar(); }); c.appendChild(x); }
+        chips.appendChild(c);
+      });
+      if (!sel.length) chips.appendChild(h('span', 'nf-dg-sub', 'Nenhuma evidência ligada ainda.'));
+    }
+    var abrir = h('button', 'nf-dg-btn nf-peq', '+ Ligar evidência real');
+    abrir.type = 'button';
+    abrir.setAttribute('data-acao', 'ligar-evidencia');
+    abrir.addEventListener('click', function () {
+      if (painel) { painel.remove(); painel = null; return; }
+      painel = h('div', 'nf-ev-painel');
+      var filtro = document.createElement('input');
+      filtro.type = 'text'; filtro.placeholder = 'Filtrar evidências...'; filtro.className = 'nf-dg-in'; filtro.style.marginBottom = '6px';
+      var lista = h('div');
+      painel.appendChild(filtro); painel.appendChild(lista);
+      function pintar() {
+        lista.textContent = '';
+        var f = semAcento(filtro.value);
+        var itens = banco.filter(function (e) { return !f || semAcento(e.resumo).indexOf(f) >= 0 || semAcento(NFD.tipoEvNome[e.tipo] || '').indexOf(f) >= 0; });
+        if (!itens.length) lista.appendChild(h('div', 'nf-dg-sub', banco.length ? 'Nada encontrado.' : 'Ainda não há evidências para este escopo. Adicione uma evidência externa.'));
+        itens.slice(0, 80).forEach(function (e) {
+          var l = h('label');
+          var ck = document.createElement('input'); ck.type = 'checkbox'; ck.checked = ids().indexOf(e.id) >= 0; ck.setAttribute('data-ev', e.id);
+          ck.addEventListener('change', function () {
+            var i = ids().indexOf(e.id);
+            if (ck.checked && i < 0) sel.push({ id: e.id, tipo: e.tipo, resumo: e.resumo, ref: e.ref || '' });
+            if (!ck.checked && i >= 0) sel.splice(i, 1);
+            desenharChips(); aoMudar();
+          });
+          l.appendChild(ck); l.appendChild(h('span', 'nf-tp', NFD.tipoEvNome[e.tipo] || e.tipo)); l.appendChild(h('span', null, e.resumo));
+          lista.appendChild(l);
+        });
+      }
+      filtro.addEventListener('input', pintar); pintar();
+      raiz.appendChild(painel);
+    });
+    if (!opcoes.somenteLeitura) raiz.appendChild(abrir);
+    raiz.insertBefore(chips, raiz.firstChild);
+    desenharChips();
+    return raiz;
+  };
+
+  /* ---------- do passado para o futuro: o que já furou antes nesta equipe ---------- */
+  NFD.passado = function (texto, categoria, ignorarId) {
+    var ach = [];
+    S.ctx.registros.forEach(function (r) {
+      if (r.tipo !== 'evento' || r.estado !== 'concluido' || r.id === ignorarId) return;
+      (r.dados && r.dados.causas || []).forEach(function (c) {
+        if (!c || !(c.evidencias || []).length) return;
+        var sim = NFD.similar(texto, c.texto), mesmaCat = categoria && NFD.normCat(c.categoria) === NFD.normCat(categoria);
+        var nota = (mesmaCat ? 0.35 : 0) + sim * 0.65;
+        if (nota >= 0.3) {
+          var ts = S.ctx.tarefas.filter(function (t) { return t.diag_id === r.id; });
+          ach.push({ nota: nota, diag: r.titulo, diag_id: r.id, causa: c.texto, categoria: c.categoria, tarefas: ts.length, feitas: ts.filter(function (t) { return t.status === 'feita'; }).length });
+        }
+      });
+    });
+    return ach.sort(function (a, b) { return b.nota - a.nota; }).slice(0, 3);
+  };
+  NFD.blocoPassado = function (texto, categoria, ignorarId) {
+    var p = NFD.passado(texto, categoria, ignorarId);
+    if (!p.length) return null;
+    var b = h('div', 'nf-dg-info');
+    b.setAttribute('data-passado', '1');
+    b.appendChild(h('b', null, 'Já furou antes: '));
+    p.forEach(function (x, i) {
+      b.appendChild(document.createTextNode((i ? ' · ' : '') + '"' + x.causa + '" (' + x.diag + '; ' + (x.tarefas ? x.feitas + ' de ' + x.tarefas + ' tarefas de prevenção feitas' : 'sem tarefas de prevenção') + ')'));
+    });
+    return b;
+  };
+
+  /* ---------- elementos prontos ---------- */
+  NFD.campo = function (rotulo, el) { var l = h('label', 'nf-dg-campo'); l.appendChild(h('span', null, rotulo)); l.appendChild(el); return l; };
+  NFD.btn = function (txt, cls, fn) { var b = h('button', 'nf-dg-btn ' + (cls || ''), txt); b.type = 'button'; if (fn) b.addEventListener('click', fn); return b; };
+  NFD.inp = function (tipo, valor, ph, max) { var i = document.createElement('input'); i.type = tipo || 'text'; i.value = valor == null ? '' : valor; if (ph) i.placeholder = ph; if (max) i.maxLength = max; i.className = 'nf-dg-in'; return i; };
+  NFD.sel = function (opcoes, valor) { var s = document.createElement('select'); s.className = 'nf-dg-in'; opcoes.forEach(function (o) { var x = h('option', null, o[1]); x.value = o[0]; s.appendChild(x); }); s.value = valor; return s; };
+  NFD.copiar = function (txt) { try { navigator.clipboard.writeText(txt); msg('Copiado.'); } catch (e) { msg('Não foi possível copiar.', true); } };
+  NFD.projetoNome = function (id) { for (var i = 0; i < S.ctx.projetos.length; i++) if (S.ctx.projetos[i].id === id) return S.ctx.projetos[i].nome; return ''; };
+  NFD.projeto = function (id) { for (var i = 0; i < S.ctx.projetos.length; i++) if (S.ctx.projetos[i].id === id) return S.ctx.projetos[i]; return null; };
+
+  /* ---------- cartão na tela inicial (só para quem participa de um espaço) ---------- */
+  function injetarCartao() {
+    var linha = document.querySelector('.home-ambientes');
+    if (!linha || document.getElementById('homeDiagnostico')) return;
+    cartao = document.createElement('button');
+    cartao.type = 'button';
+    cartao.id = 'homeDiagnostico';
+    cartao.className = 'home-ambiente diagnostico';
+    cartao.hidden = true;
+    cartao.setAttribute('data-home-diag', '1');
+    cartao.innerHTML = '<span class="home-amb-icone"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 3v6c0 4.5-3.2 7.8-8 9-4.8-1.2-8-4.5-8-9V6z"/><path d="M12 8v5"/><path d="M12 16.2v.3"/></svg></span><span class="home-amb-texto"><small>AMBIENTE</small><strong>Diagnóstico de riscos</strong><span>Antes e depois do evento, com as tarefas</span></span><span class="home-amb-seta">›</span>';
+    cartao.addEventListener('click', abrir);
+    linha.appendChild(cartao);
+    cartao.hidden = !S.espacos.length;
+    linha.classList.toggle('nf-com-diag', S.espacos.length > 0);
+  }
+  async function verificarAcesso() {
+    injetarCartao();
+    if (typeof tokenAtual !== 'function' || !tokenAtual()) { if (cartao) cartao.hidden = true; return; }
+    try {
+      var r = await apiBruta('', 'GET');
+      S.espacos = (r.j && r.j.ok && r.j.espacos) || [];
+    } catch (e) { return; }
+    var linha = document.querySelector('.home-ambientes');
+    if (cartao) cartao.hidden = !S.espacos.length;
+    if (linha) linha.classList.toggle('nf-com-diag', S.espacos.length > 0);
+  }
+  NFD.verificarAcesso = verificarAcesso;
+
+  /* ---------- ambiente (tela cheia) ---------- */
+  function montarTela() {
+    tela = h('div', 'nf-dg');
+    tela.id = 'nfDiag';
+    tela.setAttribute('role', 'dialog');
+    tela.setAttribute('aria-label', 'Diagnóstico de riscos e impactos');
+    var topo = h('div', 'nf-dg-topo');
+    topo.setAttribute('role', 'banner'); /* não usar <header>: o app esconde os botões dele */
+    var voltar = h('button', 'nf-dg-voltar');
+    voltar.type = 'button';
+    var seta = document.createElement('span'); seta.innerHTML = ICO.esq; voltar.appendChild(seta.firstChild);
+    voltar.appendChild(h('span', null, 'Início'));
+    voltar.addEventListener('click', fechar);
+    var tit = h('div', 'nf-dg-tit');
+    tit.appendChild(h('small', null, 'DIAGNÓSTICO DE RISCOS E IMPACTOS'));
+    tit.appendChild(h('h2', null, 'Prever o que vai furar e aprender com o que furou'));
+    selEsp = document.createElement('select');
+    selEsp.className = 'nf-dg-sel';
+    selEsp.id = 'nfDgEspaco';
+    selEsp.setAttribute('aria-label', 'Espaço');
+    selEsp.addEventListener('change', function () { S.espacoId = selEsp.value; S.editor = null; S.aba = 'painel'; recarregar(); });
+    topo.appendChild(voltar); topo.appendChild(tit); topo.appendChild(selEsp);
+    var abas = h('div', 'nf-dg-abas');
+    abas.id = 'nfDgAbas';
+    abas.setAttribute('role', 'tablist');
+    [['painel', 'Painel'], ['preditivo', 'Antes do evento'], ['evento', 'Depois do evento'], ['tarefas', 'Tarefas']].forEach(function (a) {
+      var b = h('button', null, a[1]); b.type = 'button'; b.setAttribute('data-aba', a[0]); b.setAttribute('role', 'tab');
+      b.addEventListener('click', function () { if (!podeSair()) return; S.aba = a[0]; S.editor = null; desenhar(); });
+      abas.appendChild(b);
+    });
+    corpo = h('div', 'nf-dg-corpo');
+    corpo.id = 'nfDgCorpo';
+    tela.appendChild(topo); tela.appendChild(abas); tela.appendChild(corpo);
+    document.body.appendChild(tela);
+  }
+  function podeSair() {
+    var E = S.editor;
+    if (E && E.sujo && E.reg.estado !== 'concluido') { salvarRascunho(true); }
+    return true;
+  }
+  async function abrir() {
+    if (!tela) montarTela();
+    if (!S.espacos.length) await verificarAcesso();
+    if (!S.espacos.length) { msg('O diagnóstico é para quem participa de um projeto compartilhado.', true); return; }
+    selEsp.textContent = '';
+    S.espacos.forEach(function (e) { var o = h('option', null, (e.tipo === 'projeto' ? 'Projeto: ' : 'Espaço: ') + e.nome); o.value = e.id; selEsp.appendChild(o); });
+    if (!S.espacoId || !S.espacos.some(function (e) { return e.id === S.espacoId; })) S.espacoId = S.espacos[0].id;
+    selEsp.value = S.espacoId;
+    var sobre = document.documentElement.style.getPropertyValue('--on-acento');
+    if (sobre) tela.style.setProperty('--on-acento', sobre.trim());
+    S.aba = 'painel'; S.editor = null;
+    tela.classList.add('nf-aberto');
+    document.body.classList.add('nf-dg-aberto');
+    document.addEventListener('keydown', aoTeclar);
+    await recarregar();
+  }
+  function fechar() {
+    if (S.editor) podeSair();
+    if (!tela) return;
+    tela.classList.remove('nf-aberto');
+    document.body.classList.remove('nf-dg-aberto');
+    document.removeEventListener('keydown', aoTeclar);
+  }
+  function aoTeclar(e) {
+    if (e.key !== 'Escape' || !tela || !tela.classList.contains('nf-aberto')) return;
+    if (document.querySelector('.nf-v-modal')) return;
+    if (S.aba === 'editor') { podeSair(); S.aba = S.editor && S.editor.reg.tipo || 'painel'; S.editor = null; desenhar(); return; }
+    fechar();
+  }
+  async function recarregar() {
+    corpo.textContent = '';
+    corpo.appendChild(h('div', 'nf-dg-vazio', 'Carregando o diagnóstico do espaço...'));
+    await carregar();
+    desenhar();
+  }
+  NFD.recarregar = recarregar;
+  function desenhar() {
+    if (!tela) return;
+    var abaAtiva = S.aba === 'editor' && S.editor ? S.editor.reg.tipo : S.aba;
+    tela.querySelectorAll('#nfDgAbas button').forEach(function (b) { var s = b.getAttribute('data-aba') === abaAtiva; b.classList.toggle('nf-sel', s); b.setAttribute('aria-selected', s ? 'true' : 'false'); });
+    corpo.textContent = '';
+    if (S.erroCarga) { corpo.appendChild(h('div', 'nf-dg-erro', S.erroCarga)); var t = NFD.btn('Tentar de novo', 'nf-prim', recarregar); corpo.appendChild(t); return; }
+    if (S.aba === 'editor' && S.editor) renderEditor();
+    else if (S.aba === 'preditivo' || S.aba === 'evento') renderLista(S.aba);
+    else if (S.aba === 'tarefas') renderTarefas();
+    else renderPainel();
+    corpo.scrollTop = 0;
+  }
+
+  /* ---------- painel ---------- */
+  function renderPainel() {
+    var rs = S.ctx.registros, ts = S.ctx.tarefas;
+    var rasc = rs.filter(function (r) { return r.estado !== 'concluido'; }).length, conc = rs.length - rasc;
+    var abertas = ts.filter(function (t) { return t.status !== 'feita'; });
+    var atras = abertas.filter(function (t) { return t.prazo && U.data(t.prazo) < hoje(); }).length;
+    var g = h('div', 'nf-dg-grade');
+    [['Diagnósticos concluídos', conc, 'aprendizado registrado'], ['Em rascunho', rasc, 'continue de onde parou'], ['Tarefas abertas', abertas.length, 'geradas pelos diagnósticos'], ['Tarefas atrasadas', atras, atras ? 'precisam de atenção' : 'nenhuma atrasada']].forEach(function (c) {
+      var k = h('div', 'nf-dg-card'); k.appendChild(h('h4', null, c[0])); k.appendChild(h('div', 'nf-dg-num', String(c[1]))); k.appendChild(h('div', 'nf-dg-sub', c[2])); g.appendChild(k);
+    });
+    corpo.appendChild(g);
+    var sec = h('div', 'nf-dg-secao');
+    sec.appendChild(h('h3', null, 'Novo diagnóstico'));
+    sec.appendChild(NFD.btn('Antes do evento: prever riscos', 'nf-prim', function () { abrirNovo({ tipo: 'preditivo' }); }));
+    sec.appendChild(NFD.btn('Depois do evento: investigar causas', '', function () { abrirNovo({ tipo: 'evento' }); }));
+    corpo.appendChild(sec);
+
+    var s2 = h('div', 'nf-dg-secao'); s2.appendChild(h('h3', null, 'Alertas de agora (motor de regras)'));
+    corpo.appendChild(s2);
+    var alertas = NFD.regras().slice(0, 8);
+    if (!alertas.length) corpo.appendChild(h('div', 'nf-dg-vazio', S.ctx.projetos.length ? 'Nenhum alerta com os dados de hoje. O histórico de prazos começa a ser anotado a partir de agora e deixa os alertas mais precisos com o tempo.' : 'Este espaço ainda não tem projetos com tarefas para analisar.'));
+    var ul = h('div', 'nf-dg-lista');
+    alertas.forEach(function (a) {
+      var it = h('div', 'nf-dg-item'); it.style.setProperty('--c', NFD.sevCor(a.sev === 'alta' ? 'alta' : a.sev));
+      it.setAttribute('data-alerta', a.id);
+      var t = h('div', 'nf-t'); t.appendChild(h('b', null, NFD.REGRAS[a.regra])); t.appendChild(h('small', null, a.projeto_nome + ' · ' + a.texto));
+      var pas = NFD.blocoPassado(a.texto, a.regra === 'sobrecarga' || a.regra === 'sem_responsavel' ? 'capacidade' : (a.regra === 'bloqueio' ? 'dependencia' : (a.regra === 'retrabalho' ? 'qualidade' : 'estimativa')));
+      if (pas) { pas.style.margin = '6px 0 0'; t.appendChild(pas); }
+      it.appendChild(t);
+      it.appendChild(NFD.btn('Registrar risco', 'nf-peq', function () { abrirNovo({ tipo: 'preditivo', ferramenta: 'sinais', titulo: NFD.REGRAS[a.regra] + ': ' + (a.tarefa_titulo || a.projeto_nome), projeto_id: a.projeto_id, opts: { sinal: { texto: a.texto, severidade: a.sev === 'alta' ? 'alta' : 'media' } } }); }));
+      it.appendChild(NFD.btn('Investigar causas', 'nf-peq', function () { abrirNovo({ tipo: 'evento', ferramenta: 'porques', titulo: NFD.REGRAS[a.regra] + ': ' + (a.tarefa_titulo || a.projeto_nome), projeto_id: a.projeto_id, opts: { gatilho: { texto: a.texto, ref: a.projeto_id + ':' + a.tarefa_id } } }); }));
+      ul.appendChild(it);
+    });
+    corpo.appendChild(ul);
+
+    var s3 = h('div', 'nf-dg-secao'); s3.appendChild(h('h3', null, 'Padrões que se repetem'));
+    corpo.appendChild(s3);
+    var cont = {};
+    rs.forEach(function (r) { if (r.tipo !== 'evento' || r.estado !== 'concluido') return; var vistas = {}; ((r.dados && r.dados.causas) || []).forEach(function (c) { if (!c || !(c.evidencias || []).length) return; var k = NFD.normCat(c.categoria); (cont[k] = cont[k] || { casos: {}, dias: 0, n: 0 }); cont[k].n++; cont[k].dias += Number(c.peso_dias) || 0; cont[k].casos[r.id] = 1; vistas[k] = 1; }); });
+    var pad = Object.keys(cont).filter(function (k) { return Object.keys(cont[k].casos).length >= 2; }).sort(function (a, b) { return cont[b].dias - cont[a].dias; });
+    if (!pad.length) corpo.appendChild(h('div', 'nf-dg-vazio', 'Ainda não há uma categoria de causa que apareça em 2 ou mais diagnósticos concluídos. Conforme vocês concluem diagnósticos, os padrões aparecem aqui.'));
+    pad.forEach(function (k) {
+      var it = h('div', 'nf-dg-item'); it.style.setProperty('--c', '#7C4DFF');
+      var t = h('div', 'nf-t'); t.appendChild(h('b', null, NFD.catNome(k))); t.appendChild(h('small', null, 'Em ' + Object.keys(cont[k].casos).length + ' diagnósticos · ' + cont[k].n + ' causas ancoradas · ' + cont[k].dias + ' dias de atraso atribuídos'));
+      it.appendChild(t); ul = it; corpo.appendChild(it);
+    });
+  }
+
+  /* ---------- listas por tipo ---------- */
+  function renderLista(tipo) {
+    var sec = h('div', 'nf-dg-secao');
+    sec.appendChild(h('h3', null, tipo === 'preditivo' ? 'Diagnósticos antes do evento' : 'Diagnósticos depois do evento'));
+    sec.appendChild(NFD.btn('+ Novo diagnóstico', 'nf-prim', function () { abrirNovo({ tipo: tipo }); }));
+    corpo.appendChild(sec);
+    corpo.appendChild(h('div', 'nf-dg-info', tipo === 'preditivo'
+      ? 'Use antes de o problema acontecer: o diagnóstico lê o que o projeto já mostra e aponta o que pode furar. Cada risco vira tarefa nesta área, com responsável e prazo.'
+      : 'Use depois de um atraso, bloqueio ou retrabalho: cada causa precisa apontar para uma evidência real. Nenhuma causa aponta pessoas, só condições de trabalho.'));
+    var fil = h('div', 'nf-dg-filtros');
+    [['', 'Todos'], ['rascunho', 'Em rascunho'], ['concluido', 'Concluídos']].forEach(function (f) { var b = h('button', S.filtro === f[0] ? 'nf-sel' : '', f[1]); b.type = 'button'; b.addEventListener('click', function () { S.filtro = f[0]; desenhar(); }); fil.appendChild(b); });
+    corpo.appendChild(fil);
+    var lista = S.ctx.registros.filter(function (r) { return r.tipo === tipo && (!S.filtro || (S.filtro === 'concluido' ? r.estado === 'concluido' : r.estado !== 'concluido')); });
+    if (!lista.length) corpo.appendChild(h('div', 'nf-dg-vazio', 'Nenhum diagnóstico aqui ainda.'));
+    var box = h('div', 'nf-dg-lista');
+    lista.forEach(function (r) {
+      var def = NFD.ferramentas[r.ferramenta];
+      var b = h('button', 'nf-dg-item'); b.type = 'button'; b.setAttribute('data-diag', r.id); b.style.setProperty('--c', NFD.sevCor(r.severidade));
+      var t = h('div', 'nf-t'); t.appendChild(h('b', null, r.titulo));
+      var ts = S.ctx.tarefas.filter(function (x) { return x.diag_id === r.id; });
+      t.appendChild(h('small', null, (def ? def.nome : r.ferramenta) + (r.projeto_nome ? ' · ' + r.projeto_nome : '') + ' · ' + (r.estado === 'concluido' ? 'concluído' : 'rascunho') + (ts.length ? ' · ' + ts.filter(function (x) { return x.status === 'feita'; }).length + ' de ' + ts.length + ' tarefas feitas' : '')));
+      b.appendChild(t);
+      b.appendChild(h('span', 'nf-dg-chip', r.estado === 'concluido' ? 'Concluído' : 'Rascunho'));
+      b.addEventListener('click', function () { abrirRegistro(r); });
+      box.appendChild(b);
+    });
+    corpo.appendChild(box);
+  }
+
+  /* ---------- novo diagnóstico: escolha guiada da ferramenta ---------- */
+  var SITUACOES = {
+    preditivo: [['regras', 'Quero um panorama rápido do que pode furar agora'], ['sinais', 'Quero registrar e acompanhar sinais de risco ao longo do tempo'], ['texto', 'Tenho comentários, atualizações ou conversas para ler'], ['montecarlo', 'Preciso saber a chance de cumprir o prazo'], ['riscos_ia', 'Quero um primeiro registro de riscos já montado']],
+    evento: [['porques', 'Foi uma tarefa ou um fato só, com causa em cadeia'], ['ishikawa', 'Vários fatores contribuíram ao mesmo tempo'], ['timeline', 'Preciso entender a sequência do que aconteceu'], ['pareto', 'Quero saber qual tipo de causa mais custa dias'], ['arvore', 'A falha depende de combinações de problemas ou de dependências']]
+  };
+  function abrirNovo(pre) {
+    pre = pre || {};
+    var fundo = h('div', 'nf-v-modal'), folha = h('div', 'nf-v-folha nf-dg-larga');
+    folha.setAttribute('role', 'dialog');
+    fundo.appendChild(folha); document.body.appendChild(fundo);
+    var est = { tipo: pre.tipo || '', ferramenta: pre.ferramenta || '', titulo: pre.titulo || '', projeto_id: pre.projeto_id || '', severidade: 'media', recomendada: '' };
+    function fechar2() { fundo.remove(); }
+    fundo.addEventListener('click', function (e) { if (e.target === fundo) fechar2(); });
+    function pintar() {
+      folha.textContent = '';
+      folha.appendChild(h('h3', null, 'Novo diagnóstico'));
+      if (!est.tipo) {
+        folha.appendChild(h('p', 'nf-dg-sub', 'O que você quer fazer agora?'));
+        var g = h('div', 'nf-dg-sel-tipo');
+        [['preditivo', 'Antes do evento', 'Prever o que pode furar: riscos, sinais, regras de alerta e simulação do prazo.'], ['evento', 'Depois do evento', 'Entender por que algo já aconteceu: causas com evidência, sequência dos fatos e o que mais custa.']].forEach(function (o) {
+          var b = h('button'); b.type = 'button'; b.setAttribute('data-tipo', o[0]);
+          b.appendChild(h('b', null, o[1])); b.appendChild(h('span', null, o[2]));
+          b.addEventListener('click', function () { est.tipo = o[0]; pintar(); });
+          g.appendChild(b);
+        });
+        folha.appendChild(g);
+        var ac = h('div', 'nf-v-acoes'); ac.appendChild(h('button', 'nf-v-btn', 'Cancelar')); ac.firstChild.type = 'button'; ac.firstChild.addEventListener('click', fechar2); folha.appendChild(ac);
+        return;
+      }
+      /* situação -> ferramenta recomendada */
+      var cx = h('div', 'nf-dg-campo'); cx.appendChild(h('span', null, 'Qual é a sua situação? (a ferramenta mais indicada fica destacada)'));
+      var sit = document.createElement('select'); sit.className = 'nf-dg-in'; sit.setAttribute('aria-label', 'Situação');
+      var o0 = h('option', null, 'Escolha a situação...'); o0.value = ''; sit.appendChild(o0);
+      SITUACOES[est.tipo].forEach(function (s) { var o = h('option', null, s[1]); o.value = s[0]; sit.appendChild(o); });
+      sit.value = est.recomendada;
+      sit.addEventListener('change', function () { est.recomendada = sit.value; if (sit.value) est.ferramenta = sit.value; pintar(); });
+      cx.appendChild(sit); folha.appendChild(cx);
+      var linhaIA = h('div', 'nf-dg-linha');
+      var desc = NFD.inp('text', '', 'Ou descreva a situação e peça uma sugestão à IA', 300); desc.setAttribute('aria-label', 'Descrição da situação');
+      var bIA = NFD.btn('Perguntar à IA', '', null); bIA.setAttribute('data-acao', 'escolher-ia'); bIA.style.flex = '0 0 auto';
+      var resIA = h('div', 'nf-dg-info'); resIA.hidden = true;
+      bIA.addEventListener('click', async function () {
+        if (!desc.value.trim()) return;
+        bIA.disabled = true; bIA.textContent = 'Pensando...';
+        var r = await pedirIA({ tarefa: 'copiloto', ferramenta: 'escolha da ferramenta', etapa: 'escolha', modo: 'sugerir', contexto: { situacao: desc.value.trim(), tipo: est.tipo, ferramentas: ferramentasDoTipo(est.tipo).map(function (d) { return { id: d.id, nome: d.nome, usar: d.usar }; }) } });
+        bIA.disabled = false; bIA.textContent = 'Perguntar à IA';
+        resIA.hidden = false; resIA.textContent = '';
+        if (!r.ok) { resIA.textContent = r.erro; return; }
+        resIA.appendChild(h('b', null, 'A IA sugere: '));
+        resIA.appendChild(document.createTextNode([r.resumo].concat(r.sugestoes || [], r.reflexoes || []).filter(Boolean).join(' ')));
+      });
+      linhaIA.appendChild(desc); linhaIA.appendChild(bIA); folha.appendChild(linhaIA); folha.appendChild(resIA);
+      var gf = h('div', 'nf-dg-ferrs');
+      gf.style.marginTop = '12px';
+      ferramentasDoTipo(est.tipo).forEach(function (d) {
+        var c = h('div', 'nf-dg-ferr' + (est.recomendada === d.id ? ' nf-rec' : '') + (est.ferramenta === d.id ? ' nf-sel' : ''));
+        c.setAttribute('data-ferramenta', d.id);
+        var t = h('h4', null, d.nome);
+        if (est.recomendada === d.id) t.appendChild(h('span', 'nf-dg-chip', 'Recomendada'));
+        c.appendChild(t); c.appendChild(h('div', 'nf-orig', d.origem));
+        c.appendChild(h('p', null, d.resumo));
+        c.appendChild(h('div', 'nf-rot', 'Use quando')); var u1 = h('ul'); d.usar.forEach(function (x) { u1.appendChild(h('li', null, x)); }); c.appendChild(u1);
+        c.appendChild(h('div', 'nf-rot', 'Evite quando')); var u2 = h('ul'); d.evitar.forEach(function (x) { u2.appendChild(h('li', null, x)); }); c.appendChild(u2);
+        c.appendChild(h('div', 'nf-rot', 'Precisa de')); c.appendChild(h('p', null, d.precisa));
+        c.appendChild(h('div', 'nf-rot', 'Como a IA participa')); c.appendChild(h('p', null, d.ia));
+        var b = NFD.btn(est.ferramenta === d.id ? 'Selecionada' : 'Usar esta', est.ferramenta === d.id ? 'nf-prim' : '', function () { est.ferramenta = d.id; pintar(); });
+        b.style.marginTop = 'auto'; c.appendChild(b);
+        gf.appendChild(c);
+      });
+      folha.appendChild(gf);
+      if (est.ferramenta) {
+        folha.appendChild(h('h3', null, 'Dados do diagnóstico')).style.marginTop = '18px';
+        var l2 = h('div', 'nf-dg-linha');
+        var inT = NFD.inp('text', est.titulo, 'Ex.: Atraso na concretagem do galpão', 160); inT.setAttribute('aria-label', 'Título do diagnóstico'); inT.id = 'nfDgNovoTitulo';
+        var opP = [['', 'Todo o espaço']]; S.ctx.projetos.forEach(function (p) { opP.push([p.id, p.nome]); });
+        var sP = NFD.sel(opP, est.projeto_id); sP.setAttribute('aria-label', 'Projeto');
+        var sS = NFD.sel(NFD.SEV, est.severidade); sS.setAttribute('aria-label', 'Severidade');
+        l2.appendChild(NFD.campo('Título', inT)); l2.appendChild(NFD.campo('Projeto analisado', sP)); l2.appendChild(NFD.campo('Severidade', sS));
+        folha.appendChild(l2);
+        var er = h('div', 'nf-dg-erro'); er.hidden = true; folha.appendChild(er);
+        var ac2 = h('div', 'nf-v-acoes');
+        var bc = h('button', 'nf-v-btn', 'Cancelar'); bc.type = 'button'; bc.addEventListener('click', fechar2);
+        var bo = h('button', 'nf-v-btn nf-v-prim', 'Criar e abrir'); bo.type = 'button'; bo.setAttribute('data-acao', 'criar-diagnostico');
+        bo.addEventListener('click', async function () {
+          if (!inT.value.trim()) { er.textContent = 'Dê um título ao diagnóstico.'; er.hidden = false; return; }
+          est.titulo = inT.value.trim(); est.projeto_id = sP.value; est.severidade = sS.value;
+          var d = NFD.ferramentas[est.ferramenta];
+          bo.disabled = true; bo.textContent = 'Criando...';
+          var dadosIni = d.vazio(Object.assign({ projeto_id: est.projeto_id }, pre.opts || {}));
+          var r = await apiDiag('/salvar', 'POST', { espaco_id: S.espacoId, tipo: est.tipo, ferramenta: est.ferramenta, titulo: est.titulo, projeto_id: est.projeto_id, projeto_nome: NFD.projetoNome(est.projeto_id), severidade: est.severidade, estado: 'rascunho', dados: dadosIni });
+          if (!r.j.ok) { er.textContent = r.j.erro || 'Não foi possível criar.'; er.hidden = false; bo.disabled = false; bo.textContent = 'Criar e abrir'; return; }
+          S.ctx.registros.unshift(r.j.registro); fechar2(); abrirRegistro(r.j.registro);
+        });
+        ac2.appendChild(bc); ac2.appendChild(bo); folha.appendChild(ac2);
+      } else {
+        var ac3 = h('div', 'nf-v-acoes'); var bv = h('button', 'nf-v-btn', 'Voltar'); bv.type = 'button'; bv.addEventListener('click', function () { est.tipo = ''; pintar(); });
+        var bc2 = h('button', 'nf-v-btn', 'Cancelar'); bc2.type = 'button'; bc2.addEventListener('click', fechar2);
+        ac3.appendChild(bv); ac3.appendChild(bc2); folha.appendChild(ac3);
+      }
+    }
+    pintar();
+  }
+  NFD.abrirNovo = abrirNovo;
+  function ferramentasDoTipo(tipo) {
+    var ordem = { preditivo: ['regras', 'sinais', 'texto', 'montecarlo', 'riscos_ia'], evento: ['porques', 'ishikawa', 'timeline', 'pareto', 'arvore'] }[tipo] || [];
+    return ordem.map(function (id) { return NFD.ferramentas[id]; }).filter(Boolean);
+  }
+
+  /* ---------- IA ---------- */
+  async function pedirIA(corpoReq) {
+    try {
+      var r = await apiDiag('/ia', 'POST', Object.assign({ espaco_id: S.espacoId }, corpoReq));
+      if (!r.j.ok) return { ok: false, erro: r.j.erro || 'A IA não respondeu agora.' };
+      return r.j;
+    } catch (e) { return { ok: false, erro: 'Sem conexão com a IA agora.' }; }
+  }
+  NFD.pedirIA = pedirIA;
+  function enxuto(o) {
+    return JSON.parse(JSON.stringify(o, function (k, v) {
+      if (typeof v === 'string' && v.length > 400) return v.slice(0, 400);
+      if (Array.isArray(v) && v.length > 40) return v.slice(0, 40);
+      return v;
+    }));
+  }
+  function resumoProjeto(pid) {
+    var p = NFD.projeto(pid) || S.ctx.projetos[0];
+    if (!p) return {};
+    var hj = hoje();
+    return { projeto: p.nome, total: p.tarefas.length, abertas: p.tarefas.filter(function (t) { return !feita(t); }).length, atrasadas: p.tarefas.filter(function (t) { return !feita(t) && t.prazo && U.data(t.prazo) < hj; }).length };
+  }
+  NFD.resumoProjeto = resumoProjeto;
+  NFD.enxuto = enxuto;
+
+  /* ---------- editor de um diagnóstico ---------- */
+  function abrirRegistro(reg) {
+    var def = NFD.ferramentas[reg.ferramenta];
+    if (!def) { msg('Esta ferramenta não está disponível nesta versão do app.', true); return; }
+    S.editor = { reg: reg, dados: (reg.dados && typeof reg.dados === 'object') ? reg.dados : {}, def: def, timer: null, sujo: false, auto: true, ultimaIA: 0, ia: null, salvando: false };
+    S.aba = 'editor';
+    desenhar();
+  }
+  NFD.abrirRegistro = abrirRegistro;
+  function marcarSujo() {
+    var E = S.editor;
+    if (!E || E.reg.estado === 'concluido') return;
+    E.sujo = true;
+    var el = document.getElementById('nfDgSalvo');
+    if (el) el.textContent = 'Alterações não salvas';
+    clearTimeout(E.timer);
+    E.timer = setTimeout(function () { salvarRascunho(true); }, 1500);
+  }
+  async function salvarRascunho(silencioso) {
+    var E = S.editor;
+    if (!E || E.reg.estado === 'concluido' || E.salvando) return true;
+    clearTimeout(E.timer);
+    E.salvando = true;
+    var el = document.getElementById('nfDgSalvo'), er = document.getElementById('nfDgErroSalvar');
+    try {
+      var r = await apiDiag('/salvar', 'POST', { id: E.reg.id, espaco_id: S.espacoId, tipo: E.reg.tipo, ferramenta: E.reg.ferramenta, titulo: E.reg.titulo || 'Sem título', projeto_id: E.reg.projeto_id, projeto_nome: E.reg.projeto_nome, severidade: E.reg.severidade, estado: 'rascunho', dados: E.dados });
+      if (!r.j.ok) { if (er) { er.textContent = r.j.erro || 'Não foi possível salvar.'; er.hidden = false; } if (el) el.textContent = 'Não salvo'; return false; }
+      if (er) er.hidden = true;
+      E.sujo = false;
+      Object.assign(E.reg, { atualizado_em: r.j.registro.atualizado_em });
+      var i = S.ctx.registros.findIndex(function (x) { return x.id === E.reg.id; });
+      if (i >= 0) S.ctx.registros[i] = E.reg;
+      var elN = document.getElementById('nfDgSalvo'); if (elN) elN.textContent = 'Salvo às ' + U.pad(new Date().getHours()) + ':' + U.pad(new Date().getMinutes());
+      return true;
+    } catch (e) { if (el) el.textContent = 'Sem conexão: não salvo'; return false; }
+    finally { E.salvando = false; }
+  }
+  async function concluir() {
+    var E = S.editor;
+    var chk = E.def.pronto(E.dados, S.ctx);
+    var er = document.getElementById('nfDgErroSalvar');
+    if (!chk.ok) { er.textContent = chk.motivo; er.hidden = false; return; }
+    er.hidden = true;
+    var r = await apiDiag('/salvar', 'POST', { id: E.reg.id, espaco_id: S.espacoId, tipo: E.reg.tipo, ferramenta: E.reg.ferramenta, titulo: E.reg.titulo, projeto_id: E.reg.projeto_id, projeto_nome: E.reg.projeto_nome, severidade: E.reg.severidade, estado: 'concluido', dados: E.dados });
+    if (!r.j.ok) { er.textContent = r.j.erro || 'Não foi possível concluir.'; er.hidden = false; return; }
+    E.reg = r.j.registro; E.sujo = false;
+    var i = S.ctx.registros.findIndex(function (x) { return x.id === E.reg.id; });
+    if (i >= 0) S.ctx.registros[i] = E.reg;
+    msg('Diagnóstico concluído.');
+    desenhar();
+    dialogoTarefas(E.reg);
+  }
+  async function reabrir() {
+    var E = S.editor;
+    var r = await apiDiag('/salvar', 'POST', { id: E.reg.id, espaco_id: S.espacoId, tipo: E.reg.tipo, ferramenta: E.reg.ferramenta, titulo: E.reg.titulo, projeto_id: E.reg.projeto_id, projeto_nome: E.reg.projeto_nome, severidade: E.reg.severidade, estado: 'rascunho', dados: E.reg.dados });
+    if (!r.j.ok) { msg(r.j.erro || 'Não foi possível reabrir.', true); return; }
+    E.reg = r.j.registro; E.dados = E.reg.dados;
+    var i = S.ctx.registros.findIndex(function (x) { return x.id === E.reg.id; });
+    if (i >= 0) S.ctx.registros[i] = E.reg;
+    desenhar();
+  }
+  function renderEditor() {
+    var E = S.editor, reg = E.reg, ro = reg.estado === 'concluido';
+    var top = h('div', 'nf-dg-edtopo');
+    var voltar = NFD.btn('← ' + (reg.tipo === 'preditivo' ? 'Antes do evento' : 'Depois do evento'), '', function () { podeSair(); S.aba = reg.tipo; S.editor = null; desenhar(); });
+    voltar.setAttribute('data-acao', 'voltar-lista');
+    top.appendChild(voltar);
+    var inT = document.createElement('input'); inT.type = 'text'; inT.className = 'nf-titulo'; inT.value = reg.titulo; inT.maxLength = 160; inT.disabled = ro; inT.setAttribute('aria-label', 'Título'); inT.id = 'nfDgTitulo';
+    inT.addEventListener('input', function () { reg.titulo = inT.value; marcarSujo(); });
+    top.appendChild(inT);
+    var sv = NFD.sel(NFD.SEV, reg.severidade); sv.style.width = 'auto'; sv.disabled = ro; sv.setAttribute('aria-label', 'Severidade');
+    sv.addEventListener('change', function () { reg.severidade = sv.value; marcarSujo(); });
+    top.appendChild(sv);
+    top.appendChild(h('span', 'nf-dg-chip', E.def.nome));
+    if (reg.projeto_nome) top.appendChild(h('span', 'nf-dg-chip', reg.projeto_nome));
+    var estado = h('span', 'nf-dg-sub', ro ? 'Concluído em ' + fmtData(String(reg.concluido_em).slice(0, 10)) : 'Rascunho'); estado.id = 'nfDgSalvo';
+    top.appendChild(estado);
+    corpo.appendChild(top);
+    var er = h('div', 'nf-dg-erro'); er.id = 'nfDgErroSalvar'; er.hidden = true; corpo.appendChild(er);
+    var grade = h('div', 'nf-dg-ed');
+    var principal = h('div'); if (ro) principal.className = 'nf-dg-ro';
+    var lado = h('div', 'nf-dg-ia');
+    grade.appendChild(principal); grade.appendChild(lado);
+    corpo.appendChild(grade);
+    var st = {
+      reg: reg, dados: E.dados, ctx: S.ctx, def: E.def, readonly: ro,
+      mudou: marcarSujo, nome: nomeMembro,
+      banco: function (pid) { return NFD.banco(pid === undefined ? reg.projeto_id : pid, E.dados.evidencias_externas); },
+      etapa: function (nome) { iaAuto(nome); }, msg: msg, redesenhar: function () { principal.textContent = ''; E.def.render(principal, st); if (ro) travar(principal); desenharIA(lado, st); }
+    };
+    E.st = st;
+    E.def.render(principal, st);
+    if (ro) travar(principal);
+    desenharIA(lado, st);
+    /* ações do diagnóstico */
+    var barra = h('div', 'nf-dg-secao'); barra.style.marginTop = '18px';
+    if (!ro) {
+      barra.appendChild(NFD.btn('Salvar rascunho', '', async function () { var ok = await salvarRascunho(false); if (ok) msg('Rascunho salvo.'); }));
+      var bc = NFD.btn('Concluir e gerar tarefas', 'nf-prim', concluir); bc.setAttribute('data-acao', 'concluir'); barra.appendChild(bc);
+    } else {
+      var bg = NFD.btn('Gerar tarefas', 'nf-prim', function () { dialogoTarefas(reg); }); bg.setAttribute('data-acao', 'gerar-tarefas'); barra.appendChild(bg);
+      barra.appendChild(NFD.btn('Reabrir para editar', '', reabrir));
+    }
+    var ex = NFD.btn('Excluir', 'nf-perigo', async function () {
+      if (!confirm('Excluir este diagnóstico e as tarefas geradas por ele?')) return;
+      var r = await apiDiag('/excluir', 'POST', { espaco_id: S.espacoId, id: reg.id });
+      if (!r.j.ok) { msg(r.j.erro || 'Não foi possível excluir.', true); return; }
+      S.ctx.registros = S.ctx.registros.filter(function (x) { return x.id !== reg.id; });
+      S.ctx.tarefas = S.ctx.tarefas.filter(function (x) { return x.diag_id !== reg.id; });
+      S.aba = reg.tipo; S.editor = null; desenhar();
+    });
+    barra.appendChild(ex);
+    corpo.appendChild(barra);
+  }
+  function travar(el) {
+    el.querySelectorAll('input,select,textarea,button').forEach(function (x) { if (!x.hasAttribute('data-ro-ok')) x.disabled = true; });
+    el.querySelectorAll('[draggable]').forEach(function (x) { x.draggable = false; });
+  }
+
+  /* copiloto: participante da análise (reflete, critica e sugere), nunca autor da conclusão */
+  function desenharIA(lado, st) {
+    var E = S.editor;
+    lado.textContent = '';
+    var c = h('div', 'nf-dg-card');
+    var t = h('h3'); t.appendChild(document.createTextNode('Copiloto de IA')); c.appendChild(t);
+    c.appendChild(h('p', 'nf-dg-sub', 'Participa da análise com reflexões, críticas e sugestões. Ele nunca conclui por você nem aponta pessoas.'));
+    if (!st.readonly) {
+      var lab = h('label', 'nf-dg-chk'); var ck = document.createElement('input'); ck.type = 'checkbox'; ck.checked = E.auto; ck.id = 'nfDgIAauto';
+      ck.addEventListener('change', function () { E.auto = ck.checked; });
+      lab.appendChild(ck); lab.appendChild(document.createTextNode('Comentar a cada etapa (usa 1 pedido de IA por comentário)'));
+      c.appendChild(lab);
+      var bs = h('div', 'nf-dg-botoes');
+      [['refletir', 'Refletir'], ['criticar', 'Criticar'], ['sugerir', 'Sugerir'], ['tudo', 'Tudo']].forEach(function (m) { var b = NFD.btn(m[1], 'nf-peq', function () { pedirCopiloto(m[0], 'pedido manual', lado, st); }); b.setAttribute('data-ia', m[0]); bs.appendChild(b); });
+      c.appendChild(bs);
+    }
+    var crit = (E.def.criticas ? E.def.criticas(E.dados, S.ctx) : []) || [];
+    if (crit.length) {
+      var sx = h('div', 'nf-dg-ia-sec'); sx.setAttribute('data-sec', 'app'); sx.appendChild(h('h5', null, 'Verificações do app (sem IA)'));
+      var ul = h('ul'); crit.forEach(function (x) { ul.appendChild(h('li', null, x)); }); sx.appendChild(ul); c.appendChild(sx);
+    }
+    var res = h('div'); res.id = 'nfDgIAres';
+    c.appendChild(res);
+    lado.appendChild(c);
+    if (E.ia) pintarIA(res, E.ia);
+  }
+  function pintarIA(res, r) {
+    res.textContent = '';
+    if (!r.ok) { res.appendChild(h('div', 'nf-dg-erro', r.erro)); return; }
+    if (r.resumo) { var rs = h('div', 'nf-dg-ia-sec'); rs.appendChild(h('h5', null, 'Leitura')); rs.appendChild(h('div', null, r.resumo)); res.appendChild(rs); }
+    [['reflexoes', 'Reflexões'], ['criticas', 'Críticas e hipótese alternativa'], ['sugestoes', 'Sugestões'], ['perguntas', 'Perguntas para a equipe']].forEach(function (s) {
+      if (!(r[s[0]] || []).length) return;
+      var d = h('div', 'nf-dg-ia-sec'); d.setAttribute('data-sec', s[0]); d.appendChild(h('h5', null, s[1]));
+      var ul = h('ul'); r[s[0]].forEach(function (x) { ul.appendChild(h('li', null, x)); }); d.appendChild(ul); res.appendChild(d);
+    });
+    res.appendChild(h('p', 'nf-dg-sub', 'Sugestão da IA: confirme com os dados antes de usar. Nada daqui entra no diagnóstico sem você registrar.'));
+  }
+  async function pedirCopiloto(modo, etapa, lado, st) {
+    var E = S.editor, res = lado.querySelector('#nfDgIAres');
+    if (!res) return;
+    res.textContent = ''; res.appendChild(h('div', 'nf-dg-sub', 'A IA está lendo o diagnóstico...'));
+    E.ultimaIA = Date.now();
+    var ctxIA = { titulo: E.reg.titulo, severidade: E.reg.severidade, projeto: E.reg.projeto_nome, resumo_projeto: resumoProjeto(E.reg.projeto_id), dados: enxuto(E.dados) };
+    var r = await pedirIA({ tarefa: 'copiloto', ferramenta: E.def.nome, etapa: etapa, modo: modo, contexto: ctxIA });
+    E.ia = r;
+    var res2 = document.getElementById('nfDgIAres');
+    if (res2) pintarIA(res2, r);
+  }
+  function iaAuto(etapa) {
+    var E = S.editor;
+    if (!E || !E.auto || E.reg.estado === 'concluido' || Date.now() - E.ultimaIA < 25000) return;
+    var lado = document.querySelector('.nf-dg-ia');
+    if (lado) pedirCopiloto('tudo', etapa, lado, E.st);
+  }
+
+  /* ---------- tarefas geradas pelo diagnóstico (moram aqui, não nos projetos) ---------- */
+  function dialogoTarefas(reg) {
+    var def = NFD.ferramentas[reg.ferramenta];
+    var sug = (def && def.itens ? def.itens(reg.dados, S.ctx, reg) : []).slice(0, 14);
+    var fundo = h('div', 'nf-v-modal'), folha = h('div', 'nf-v-folha nf-dg-larga');
+    fundo.appendChild(folha); document.body.appendChild(fundo);
+    folha.appendChild(h('h3', null, 'Gerar tarefas deste diagnóstico'));
+    folha.appendChild(h('p', 'nf-dg-sub', 'As tarefas ficam na aba Tarefas deste ambiente, ligadas ao diagnóstico. Elas não entram nos projetos.'));
+    var linhas = [], box = h('div', 'nf-dg-lista');
+    function add(s) {
+      var li = h('div', 'nf-dg-item'); li.style.alignItems = 'flex-start'; li.setAttribute('data-linha', '1');
+      var ck = document.createElement('input'); ck.type = 'checkbox'; ck.checked = true; ck.setAttribute('aria-label', 'Criar esta tarefa');
+      var col = h('div', 'nf-t'); col.style.minWidth = '0';
+      var tt = NFD.inp('text', s.titulo, 'Título da tarefa', 200); tt.setAttribute('aria-label', 'Título da tarefa');
+      var l2 = h('div', 'nf-dg-linha'); l2.style.marginTop = '6px';
+      var opR = [['', 'Sem responsável']]; S.ctx.membros.forEach(function (m) { opR.push([m.id, m.nome]); });
+      var rs = NFD.sel(opR, s.responsavel_id || ''); rs.setAttribute('aria-label', 'Responsável');
+      var pz = NFD.inp('date', s.prazo || dataMais(14)); pz.setAttribute('aria-label', 'Prazo');
+      l2.appendChild(rs); l2.appendChild(pz);
+      col.appendChild(tt); col.appendChild(l2);
+      if (s.origem) col.appendChild(h('small', null, 'Origem: ' + s.origem));
+      li.appendChild(ck); li.appendChild(col); box.appendChild(li);
+      linhas.push({ ck: ck, tt: tt, rs: rs, pz: pz, s: s });
+    }
+    sug.forEach(add);
+    if (!sug.length) folha.appendChild(h('div', 'nf-dg-aviso', 'Este diagnóstico não sugeriu tarefas. Adicione as que fizerem sentido.'));
+    folha.appendChild(box);
+    var er = h('div', 'nf-dg-erro'); er.hidden = true;
+    var ac = h('div', 'nf-v-acoes');
+    var bAdd = h('button', 'nf-v-btn', '+ Outra tarefa'); bAdd.type = 'button'; bAdd.addEventListener('click', function () { add({ titulo: '', origem: '' }); });
+    var bAgora = h('button', 'nf-v-btn', 'Agora não'); bAgora.type = 'button'; bAgora.addEventListener('click', function () { fundo.remove(); });
+    var bCriar = h('button', 'nf-v-btn nf-v-prim', 'Criar tarefas'); bCriar.type = 'button'; bCriar.setAttribute('data-acao', 'criar-tarefas');
+    bCriar.addEventListener('click', async function () {
+      var lista = linhas.filter(function (l) { return l.ck.checked && l.tt.value.trim(); }).map(function (l) { return { titulo: l.tt.value.trim(), responsavel_id: l.rs.value, prazo: l.pz.value, origem: l.s.origem || '', descricao: l.s.descricao || '' }; });
+      if (!lista.length) { er.textContent = 'Marque ao menos uma tarefa com título.'; er.hidden = false; return; }
+      bCriar.disabled = true; bCriar.textContent = 'Criando...';
+      var r = await apiDiag('/tarefas/gerar', 'POST', { espaco_id: S.espacoId, diag_id: reg.id, tarefas: lista });
+      if (!r.j.ok) { er.textContent = r.j.erro || 'Não foi possível criar as tarefas.'; er.hidden = false; bCriar.disabled = false; bCriar.textContent = 'Criar tarefas'; return; }
+      S.ctx.tarefas = S.ctx.tarefas.filter(function (t) { return t.diag_id !== reg.id; }).concat(r.j.tarefas);
+      fundo.remove(); msg(r.j.criadas + (r.j.criadas === 1 ? ' tarefa criada' : ' tarefas criadas') + '. Veja na aba Tarefas.');
+    });
+    ac.appendChild(bAdd); ac.appendChild(bAgora); ac.appendChild(bCriar);
+    folha.appendChild(er); folha.appendChild(ac);
+  }
+  var STAT = [['afazer', 'A fazer', '#8E96B5'], ['andamento', 'Em andamento', '#FFD600'], ['feita', 'Feita', '#22B573']];
+  function renderTarefas() {
+    var sec = h('div', 'nf-dg-secao'); sec.appendChild(h('h3', null, 'Tarefas dos diagnósticos'));
+    var fil = document.createElement('select'); fil.className = 'nf-dg-sel'; fil.setAttribute('aria-label', 'Filtrar por responsável');
+    var o0 = h('option', null, 'Todos os responsáveis'); o0.value = ''; fil.appendChild(o0);
+    S.ctx.membros.forEach(function (m) { var o = h('option', null, m.nome); o.value = m.id; fil.appendChild(o); });
+    fil.value = S.filtroResp || '';
+    fil.addEventListener('change', function () { S.filtroResp = fil.value; desenhar(); });
+    sec.appendChild(fil);
+    corpo.appendChild(sec);
+    corpo.appendChild(h('div', 'nf-dg-info', 'Estas tarefas nascem dos diagnósticos concluídos e ficam só aqui, separadas dos projetos. Para criar mais, abra um diagnóstico concluído e use "Gerar tarefas".'));
+    var lista = S.ctx.tarefas.filter(function (t) { return !S.filtroResp || t.responsavel_id === S.filtroResp; });
+    if (!S.ctx.tarefas.length) { corpo.appendChild(h('div', 'nf-dg-vazio', 'Ainda não há tarefas. Conclua um diagnóstico e gere as tarefas a partir dele.')); return; }
+    var k = h('div', 'nf-dg-kanban');
+    STAT.forEach(function (s) {
+      var col = h('div', 'nf-dg-col'); col.setAttribute('data-col', s[0]);
+      var items = lista.filter(function (t) { return t.status === s[0]; });
+      var t4 = h('h4'); t4.appendChild(h('span', null, s[1])); t4.appendChild(h('span', null, String(items.length))); col.appendChild(t4);
+      items.forEach(function (t) {
+        var atras = t.status !== 'feita' && t.prazo && U.data(t.prazo) < hoje();
+        var c = h('div', 'nf-dg-tarefa' + (atras ? ' nf-atrasada' : '')); c.style.setProperty('--c', s[2]); c.setAttribute('data-tarefa', t.id);
+        c.appendChild(h('b', null, t.titulo));
+        var reg = S.ctx.registros.filter(function (r) { return r.id === t.diag_id; })[0];
+        c.appendChild(h('small', null, (reg ? 'Diagnóstico: ' + reg.titulo : '') + (t.origem ? ' · ' + t.origem : '')));
+        c.appendChild(h('small', null, (t.responsavel_id ? nomeMembro(t.responsavel_id) || 'Responsável' : 'Sem responsável') + (t.prazo ? ' · prazo ' + fmtData(t.prazo) + (atras ? ' (atrasada)' : '') : '')));
+        var ac = h('div', 'nf-ac');
+        var st = NFD.sel(STAT.map(function (x) { return [x[0], x[1]]; }), t.status); st.style.width = 'auto'; st.className = 'nf-dg-in'; st.setAttribute('aria-label', 'Mudar andamento');
+        st.addEventListener('change', async function () {
+          var r = await apiDiag('/tarefas/salvar', 'POST', { espaco_id: S.espacoId, id: t.id, status: st.value });
+          if (!r.j.ok) { msg(r.j.erro || 'Não foi possível atualizar.', true); st.value = t.status; return; }
+          Object.assign(t, r.j.tarefa); desenhar();
+        });
+        ac.appendChild(st);
+        ac.appendChild(NFD.btn('Editar', 'nf-peq', function () { editarTarefa(t); }));
+        ac.appendChild(NFD.btn('×', 'nf-peq nf-perigo', async function () {
+          if (!confirm('Excluir esta tarefa?')) return;
+          var r = await apiDiag('/tarefas/excluir', 'POST', { espaco_id: S.espacoId, id: t.id });
+          if (!r.j.ok) { msg(r.j.erro || 'Não foi possível excluir.', true); return; }
+          S.ctx.tarefas = S.ctx.tarefas.filter(function (x) { return x.id !== t.id; }); desenhar();
+        }));
+        c.appendChild(ac); col.appendChild(c);
+      });
+      k.appendChild(col);
+    });
+    corpo.appendChild(k);
+  }
+  function editarTarefa(t) {
+    var fundo = h('div', 'nf-v-modal'), folha = h('div', 'nf-v-folha');
+    fundo.appendChild(folha); document.body.appendChild(fundo);
+    folha.appendChild(h('h3', null, 'Editar tarefa'));
+    var tt = NFD.inp('text', t.titulo, '', 200), ds = document.createElement('textarea'); ds.className = 'nf-dg-in'; ds.value = t.descricao || '';
+    var opR = [['', 'Sem responsável']]; S.ctx.membros.forEach(function (m) { opR.push([m.id, m.nome]); });
+    var rs = NFD.sel(opR, t.responsavel_id || ''), pz = NFD.inp('date', t.prazo || '');
+    folha.appendChild(NFD.campo('Título', tt)); folha.appendChild(NFD.campo('Descrição', ds));
+    var l = h('div', 'nf-dg-linha'); l.appendChild(NFD.campo('Responsável', rs)); l.appendChild(NFD.campo('Prazo', pz)); folha.appendChild(l);
+    var er = h('div', 'nf-dg-erro'); er.hidden = true; folha.appendChild(er);
+    var ac = h('div', 'nf-v-acoes');
+    var bc = h('button', 'nf-v-btn', 'Cancelar'); bc.type = 'button'; bc.addEventListener('click', function () { fundo.remove(); });
+    var bs = h('button', 'nf-v-btn nf-v-prim', 'Salvar'); bs.type = 'button';
+    bs.addEventListener('click', async function () {
+      var r = await apiDiag('/tarefas/salvar', 'POST', { espaco_id: S.espacoId, id: t.id, titulo: tt.value, descricao: ds.value, responsavel_id: rs.value, prazo: pz.value });
+      if (!r.j.ok) { er.textContent = r.j.erro || 'Não foi possível salvar.'; er.hidden = false; return; }
+      Object.assign(t, r.j.tarefa); fundo.remove(); desenhar();
+    });
+    ac.appendChild(bc); ac.appendChild(bs); folha.appendChild(ac);
+  }
+
+  /* ---------- início ---------- */
+  injetarCartao();
+  setTimeout(verificarAcesso, 1500);
+  window.addEventListener('focus', function () { verificarAcesso(); });
+  new MutationObserver(function () { if (!document.getElementById('homeDiagnostico')) injetarCartao(); }).observe(document.body, { childList: true, subtree: true });
+  window.NowFindDiagnostico = { abrir: abrir, fechar: fechar };
+})();
+/* ===== AJUSTES 50 - FIM ===== */
+/* ===== AJUSTES 51 - DIAGNÓSTICO: FERRAMENTAS DE ANTES DO EVENTO ===== */
+(function () {
+  if (!window.NFD || NFD.preditivoOk) return;
+  NFD.preditivoOk = true;
+  var U = NFD.U, h = U.h, S = NFD.S;
+  var CLASSES = [['risco', 'Risco'], ['problema', 'Problema'], ['dependencia', 'Dependência'], ['decisao', 'Decisão pendente']];
+  var SEV3 = [['baixa', 'Baixa'], ['media', 'Média'], ['alta', 'Alta']];
+  var TEND = { nova: ['Nova', '#2F5BFF'], persistente: ['Persistente', '#E0A800'], piorando: ['Piorando', '#E5202E'], melhorando: ['Melhorando', '#22B573'], parada: ['Sem atualização', '#8E96B5'] };
+  function novoId(p) { return p + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+  function sa(s) { return String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(); }
+  function hoje() { return U.hoje(); }
+  function fmt(d) { return U.pad(d.getDate()) + '/' + U.pad(d.getMonth() + 1) + '/' + d.getFullYear(); }
+  function somaDias(d, n) { var x = new Date(d); x.setDate(x.getDate() + n); return x; }
+  function ordemSev(s) { return { baixa: 1, media: 2, alta: 3 }[s] || 2; }
+
+  /* ---------- linha de base determinística (sem IA): classifica pelo texto ---------- */
+  NFD.classificar = function (texto) {
+    var t = sa(texto), classe = 'risco', cat = 'processo', sev = 'media';
+    if (/depend|aguardand|fornecedor|terceir|bloquead|api externa/.test(t)) classe = 'dependencia';
+    else if (/atras|falh|erro|quebr|parou|nao funciona|incidente|estour/.test(t)) classe = 'problema';
+    else if (/decid|decisao|aprovac|definir|escolh|pendente de/.test(t)) classe = 'decisao';
+    if (/estim|subestim|prazo apertado|prazo curto|cronograma/.test(t)) cat = 'estimativa';
+    else if (/escopo|mudanca de|requisito|adicion|novo pedido|pedido novo/.test(t)) cat = 'escopo';
+    else if (/fornecedor|terceir|extern|depend|aprovacao de|licenc|api/.test(t)) cat = 'dependencia';
+    else if (/capacidade|sobrecarreg|falta de gente|ferias|alocac|hora extra|equipe reduzida|sem pessoas|pouca gente/.test(t)) cat = 'capacidade';
+    else if (/retrabalho|bug|defeito|qualidade|reprov|refaz|falha tecnica/.test(t)) cat = 'qualidade';
+    if (/critic|urgent|bloque|parad|grave|inviavel|nao vai dar|muito atras|risco alto/.test(t)) sev = 'alta';
+    else if (/pequen|leve|possivel|talvez|baixo/.test(t)) sev = 'baixa';
+    return { classe: classe, categoria: cat, severidade: sev };
+  };
+  var PALAVRAS_RISCO = /risco|atras|depend|bloque|falta|sobrecarreg|instavel|incerto|nao consegu|problema|falh|pendente|aguardand|preocup|estour|retrabalh|mudanca|sem respons|nao chegou|nao respondeu|adiad/;
+
+  /* ---------- tendência frente ao diagnóstico anterior do mesmo projeto ---------- */
+  function anteriorDe(reg) {
+    var cand = S.ctx.registros.filter(function (r) { return r.id !== reg.id && (r.ferramenta === 'sinais' || r.ferramenta === 'texto') && (r.projeto_id || '') === (reg.projeto_id || '') && r.tipo === 'preditivo' && r.dados && (r.dados.sinais || []).length; });
+    cand.sort(function (a, b) { return String(b.atualizado_em).localeCompare(String(a.atualizado_em)); });
+    return cand[0] || null;
+  }
+  function calcularTendencia(dados, reg) {
+    var ant = anteriorDe(reg), res = { porId: {}, ausentes: [], anterior: ant };
+    var atuais = dados.sinais || [];
+    var usados = {};
+    atuais.forEach(function (s) {
+      var melhor = null, nota = 0;
+      if (ant) (ant.dados.sinais || []).forEach(function (p) { var n = NFD.similar(s.texto, p.texto); if (n > nota && n >= 0.5 && !usados[p.id]) { nota = n; melhor = p; } });
+      if (!melhor) { res.porId[s.id] = 'nova'; return; }
+      usados[melhor.id] = 1;
+      var d = ordemSev(s.severidade) - ordemSev(melhor.severidade);
+      res.porId[s.id] = d > 0 ? 'piorando' : (d < 0 ? 'melhorando' : 'persistente');
+    });
+    if (ant) {
+      var idade = U.dif(new Date(ant.atualizado_em), new Date());
+      (ant.dados.sinais || []).forEach(function (p) { if (!usados[p.id]) res.ausentes.push({ texto: p.texto, parada: idade >= 30, idade: idade }); });
+    }
+    return res;
+  }
+
+  /* ---------- tabela de sinais (usada pelas ferramentas "Sinais" e "Texto livre") ---------- */
+  function tabelaSinais(box, st) {
+    var dados = st.dados;
+    dados.sinais = dados.sinais || [];
+    var raiz = h('div'); box.appendChild(raiz);
+    function pintar() {
+      raiz.textContent = '';
+      var tend = calcularTendencia(dados, st.reg);
+      var cab = h('div', 'nf-dg-secao'); cab.appendChild(h('h3', null, 'Sinais registrados (' + dados.sinais.length + ')'));
+      raiz.appendChild(cab);
+      if (tend.anterior) raiz.appendChild(h('div', 'nf-dg-info', 'Comparando com o diagnóstico "' + tend.anterior.titulo + '" (' + fmt(new Date(tend.anterior.atualizado_em)) + ') para mostrar se cada sinal é novo, persistente, está melhorando ou piorando.'));
+      else raiz.appendChild(h('div', 'nf-dg-sub', 'Este é o primeiro diagnóstico de sinais deste projeto: nas próximas vezes cada sinal mostrará a tendência.'));
+      if (!dados.sinais.length) raiz.appendChild(h('div', 'nf-dg-vazio', 'Nenhum sinal ainda.'));
+      var lista = h('div', 'nf-dg-lista'); raiz.appendChild(lista);
+      dados.sinais.forEach(function (s, i) {
+        var it = h('div', 'nf-dg-item'); it.style.setProperty('--c', NFD.sevCor(s.severidade)); it.style.alignItems = 'flex-start'; it.setAttribute('data-sinal', s.id);
+        var col = h('div', 'nf-t'); col.style.minWidth = '0';
+        var tx = NFD.inp('text', s.texto, '', 240); tx.setAttribute('aria-label', 'Sinal');
+        tx.addEventListener('input', function () { s.texto = tx.value; st.mudou(); });
+        tx.addEventListener('change', function () { var p = NFD.achaPessoa(s.texto); if (p) { st.msg('Descreva a condição, não "' + p + '": o diagnóstico não aponta pessoas.', true); } pintar(); });
+        var l2 = h('div', 'nf-dg-linha'); l2.style.marginTop = '6px';
+        var c1 = NFD.sel(CLASSES, s.classe); c1.setAttribute('aria-label', 'Classe'); c1.addEventListener('change', function () { s.classe = c1.value; st.mudou(); });
+        var c2 = NFD.sel(NFD.CATS, NFD.normCat(s.categoria)); c2.setAttribute('aria-label', 'Categoria'); c2.addEventListener('change', function () { s.categoria = c2.value; st.mudou(); pintar(); });
+        var c3 = NFD.sel(SEV3, s.severidade); c3.setAttribute('aria-label', 'Severidade'); c3.addEventListener('change', function () { s.severidade = c3.value; st.mudou(); pintar(); });
+        l2.appendChild(c1); l2.appendChild(c2); l2.appendChild(c3);
+        col.appendChild(tx); col.appendChild(l2);
+        var t = TEND[tend.porId[s.id]] || TEND.nova;
+        var meta = h('div', 'nf-dg-sub'); meta.style.marginTop = '4px';
+        var ch = h('span', 'nf-dg-chip'); ch.style.setProperty('--c', t[1]); ch.appendChild(document.createElement('i')); ch.appendChild(document.createTextNode(t[0])); ch.setAttribute('data-tendencia', tend.porId[s.id] || 'nova');
+        meta.appendChild(ch); meta.appendChild(document.createTextNode('  Origem: ' + ({ manual: 'registrado à mão', regra: 'motor de regras', texto: 'leitura de texto', ia: 'leitura com IA' }[s.origem] || 'manual')));
+        col.appendChild(meta);
+        var pas = NFD.blocoPassado(s.texto, s.categoria, st.reg.id); if (pas) { pas.style.marginTop = '6px'; col.appendChild(pas); }
+        it.appendChild(col);
+        var x = NFD.btn('×', 'nf-peq nf-perigo', function () { dados.sinais.splice(i, 1); st.mudou(); pintar(); }); x.setAttribute('aria-label', 'Remover sinal');
+        it.appendChild(x);
+        lista.appendChild(it);
+      });
+      if (tend.ausentes.length) {
+        var d = h('div', 'nf-dg-card'); d.style.marginTop = '12px'; d.setAttribute('data-ausentes', '1');
+        d.appendChild(h('h4', null, 'Sinais do diagnóstico anterior que não aparecem agora'));
+        tend.ausentes.forEach(function (a) { d.appendChild(h('div', 'nf-dg-sub', (a.parada ? 'Sem atualização há ' + a.idade + ' dias: ' : 'Possivelmente resolvido: ') + a.texto)); });
+        raiz.appendChild(d);
+      }
+    }
+    pintar();
+    return { pintar: pintar };
+  }
+  function itensDeSinais(dados) {
+    var out = [];
+    var tend = calcularTendencia(dados, { id: '', projeto_id: '' });
+    (dados.sinais || []).filter(function (s) { return s.severidade === 'alta' || s.classe === 'problema'; }).slice(0, 10).forEach(function (s) {
+      out.push({ titulo: 'Tratar sinal: ' + s.texto.slice(0, 110), descricao: s.texto, origem: 'Sinal de ' + NFD.catNome(NFD.normCat(s.categoria)) + ' (severidade ' + s.severidade + ')' });
+    });
+    void tend;
+    return out;
+  }
+  function criticasSinais(dados) {
+    var c = [], s = dados.sinais || [];
+    if (!s.length) return c;
+    var cats = {}; s.forEach(function (x) { cats[NFD.normCat(x.categoria)] = 1; });
+    if (s.length >= 4 && Object.keys(cats).length === 1) c.push('Todos os sinais caem em uma categoria só (' + NFD.catNome(Object.keys(cats)[0]) + '). Confira se não falta olhar capacidade, dependências e escopo.');
+    if (!s.some(function (x) { return x.origem === 'regra' || x.origem === 'ia' || x.origem === 'texto'; })) c.push('Todos os sinais foram digitados à mão. Traga os alertas do motor de regras para cruzar com o que os dados mostram.');
+    if (s.filter(function (x) { return x.severidade === 'alta'; }).length === s.length && s.length > 2) c.push('Todos os sinais estão como severidade alta: sem distinção, nada fica priorizado.');
+    return c;
+  }
+
+  /* ======================== 1. MOTOR DE REGRAS ======================== */
+  NFD.registrar({
+    id: 'regras', tipo: 'preditivo', nome: 'Motor de regras de alerta', origem: 'Regras de negócio sobre os dados do projeto',
+    resumo: 'Varre as tarefas do espaço e dispara alertas quando algo costuma dar errado: prazo adiado várias vezes, dependência parada, entrega abaixo da meta, pessoa sobrecarregada.',
+    usar: ['Quer um panorama rápido, sem escrever nada', 'Precisa de alertas objetivos e repetíveis', 'Quer descobrir onde olhar primeiro'],
+    evitar: ['O projeto tem poucas tarefas ou quase nenhuma data', 'Precisa entender a causa (use as ferramentas de depois do evento)'],
+    precisa: 'Tarefas com prazo, responsável e dependências nos projetos do espaço. Adiamentos e retrabalho dependem do histórico, que passa a ser anotado a partir do uso do diagnóstico.',
+    ia: 'Comenta o resultado: o que os alertas indicam em conjunto, o que pode estar faltando olhar e o que priorizar.',
+    vazio: function () { return { alertas: [], parametros: Object.assign({}, NFD.PARAMS), executado_em: '' }; },
+    render: function (box, st) {
+      var d = st.dados; d.alertas = d.alertas || []; d.parametros = Object.assign({}, NFD.PARAMS, d.parametros || {});
+      box.appendChild(h('div', 'nf-dg-info', 'As regras leem os projetos do espaço (' + (st.reg.projeto_nome || 'todos os projetos') + ') como estão agora. Ajuste os limites e execute. Marque o que precisa de ação: vira tarefa ao concluir.'));
+      var card = h('div', 'nf-dg-card'); card.appendChild(h('h4', null, 'Limites das regras'));
+      var l = h('div', 'nf-dg-linha'); card.appendChild(l);
+      var campos = [['dias_bloqueio', 'Dependência parada além de (dias)'], ['adiamentos', 'Prazo adiado (vezes)'], ['entrega_min', 'Entrega mínima (%)'], ['janela_entrega', 'Janela da entrega (dias)'], ['sobrecarga', 'Tarefas por pessoa na semana']];
+      campos.forEach(function (c) { var i = NFD.inp('number', d.parametros[c[0]]); i.min = 1; i.addEventListener('change', function () { d.parametros[c[0]] = Math.max(1, Number(i.value) || NFD.PARAMS[c[0]]); st.mudou(); }); l.appendChild(NFD.campo(c[1], i)); });
+      var exec = NFD.btn('Executar agora', 'nf-prim', function () {
+        var pid = st.reg.projeto_id;
+        var res = NFD.regras(d.parametros).filter(function (a) { return !pid || a.projeto_id === pid; });
+        d.alertas = res.map(function (a) { return { id: a.id, regra: a.regra, sev: a.sev, projeto_id: a.projeto_id, projeto_nome: a.projeto_nome, tarefa_id: a.tarefa_id, tarefa_titulo: a.tarefa_titulo, texto: a.texto, dias: a.dias, acao: a.sev === 'alta' }; });
+        d.executado_em = new Date().toISOString(); st.mudou(); pintar(); st.etapa('regras executadas');
+      });
+      exec.setAttribute('data-acao', 'executar-regras');
+      card.appendChild(exec); box.appendChild(card);
+      var res = h('div'); box.appendChild(res);
+      function pintar() {
+        res.textContent = '';
+        if (!d.executado_em) { res.appendChild(h('div', 'nf-dg-vazio', 'Ainda não executado.')); return; }
+        res.appendChild(h('div', 'nf-dg-sub', 'Executado em ' + fmt(new Date(d.executado_em)) + ' às ' + U.pad(new Date(d.executado_em).getHours()) + ':' + U.pad(new Date(d.executado_em).getMinutes()) + ' · ' + d.alertas.length + ' alertas'));
+        if (!d.alertas.length) { res.appendChild(h('div', 'nf-dg-aviso', 'Nenhum alerta com os dados de hoje. Se o projeto tem poucas datas, o motor enxerga pouco.')); return; }
+        var grupos = {};
+        d.alertas.forEach(function (a) { (grupos[a.regra] = grupos[a.regra] || []).push(a); });
+        Object.keys(grupos).forEach(function (k) {
+          var g = h('div', 'nf-dg-secao'); g.appendChild(h('h3', null, (NFD.REGRAS[k] || k) + ' (' + grupos[k].length + ')')); res.appendChild(g);
+          var ul = h('div', 'nf-dg-lista');
+          grupos[k].forEach(function (a) {
+            var it = h('div', 'nf-dg-item'); it.style.setProperty('--c', NFD.sevCor(a.sev)); it.setAttribute('data-alerta', a.id);
+            var ck = document.createElement('input'); ck.type = 'checkbox'; ck.checked = !!a.acao; ck.setAttribute('aria-label', 'Precisa de ação'); ck.addEventListener('change', function () { a.acao = ck.checked; st.mudou(); });
+            var t = h('div', 'nf-t'); t.appendChild(h('b', null, a.projeto_nome)); t.appendChild(h('small', null, a.texto));
+            var p = NFD.blocoPassado(a.texto, k === 'sobrecarga' || k === 'sem_responsavel' ? 'capacidade' : (k === 'bloqueio' ? 'dependencia' : 'estimativa'), st.reg.id); if (p) { p.style.marginTop = '6px'; t.appendChild(p); }
+            it.appendChild(ck); it.appendChild(t); it.appendChild(h('span', 'nf-dg-chip', 'Precisa de ação'));
+            ul.appendChild(it);
+          });
+          res.appendChild(ul);
+        });
+      }
+      pintar();
+    },
+    pronto: function (d) { return (d.alertas || []).length ? { ok: true } : { ok: false, motivo: 'Execute as regras e tenha ao menos um alerta para concluir.' }; },
+    itens: function (d) { return (d.alertas || []).filter(function (a) { return a.acao; }).slice(0, 12).map(function (a) { return { titulo: 'Tratar: ' + (NFD.REGRAS[a.regra] || a.regra) + (a.tarefa_titulo ? ' · ' + a.tarefa_titulo : ''), descricao: a.texto, origem: 'Alerta do motor de regras (' + a.projeto_nome + ')' }; }); },
+    criticas: function (d) {
+      var c = [];
+      if (S.ctx.hist.every(function (x) { return !x.mudancas_prazo && !x.reaberturas; })) c.push('Ainda não há histórico de mudanças de prazo ou de retrabalho. Essas regras só passam a disparar conforme o diagnóstico acompanha o espaço.');
+      var p = NFD.projeto(S.editor && S.editor.reg.projeto_id) || null;
+      if (p && p.tarefas.filter(function (t) { return !t.prazo; }).length > p.tarefas.length / 2) c.push('Mais da metade das tarefas está sem prazo: o motor enxerga pouco deste projeto.');
+      return c;
+    }
+  });
+
+  /* ======================== 2. SINAIS DE RISCO ======================== */
+  NFD.registrar({
+    id: 'sinais', tipo: 'preditivo', nome: 'Sinais de risco com tendência', origem: 'Inspirado no project-risk-agent (código aberto)',
+    resumo: 'Registra riscos, problemas, dependências e decisões pendentes, classifica sem precisar de IA e mostra a tendência frente ao diagnóstico anterior: nova, persistente, melhorando, piorando ou sem atualização.',
+    usar: ['Acompanha o mesmo projeto semana a semana', 'Quer ver se os riscos estão melhorando ou piorando', 'Precisa de uma classificação simples e previsível'],
+    evitar: ['É a primeira vez e você não tem sinais para registrar', 'Precisa de números de probabilidade (use a simulação do prazo)'],
+    precisa: 'Nada além do que a equipe observa. Os alertas do motor de regras podem ser trazidos como sinais.',
+    ia: 'Critica a lista (categorias esquecidas, severidades sem distinção) e sugere o que mais vale olhar.',
+    vazio: function (o) { var s = o && o.sinal ? [{ id: novoId('sg'), texto: o.sinal.texto, classe: 'risco', categoria: NFD.classificar(o.sinal.texto).categoria, severidade: o.sinal.severidade || 'media', origem: 'regra' }] : []; return { sinais: s }; },
+    render: function (box, st) {
+      var d = st.dados; d.sinais = d.sinais || [];
+      box.appendChild(h('div', 'nf-dg-info', 'Escreva o sinal em uma frase e o app classifica sozinho (você pode corrigir). Sinais descrevem condições do trabalho, nunca pessoas.'));
+      var card = h('div', 'nf-dg-card');
+      var l = h('div', 'nf-dg-linha');
+      var inp = NFD.inp('text', '', 'Ex.: o fornecedor de aço ainda não confirmou a entrega', 240); inp.setAttribute('aria-label', 'Novo sinal');
+      var b = NFD.btn('Adicionar', 'nf-prim', add); b.style.flex = '0 0 auto'; b.setAttribute('data-acao', 'add-sinal');
+      l.appendChild(inp); l.appendChild(b); card.appendChild(l);
+      var aviso = h('div', 'nf-dg-erro'); aviso.hidden = true; card.appendChild(aviso);
+      var trazer = NFD.btn('Trazer alertas do motor de regras como sinais', 'nf-peq', function () {
+        var pid = st.reg.projeto_id, n = 0;
+        NFD.regras().filter(function (a) { return !pid || a.projeto_id === pid; }).slice(0, 12).forEach(function (a) {
+          if (d.sinais.some(function (s) { return NFD.similar(s.texto, a.texto) > 0.8; })) return;
+          var c = NFD.classificar(a.texto);
+          d.sinais.push({ id: novoId('sg'), texto: a.texto, classe: a.regra === 'bloqueio' ? 'dependencia' : (a.regra === 'atrasada' ? 'problema' : 'risco'), categoria: a.regra === 'sobrecarga' || a.regra === 'sem_responsavel' ? 'capacidade' : (a.regra === 'bloqueio' ? 'dependencia' : (a.regra === 'retrabalho' ? 'qualidade' : c.categoria)), severidade: a.sev === 'alta' ? 'alta' : 'media', origem: 'regra' }); n++;
+        });
+        st.msg(n ? n + ' sinais trazidos.' : 'Nenhum alerta novo para trazer.'); if (n) { st.mudou(); tab.pintar(); st.etapa('sinais das regras'); }
+      });
+      trazer.style.marginTop = '8px'; card.appendChild(trazer);
+      box.appendChild(card);
+      function add() {
+        var t = inp.value.trim(); aviso.hidden = true;
+        if (!t) return;
+        var p = NFD.achaPessoa(t); if (p) { aviso.textContent = 'O texto cita "' + p + '". Descreva a condição (capacidade, clareza de papel, prazo, informação), não a pessoa.'; aviso.hidden = false; return; }
+        var c = NFD.classificar(t);
+        d.sinais.push({ id: novoId('sg'), texto: t, classe: c.classe, categoria: c.categoria, severidade: c.severidade, origem: 'manual' });
+        inp.value = ''; st.mudou(); tab.pintar(); st.etapa('novo sinal');
+      }
+      inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); add(); } });
+      var tab = tabelaSinais(box, st);
+    },
+    pronto: function (d) { return (d.sinais || []).length ? { ok: true } : { ok: false, motivo: 'Registre ao menos um sinal para concluir.' }; },
+    itens: itensDeSinais, criticas: criticasSinais
+  });
+
+  /* ======================== 3. TEXTO LIVRE ======================== */
+  NFD.registrar({
+    id: 'texto', tipo: 'preditivo', nome: 'Leitura de texto livre', origem: 'Classificador de sinais em texto (IA, com alternativa sem IA)',
+    resumo: 'Você cola comentários, atualizações de status ou trechos de conversa. A IA extrai os sinais de risco (dependência instável, capacidade sobrecarregada...) e você aceita ou rejeita cada um.',
+    usar: ['Há muita informação solta em mensagens e atualizações', 'Quer complementar os dados estruturados com o que as pessoas escrevem', 'Precisa transformar conversa em registro'],
+    evitar: ['Os textos têm dados sensíveis que não devem sair da equipe', 'Você já tem os sinais listados (use "Sinais de risco")'],
+    precisa: 'Textos colados (até 20 trechos). Sem IA, o app usa palavras-chave para uma leitura básica.',
+    ia: 'É a própria ferramenta: lê os textos. Nunca aponta pessoas, só condições. Cada sinal só entra se você aceitar.',
+    vazio: function () { return { sinais: [], rejeitados: 0, textos: '' }; },
+    render: function (box, st) {
+      var d = st.dados; d.sinais = d.sinais || []; d.candidatos = d.candidatos || [];
+      box.appendChild(h('div', 'nf-dg-info', 'Cole um trecho por parágrafo (deixe uma linha em branco entre eles). O app envia só estes textos para a IA, e você decide o que entra no diagnóstico.'));
+      var card = h('div', 'nf-dg-card');
+      var ta = document.createElement('textarea'); ta.className = 'nf-dg-in'; ta.style.minHeight = '130px'; ta.value = d.textos || ''; ta.setAttribute('aria-label', 'Textos para ler'); ta.placeholder = 'Ex.: "O fornecedor disse que talvez entregue só na semana que vem."\n\n"Estamos em três pessoas até o fim do mês."';
+      ta.addEventListener('input', function () { d.textos = ta.value; st.mudou(); });
+      card.appendChild(ta);
+      var bs = h('div', 'nf-dg-botoes'); bs.style.marginTop = '8px';
+      var res = h('div');
+      var bIA = NFD.btn('Ler com IA', 'nf-prim', async function () {
+        var tx = trechos(); if (!tx.length) { st.msg('Cole ao menos um texto.', true); return; }
+        bIA.disabled = true; bIA.textContent = 'Lendo...';
+        var r = await NFD.pedirIA({ tarefa: 'sinais', contexto: { textos: tx } });
+        bIA.disabled = false; bIA.textContent = 'Ler com IA';
+        if (!r.ok) { st.msg(r.erro + ' Use "Ler sem IA".', true); return; }
+        d.candidatos = (r.sinais || []).map(function (s) { return { id: novoId('cd'), texto: s.texto, classe: NFD.classificar(s.texto).classe, categoria: NFD.normCat(s.categoria), severidade: s.severidade, trecho: s.trecho, origem: 'ia' }; });
+        st.mudou(); pintarCand(); st.etapa('sinais lidos do texto');
+      });
+      bIA.setAttribute('data-acao', 'ler-ia');
+      var bBase = NFD.btn('Ler sem IA (palavras-chave)', '', function () {
+        var tx = trechos(); if (!tx.length) { st.msg('Cole ao menos um texto.', true); return; }
+        d.candidatos = tx.filter(function (t) { return PALAVRAS_RISCO.test(sa(t)); }).map(function (t) { var c = NFD.classificar(t); return { id: novoId('cd'), texto: t.slice(0, 220), classe: c.classe, categoria: c.categoria, severidade: c.severidade, trecho: '', origem: 'texto' }; });
+        st.mudou(); pintarCand();
+      });
+      bBase.setAttribute('data-acao', 'ler-base');
+      var bDesc = NFD.btn('Usar as descrições das tarefas do projeto', '', function () {
+        var p = NFD.projeto(st.reg.projeto_id) || S.ctx.projetos[0]; if (!p) return;
+        var t = p.tarefas.filter(function (x) { return x.descricao && x.descricao.length > 20; }).slice(0, 20).map(function (x) { return x.texto + ': ' + x.descricao; });
+        if (!t.length) { st.msg('As tarefas deste projeto não têm descrições para ler.', true); return; }
+        ta.value = t.join('\n\n'); d.textos = ta.value; st.mudou();
+      });
+      bs.appendChild(bIA); bs.appendChild(bBase); bs.appendChild(bDesc); card.appendChild(bs); box.appendChild(card); box.appendChild(res);
+      function trechos() { return ta.value.split(/\n\s*\n/).map(function (x) { return x.replace(/\s+/g, ' ').trim(); }).filter(Boolean).slice(0, 20); }
+      function pintarCand() {
+        res.textContent = '';
+        if (!d.candidatos.length) return;
+        var g = h('div', 'nf-dg-secao'); g.appendChild(h('h3', null, 'Sinais encontrados: aceite ou rejeite (' + d.candidatos.length + ')')); res.appendChild(g);
+        var ul = h('div', 'nf-dg-lista');
+        d.candidatos.forEach(function (c, i) {
+          var it = h('div', 'nf-dg-item'); it.style.setProperty('--c', NFD.sevCor(c.severidade)); it.setAttribute('data-candidato', c.id);
+          var t = h('div', 'nf-t'); t.appendChild(h('b', null, c.texto)); t.appendChild(h('small', null, NFD.catNome(NFD.normCat(c.categoria)) + ' · severidade ' + c.severidade + (c.trecho ? ' · trecho: "' + c.trecho + '"' : '') + ' · ' + (c.origem === 'ia' ? 'lido por IA' : 'palavras-chave')));
+          it.appendChild(t);
+          it.appendChild(NFD.btn('Aceitar', 'nf-peq nf-prim', function () {
+            var p = NFD.achaPessoa(c.texto); if (p) { st.msg('O sinal cita "' + p + '". Edite para descrever a condição e aceite de novo.', true); return; }
+            d.sinais.push({ id: novoId('sg'), texto: c.texto, classe: c.classe, categoria: c.categoria, severidade: c.severidade, origem: c.origem }); d.candidatos.splice(i, 1); st.mudou(); pintarCand(); tab.pintar(); st.etapa('sinal aceito');
+          }));
+          it.appendChild(NFD.btn('Rejeitar', 'nf-peq', function () { d.candidatos.splice(i, 1); d.rejeitados = (d.rejeitados || 0) + 1; st.mudou(); pintarCand(); }));
+          ul.appendChild(it);
+        });
+        res.appendChild(ul);
+      }
+      pintarCand();
+      var tab = tabelaSinais(box, st);
+    },
+    pronto: function (d) { return (d.sinais || []).length ? { ok: true } : { ok: false, motivo: 'Aceite ao menos um sinal para concluir.' }; },
+    itens: itensDeSinais, criticas: criticasSinais
+  });
+
+  /* ======================== 4. SIMULAÇÃO DO PRAZO (Monte Carlo + checagens) ======================== */
+  function montarRede(proj) {
+    var ab = proj.tarefas.filter(function (t) { return !NFD.feita(t); });
+    var mapa = {}, hj = hoje(), semDatas = 0;
+    ab.forEach(function (t) {
+      var d = 3, estimada = true;
+      if (t.inicio && t.prazo) { d = Math.max(1, U.dif(U.data(t.inicio), U.data(t.prazo)) + 1); estimada = false; }
+      else if (t.prazo) { d = 3; }
+      if (estimada) semDatas++;
+      mapa[t.id] = { id: t.id, texto: t.texto, d: d, estimada: estimada, ini: t.inicio ? Math.max(0, U.dif(hj, U.data(t.inicio))) : 0, deps: (t.deps || []).filter(function (x) { return !!ab.filter(function (y) { return y.id === x; }).length; }), marco: t.marco, t: t };
+    });
+    var ordem = [], estado = {}, ciclo = false;
+    function visita(id) { if (estado[id] === 2) return; if (estado[id] === 1) { ciclo = true; return; } estado[id] = 1; mapa[id].deps.forEach(visita); estado[id] = 2; ordem.push(id); }
+    Object.keys(mapa).forEach(visita);
+    return { mapa: mapa, ordem: ordem, ciclo: ciclo, semDatas: semDatas, total: ab.length };
+  }
+  function cpm(rede) {
+    var es = {}, ef = {}, fim = 0;
+    rede.ordem.forEach(function (id) { var n = rede.mapa[id]; var s = n.ini; n.deps.forEach(function (x) { s = Math.max(s, ef[x]); }); es[id] = s; ef[id] = s + n.d; fim = Math.max(fim, ef[id]); });
+    var suc = {}; rede.ordem.forEach(function (id) { rede.mapa[id].deps.forEach(function (x) { (suc[x] = suc[x] || []).push(id); }); });
+    var lf = {}, ls = {};
+    rede.ordem.slice().reverse().forEach(function (id) { var f = fim; (suc[id] || []).forEach(function (y) { f = Math.min(f, ls[y]); }); lf[id] = f; ls[id] = f - rede.mapa[id].d; });
+    var folga = {}; rede.ordem.forEach(function (id) { folga[id] = ls[id] - es[id]; });
+    return { fim: fim, folga: folga, suc: suc };
+  }
+  function simular(rede, par) {
+    var N = par.iteracoes, ordem = rede.ordem, resultados = new Array(N), crit = {};
+    ordem.forEach(function (id) { crit[id] = 0; });
+    function tri(a, c, b) { var u = Math.random(), f = (c - a) / (b - a || 1); return u < f ? a + Math.sqrt(u * (b - a) * (c - a)) : b - Math.sqrt((1 - u) * (b - a) * (b - c)); }
+    for (var it = 0; it < N; it++) {
+      var ef = {}, via = {}, fim = 0, ultimo = null;
+      for (var k = 0; k < ordem.length; k++) {
+        var n = rede.mapa[ordem[k]], dur = tri(n.d * (1 - par.otimista / 100), n.d, n.d * (1 + par.pessimista / 100));
+        var s = n.ini, v = null;
+        for (var j = 0; j < n.deps.length; j++) if (ef[n.deps[j]] > s) { s = ef[n.deps[j]]; v = n.deps[j]; }
+        ef[n.id] = s + dur; via[n.id] = v;
+        if (ef[n.id] > fim) { fim = ef[n.id]; ultimo = n.id; }
+      }
+      resultados[it] = fim;
+      var c = ultimo; while (c) { crit[c]++; c = via[c]; }
+    }
+    resultados.sort(function (a, b) { return a - b; });
+    return { resultados: resultados, crit: crit };
+  }
+  NFD.registrar({
+    id: 'montecarlo', tipo: 'preditivo', nome: 'Simulação do prazo (Monte Carlo)', origem: 'Inspirado no RiskyProject (Intaver) e nas checagens DCMA',
+    resumo: 'Simula o cronograma milhares de vezes com incerteza nas durações, mostra a chance de cumprir o prazo, as tarefas que mais ficam no caminho crítico e verifica a qualidade do cronograma.',
+    usar: ['Precisa de uma chance de cumprir o prazo, não só uma data', 'O projeto tem dependências entre tarefas', 'Quer saber onde colocar buffer'],
+    evitar: ['As tarefas quase não têm datas nem dependências', 'O projeto é muito curto (poucas tarefas)'],
+    precisa: 'Tarefas com início, prazo e dependências. Tarefas sem datas entram com duração padrão de 3 dias e o resultado indica isso.',
+    ia: 'Comenta o resultado: se a incerteza assumida é razoável, onde proteger o cronograma e o que pode estar subestimado.',
+    vazio: function () { return { simulacao: null, parametros: { otimista: 10, pessimista: 40, iteracoes: 2000 } }; },
+    render: function (box, st) {
+      var d = st.dados; d.parametros = Object.assign({ otimista: 10, pessimista: 40, iteracoes: 2000 }, d.parametros || {});
+      box.appendChild(h('div', 'nf-dg-info', 'Este é um simulador próprio do NowFind, inspirado nessa técnica: não é o programa RiskyProject. Ele usa só os dados do seu projeto e um subconjunto das checagens DCMA que os dados permitem.'));
+      var card = h('div', 'nf-dg-card');
+      var opP = []; S.ctx.projetos.forEach(function (p) { opP.push([p.id, p.nome]); });
+      if (!opP.length) { box.appendChild(h('div', 'nf-dg-vazio', 'Este espaço não tem projetos com tarefas para simular.')); return; }
+      var sp = NFD.sel(opP, st.reg.projeto_id || opP[0][0]); sp.setAttribute('aria-label', 'Projeto a simular');
+      var l = h('div', 'nf-dg-linha');
+      var i1 = NFD.inp('number', d.parametros.otimista); i1.min = 0; i1.max = 60; var i2 = NFD.inp('number', d.parametros.pessimista); i2.min = 0; i2.max = 300;
+      var i3 = NFD.sel([['1000', '1.000'], ['2000', '2.000'], ['5000', '5.000']], String(d.parametros.iteracoes));
+      var alvo = NFD.inp('date', d.parametros.alvo || '');
+      [[i1, 'otimista'], [i2, 'pessimista'], [i3, 'iteracoes'], [alvo, 'alvo']].forEach(function (x) { x[0].addEventListener('change', function () { d.parametros[x[1]] = x[1] === 'alvo' ? x[0].value : Number(x[0].value); st.mudou(); }); });
+      l.appendChild(NFD.campo('Projeto', sp)); l.appendChild(NFD.campo('Duração pode ser menor em (%)', i1)); l.appendChild(NFD.campo('Duração pode ser maior em (%)', i2)); l.appendChild(NFD.campo('Simulações', i3)); l.appendChild(NFD.campo('Prazo-alvo (vazio = último prazo)', alvo));
+      card.appendChild(l);
+      var go = NFD.btn('Simular', 'nf-prim', rodar); go.setAttribute('data-acao', 'simular'); card.appendChild(go);
+      box.appendChild(card);
+      var res = h('div'); box.appendChild(res);
+      function rodar() {
+        var proj = NFD.projeto(sp.value); d.parametros.iteracoes = Number(i3.value);
+        var rede = montarRede(proj);
+        if (rede.total < 3) { st.msg('Este projeto tem poucas tarefas abertas para simular (mínimo 3).', true); return; }
+        if (rede.ciclo) { st.msg('As dependências formam um ciclo: corrija antes de simular.', true); return; }
+        var c = cpm(rede), sim = simular(rede, d.parametros), r = sim.resultados, N = r.length, hj = hoje();
+        function pct(p) { return r[Math.min(N - 1, Math.floor(p * N))]; }
+        var alvoData = d.parametros.alvo ? U.data(d.parametros.alvo) : null;
+        if (!alvoData) proj.tarefas.forEach(function (t) { var x = U.data(t.prazo); if (x && !NFD.feita(t) && (!alvoData || x > alvoData)) alvoData = x; });
+        var alvoDias = alvoData ? U.dif(hj, alvoData) + 1 : null;
+        var ok = alvoDias == null ? null : r.filter(function (x) { return x <= alvoDias; }).length / N;
+        var crit = Object.keys(sim.crit).map(function (id) { return { id: id, texto: rede.mapa[id].texto, pct: Math.round(sim.crit[id] / N * 100) }; }).sort(function (a, b) { return b.pct - a.pct; }).slice(0, 8);
+        var ab = rede.ordem.map(function (id) { return rede.mapa[id]; }), n = ab.length;
+        var checks = [];
+        var semLig = ab.filter(function (x) { return !x.marco && !x.deps.length && !(c.suc[x.id] || []).length; }).length;
+        checks.push({ id: 'logica', nome: 'Lógica ausente (sem predecessora nem sucessora)', valor: Math.round(semLig / n * 100), limite: 5, ok: semLig / n <= 0.05, nota: semLig + ' de ' + n + ' tarefas soltas.' });
+        var longas = ab.filter(function (x) { return x.d > 44; }).length;
+        checks.push({ id: 'duracao', nome: 'Duração alta (mais de 44 dias)', valor: Math.round(longas / n * 100), limite: 5, ok: longas / n <= 0.05, nota: longas + ' tarefas muito longas: quebre em partes.' });
+        var folgaAlta = ab.filter(function (x) { return c.folga[x.id] > 44; }).length;
+        checks.push({ id: 'folga', nome: 'Folga alta (mais de 44 dias)', valor: Math.round(folgaAlta / n * 100), limite: 5, ok: folgaAlta / n <= 0.05, nota: folgaAlta + ' tarefas com folga excessiva: ligação entre tarefas pode estar faltando.' });
+        var inval = proj.tarefas.filter(function (t) { return !NFD.feita(t) && t.inicio && t.prazo && U.data(t.prazo) < U.data(t.inicio); }).length;
+        checks.push({ id: 'datas', nome: 'Datas inválidas (prazo antes do início)', valor: inval, limite: 0, ok: inval === 0, nota: inval + ' tarefas com datas trocadas.' });
+        var atrasadas = ab.filter(function (x) { return x.t.prazo && U.data(x.t.prazo) < hj; }).length;
+        checks.push({ id: 'atrasadas', nome: 'Tarefas atrasadas', valor: Math.round(atrasadas / n * 100), limite: 5, ok: atrasadas / n <= 0.05, nota: atrasadas + ' de ' + n + ' abertas passaram do prazo.' });
+        var semResp = ab.filter(function (x) { return !(x.t.responsaveis || []).length; }).length;
+        checks.push({ id: 'recursos', nome: 'Sem responsável', valor: Math.round(semResp / n * 100), limite: 10, ok: semResp / n <= 0.1, nota: semResp + ' tarefas sem responsável.' });
+        if (alvoDias != null && c.fim > 0) { var cpli = (c.fim + (alvoDias - c.fim)) / c.fim; checks.push({ id: 'cpli', nome: 'Índice do caminho crítico (CPLI)', valor: Math.round(cpli * 100) / 100, limite: 0.95, ok: cpli >= 0.95, nota: 'Caminho crítico de ' + c.fim + ' dias contra ' + alvoDias + ' dias até o alvo.' }); }
+        var bins = 24, min = r[0], max = r[N - 1], hist = []; for (var b = 0; b < bins; b++) hist.push(0);
+        r.forEach(function (x) { hist[Math.min(bins - 1, Math.floor((x - min) / ((max - min) || 1) * bins))]++; });
+        d.simulacao = { projeto_id: proj.id, projeto_nome: proj.nome, n: N, p50: pct(0.5), p80: pct(0.8), p95: pct(0.95), min: min, max: max, nominal: c.fim, alvo: alvoData ? U.ymd(alvoData) : '', prob: ok, criticas: crit, checks: checks, hist: hist, sem_datas: rede.semDatas, total: rede.total, executado_em: new Date().toISOString() };
+        st.reg.projeto_id = proj.id; st.reg.projeto_nome = proj.nome;
+        st.mudou(); pintar(); st.etapa('simulação executada');
+      }
+      function pintar() {
+        res.textContent = '';
+        var s = d.simulacao; if (!s) { res.appendChild(h('div', 'nf-dg-vazio', 'Ainda não simulado.')); return; }
+        function dt(dias) { return fmt(somaDias(hoje(), Math.ceil(dias) - 1)); }
+        var g = h('div', 'nf-dg-grade'); g.style.marginTop = '14px';
+        [['Metade das simulações termina até', dt(s.p50), 'P50'], ['80% das simulações terminam até', dt(s.p80), 'P80'], ['95% das simulações terminam até', dt(s.p95), 'P95']].forEach(function (c) { var k = h('div', 'nf-dg-card'); k.appendChild(h('h4', null, c[0])); k.appendChild(h('div', 'nf-dg-num', c[1])); k.appendChild(h('div', 'nf-dg-sub', c[2])); g.appendChild(k); });
+        if (s.prob != null) { var k2 = h('div', 'nf-dg-card'); k2.setAttribute('data-prob', '1'); k2.appendChild(h('h4', null, 'Chance de cumprir o prazo-alvo (' + fmt(U.data(s.alvo)) + ')')); var nn = h('div', 'nf-dg-num', Math.round(s.prob * 100) + '%'); nn.style.color = s.prob >= 0.8 ? '#22B573' : (s.prob >= 0.5 ? '#E0A800' : '#E5202E'); k2.appendChild(nn); k2.appendChild(h('div', 'nf-dg-sub', s.n + ' simulações')); g.appendChild(k2); }
+        res.appendChild(g);
+        if (s.sem_datas) res.appendChild(h('div', 'nf-dg-aviso', s.sem_datas + ' de ' + s.total + ' tarefas não têm início e prazo: entraram com duração padrão de 3 dias. O resultado é indicativo.'));
+        var mx = Math.max.apply(null, s.hist);
+        var graf = h('div', 'nf-dg-card'); graf.style.marginTop = '12px'; graf.appendChild(h('h4', null, 'Distribuição do término (dias a partir de hoje)'));
+        var bars = h('div'); bars.style.cssText = 'display:flex;align-items:flex-end;gap:3px;height:110px';
+        s.hist.forEach(function (v, i) { var b = h('div'); b.style.cssText = 'flex:1;border-radius:4px 4px 0 0;background:var(--azul,#2F5BFF);opacity:.8;height:' + Math.max(2, Math.round(v / mx * 100)) + 'px'; b.title = Math.round(s.min + (s.max - s.min) * i / s.hist.length) + ' dias: ' + v + ' simulações'; bars.appendChild(b); });
+        graf.appendChild(bars); var ax = h('div', 'nf-dg-sub'); ax.style.cssText = 'display:flex;justify-content:space-between'; ax.appendChild(h('span', null, dt(s.min))); ax.appendChild(h('span', null, dt(s.max))); graf.appendChild(ax); res.appendChild(graf);
+        var cc = h('div', 'nf-dg-card'); cc.style.marginTop = '12px'; cc.appendChild(h('h4', null, 'Tarefas que mais ficam no caminho crítico'));
+        s.criticas.forEach(function (c) { var li = h('div'); li.style.cssText = 'display:flex;gap:10px;align-items:center;margin:5px 0;font-size:13px'; var bar = h('div'); bar.style.cssText = 'flex:0 0 120px;height:10px;border-radius:5px;background:rgba(127,127,127,.2);overflow:hidden'; var f = h('div'); f.style.cssText = 'height:100%;background:#E5202E;width:' + c.pct + '%'; bar.appendChild(f); li.appendChild(bar); li.appendChild(h('b', null, c.pct + '%')); li.appendChild(h('span', null, c.texto)); cc.appendChild(li); });
+        res.appendChild(cc);
+        var ck = h('div', 'nf-dg-card'); ck.style.marginTop = '12px'; ck.appendChild(h('h4', null, 'Qualidade do cronograma (subconjunto das checagens DCMA)'));
+        s.checks.forEach(function (c) { var li = h('div', 'nf-dg-item'); li.style.margin = '6px 0'; li.style.setProperty('--c', c.ok ? '#22B573' : '#E5202E'); li.setAttribute('data-check', c.id); var t = h('div', 'nf-t'); t.appendChild(h('b', null, (c.ok ? 'Passou' : 'Atenção') + ': ' + c.nome)); t.appendChild(h('small', null, c.nota)); li.appendChild(t); ck.appendChild(li); });
+        ck.appendChild(h('div', 'nf-dg-sub', 'As demais checagens do DCMA (antecipações, defasagens, restrições, BEI) não se aplicam aos dados do NowFind.'));
+        res.appendChild(ck);
+      }
+      pintar();
+    },
+    pronto: function (d) { return d.simulacao ? { ok: true } : { ok: false, motivo: 'Execute a simulação para concluir.' }; },
+    itens: function (d) {
+      var s = d.simulacao; if (!s) return [];
+      var out = [];
+      s.criticas.filter(function (c) { return c.pct >= 60; }).slice(0, 5).forEach(function (c) { out.push({ titulo: 'Proteger a tarefa crítica: ' + c.texto.slice(0, 100), descricao: 'Aparece no caminho crítico em ' + c.pct + '% das simulações. Avalie buffer, antecipação ou reforço.', origem: 'Simulação do prazo (' + s.projeto_nome + ')' }); });
+      s.checks.filter(function (c) { return !c.ok; }).slice(0, 5).forEach(function (c) { out.push({ titulo: 'Corrigir o cronograma: ' + c.nome, descricao: c.nota, origem: 'Checagem de qualidade do cronograma' }); });
+      if (s.prob != null && s.prob < 0.5) out.push({ titulo: 'Replanejar: chance de cumprir o prazo é de ' + Math.round(s.prob * 100) + '%', descricao: 'Decidir entre renegociar o prazo, reduzir escopo ou reforçar a equipe.', origem: 'Simulação do prazo' });
+      return out;
+    },
+    criticas: function (d) { var c = [], s = d.simulacao; if (!s) return c; if (s.sem_datas / s.total > 0.3) c.push('Mais de 30% das tarefas estão sem datas: a simulação está usando muitos valores padrão.'); if (s.prob != null && s.prob >= 0.95) c.push('A chance está muito alta. Confira se a incerteza assumida não está otimista demais.'); return c; }
+  });
+
+  /* ======================== 5. RISCOS PELA IA (aceitar ou rejeitar) ======================== */
+  NFD.registrar({
+    id: 'riscos_ia', tipo: 'preditivo', nome: 'Registro de riscos pela IA', origem: 'Inspirado nos riscos identificados por IA do ServiceNow',
+    resumo: 'A IA lê as tarefas, prazos, dependências e o histórico do projeto e propõe um registro de riscos com justificativa e plano de mitigação. Você aceita, edita ou rejeita cada risco.',
+    usar: ['Quer um primeiro registro de riscos sem começar do zero', 'O projeto tem tarefas, datas e dependências cadastradas', 'Precisa de plano de mitigação para cada risco'],
+    evitar: ['O projeto ainda não tem tarefas', 'Você precisa de números estatísticos (use a simulação do prazo)'],
+    precisa: 'Tarefas do projeto escolhido. A IA recebe um resumo sem os nomes das pessoas.',
+    ia: 'É a própria ferramenta: propõe os riscos. Cada um traz a justificativa com base nos dados e só entra se você aceitar.',
+    vazio: function () { return { riscos: [], candidatos: [] }; },
+    render: function (box, st) {
+      var d = st.dados; d.riscos = d.riscos || []; d.candidatos = d.candidatos || [];
+      box.appendChild(h('div', 'nf-dg-info', 'A IA propõe, você decide. Riscos descrevem condições do projeto (prazo, dependência, capacidade, escopo), nunca pessoas.'));
+      var card = h('div', 'nf-dg-card');
+      var opP = []; S.ctx.projetos.forEach(function (p) { opP.push([p.id, p.nome]); });
+      if (!opP.length) { box.appendChild(h('div', 'nf-dg-vazio', 'Este espaço não tem projetos com tarefas para analisar.')); return; }
+      var sp = NFD.sel(opP, st.reg.projeto_id || opP[0][0]); sp.setAttribute('aria-label', 'Projeto a analisar');
+      var l = h('div', 'nf-dg-linha'); l.appendChild(NFD.campo('Projeto', sp));
+      var go = NFD.btn('Identificar riscos com IA', 'nf-prim', async function () {
+        var p = NFD.projeto(sp.value), hm = {}; S.ctx.hist.forEach(function (x) { hm[x.projeto_id + '|' + x.tarefa_id] = x; });
+        var abertas = p.tarefas.filter(function (t) { return !NFD.feita(t); }).slice(0, 60).map(function (t) { var hi = hm[p.id + '|' + t.id] || {}; return { t: t.texto.slice(0, 90), s: t.status, prazo: t.prazo || null, inicio: t.inicio || null, deps: (t.deps || []).length, responsavel: (t.responsaveis || []).length ? 'sim' : 'nao', adiamentos: hi.mudancas_prazo || 0, reaberturas: hi.reaberturas || 0 }; });
+        if (!abertas.length) { st.msg('Este projeto não tem tarefas abertas.', true); return; }
+        go.disabled = true; go.textContent = 'Analisando...';
+        var r = await NFD.pedirIA({ tarefa: 'riscos', contexto: { projeto: p.nome, hoje: U.ymd(hoje()), total_tarefas: p.tarefas.length, tarefas_abertas: abertas, alertas: NFD.regras().filter(function (a) { return a.projeto_id === p.id; }).slice(0, 12).map(function (a) { return { regra: a.regra, texto: a.texto.replace(/"[^"]*"/g, '"tarefa"') }; }) } });
+        go.disabled = false; go.textContent = 'Identificar riscos com IA';
+        if (!r.ok) { st.msg(r.erro, true); return; }
+        st.reg.projeto_id = p.id; st.reg.projeto_nome = p.nome;
+        d.candidatos = (r.riscos || []).map(function (x) { return { id: novoId('rk'), titulo: x.titulo, categoria: NFD.normCat(x.categoria), probabilidade: x.probabilidade, impacto: x.impacto, justificativa: x.justificativa, mitigacao: x.mitigacao, origem: 'ia' }; });
+        if (!d.candidatos.length) st.msg('A IA não encontrou riscos claros nos dados. Registre à mão se preferir.');
+        st.mudou(); pintarCand(); st.etapa('riscos propostos pela IA');
+      });
+      go.setAttribute('data-acao', 'riscos-ia'); go.style.flex = '0 0 auto'; l.appendChild(go); card.appendChild(l); box.appendChild(card);
+      var cand = h('div'); box.appendChild(cand);
+      function pintarCand() {
+        cand.textContent = '';
+        if (!d.candidatos.length) return;
+        var g = h('div', 'nf-dg-secao'); g.appendChild(h('h3', null, 'Riscos propostos pela IA: aceite ou rejeite (' + d.candidatos.length + ')')); cand.appendChild(g);
+        var ul = h('div', 'nf-dg-lista');
+        d.candidatos.forEach(function (c, i) {
+          var it = h('div', 'nf-dg-item'); it.style.alignItems = 'flex-start'; it.style.setProperty('--c', c.probabilidade * c.impacto >= 15 ? '#E5202E' : (c.probabilidade * c.impacto >= 8 ? '#FF8A1F' : '#E0A800')); it.setAttribute('data-candidato', c.id);
+          var t = h('div', 'nf-t'); t.style.whiteSpace = 'normal'; var b = h('b', null, c.titulo); b.style.whiteSpace = 'normal'; t.appendChild(b);
+          t.appendChild(h('small', null, NFD.catNome(c.categoria) + ' · probabilidade ' + c.probabilidade + ' · impacto ' + c.impacto));
+          t.appendChild(h('small', null, 'Por quê: ' + c.justificativa)); t.appendChild(h('small', null, 'Mitigação sugerida: ' + c.mitigacao));
+          it.appendChild(t);
+          var col = h('div'); col.style.cssText = 'display:flex;flex-direction:column;gap:6px';
+          col.appendChild(NFD.btn('Aceitar', 'nf-peq nf-prim', function () { var p = NFD.achaPessoa(c.titulo + ' ' + c.mitigacao); if (p) { st.msg('O risco cita "' + p + '". Edite o texto depois de aceitar para descrever a condição.', true); } d.riscos.push({ id: novoId('rk'), titulo: c.titulo, categoria: c.categoria, probabilidade: c.probabilidade, impacto: c.impacto, justificativa: c.justificativa, mitigacao: c.mitigacao, origem: 'ia' }); d.candidatos.splice(i, 1); st.mudou(); pintarCand(); pintarReg(); st.etapa('risco aceito'); }));
+          col.appendChild(NFD.btn('Rejeitar', 'nf-peq', function () { d.candidatos.splice(i, 1); d.rejeitados = (d.rejeitados || 0) + 1; st.mudou(); pintarCand(); }));
+          it.appendChild(col); ul.appendChild(it);
+        });
+        cand.appendChild(ul);
+      }
+      var reg = h('div'); box.appendChild(reg);
+      function pintarReg() {
+        reg.textContent = '';
+        var g = h('div', 'nf-dg-secao'); g.appendChild(h('h3', null, 'Registro de riscos (' + d.riscos.length + ')'));
+        g.appendChild(NFD.btn('+ Registrar risco à mão', 'nf-peq', function () { d.riscos.push({ id: novoId('rk'), titulo: '', categoria: 'processo', probabilidade: 3, impacto: 3, justificativa: '', mitigacao: '', origem: 'manual' }); st.mudou(); pintarReg(); }));
+        reg.appendChild(g);
+        if (!d.riscos.length) { reg.appendChild(h('div', 'nf-dg-vazio', 'Nenhum risco aceito ainda.')); return; }
+        /* matriz 5x5 */
+        var m = h('div', 'nf-dg-card'); m.appendChild(h('h4', null, 'Matriz de riscos (probabilidade x impacto)'));
+        var gr = h('div'); gr.style.cssText = 'display:grid;grid-template-columns:34px repeat(5,1fr);gap:3px;max-width:420px';
+        for (var p = 5; p >= 1; p--) { gr.appendChild(h('div', 'nf-dg-sub', 'P' + p)); for (var im = 1; im <= 5; im++) { var n = d.riscos.filter(function (r) { return r.probabilidade === p && r.impacto === im; }).length; var sc = p * im; var c = h('div', null, n ? String(n) : ''); c.style.cssText = 'height:34px;border-radius:7px;display:grid;place-items:center;font-weight:800;color:#fff;background:' + (sc >= 15 ? '#E5202E' : (sc >= 8 ? '#FF8A1F' : '#E0A800')) + ';opacity:' + (n ? 1 : .22); c.setAttribute('data-p', p); c.setAttribute('data-i', im); gr.appendChild(c); } }
+        gr.appendChild(h('div')); for (var im2 = 1; im2 <= 5; im2++) gr.appendChild(h('div', 'nf-dg-sub', 'I' + im2));
+        m.appendChild(gr); reg.appendChild(m);
+        var ul = h('div', 'nf-dg-lista'); ul.style.marginTop = '12px';
+        d.riscos.slice().sort(function (a, b) { return b.probabilidade * b.impacto - a.probabilidade * a.impacto; }).forEach(function (r) {
+          var it = h('div', 'nf-dg-item'); it.style.alignItems = 'flex-start'; it.style.setProperty('--c', r.probabilidade * r.impacto >= 15 ? '#E5202E' : (r.probabilidade * r.impacto >= 8 ? '#FF8A1F' : '#E0A800')); it.setAttribute('data-risco', r.id);
+          var col = h('div', 'nf-t'); col.style.minWidth = '0';
+          var ti = NFD.inp('text', r.titulo, 'Risco (uma frase)', 160); ti.setAttribute('aria-label', 'Risco'); ti.addEventListener('input', function () { r.titulo = ti.value; st.mudou(); });
+          ti.addEventListener('change', function () { var p = NFD.achaPessoa(r.titulo); if (p) st.msg('Descreva a condição, não "' + p + '": o diagnóstico não aponta pessoas.', true); });
+          var l2 = h('div', 'nf-dg-linha'); l2.style.marginTop = '6px';
+          var sc = NFD.sel(NFD.CATS, NFD.normCat(r.categoria)); sc.addEventListener('change', function () { r.categoria = sc.value; st.mudou(); });
+          var sp2 = NFD.sel([['1', 'Probab. 1'], ['2', 'Probab. 2'], ['3', 'Probab. 3'], ['4', 'Probab. 4'], ['5', 'Probab. 5']], String(r.probabilidade)); sp2.setAttribute('aria-label', 'Probabilidade'); sp2.addEventListener('change', function () { r.probabilidade = Number(sp2.value); st.mudou(); pintarReg(); });
+          var si = NFD.sel([['1', 'Impacto 1'], ['2', 'Impacto 2'], ['3', 'Impacto 3'], ['4', 'Impacto 4'], ['5', 'Impacto 5']], String(r.impacto)); si.setAttribute('aria-label', 'Impacto'); si.addEventListener('change', function () { r.impacto = Number(si.value); st.mudou(); pintarReg(); });
+          l2.appendChild(sc); l2.appendChild(sp2); l2.appendChild(si);
+          var mi = document.createElement('textarea'); mi.className = 'nf-dg-in'; mi.placeholder = 'Plano de mitigação'; mi.value = r.mitigacao || ''; mi.setAttribute('aria-label', 'Plano de mitigação'); mi.style.marginTop = '6px'; mi.style.minHeight = '56px'; mi.addEventListener('input', function () { r.mitigacao = mi.value; st.mudou(); });
+          col.appendChild(ti); col.appendChild(l2); col.appendChild(mi);
+          if (r.justificativa) col.appendChild(h('small', null, 'Por quê: ' + r.justificativa));
+          var ps = NFD.blocoPassado(r.titulo, r.categoria, st.reg.id); if (ps) { ps.style.marginTop = '6px'; col.appendChild(ps); }
+          it.appendChild(col);
+          var x = NFD.btn('×', 'nf-peq nf-perigo', function () { d.riscos = d.riscos.filter(function (y) { return y.id !== r.id; }); st.mudou(); pintarReg(); }); x.setAttribute('aria-label', 'Remover risco'); it.appendChild(x);
+          ul.appendChild(it);
+        });
+        reg.appendChild(ul);
+      }
+      pintarCand(); pintarReg();
+    },
+    pronto: function (d) { return (d.riscos || []).length ? { ok: true } : { ok: false, motivo: 'Aceite ou registre ao menos um risco para concluir.' }; },
+    itens: function (d) { return (d.riscos || []).slice().sort(function (a, b) { return b.probabilidade * b.impacto - a.probabilidade * a.impacto; }).slice(0, 12).map(function (r) { return { titulo: 'Mitigar: ' + r.titulo.slice(0, 120), descricao: r.mitigacao || '', origem: 'Risco (probabilidade ' + r.probabilidade + ' x impacto ' + r.impacto + ')' }; }); },
+    criticas: function (d) { var c = [], r = d.riscos || []; if (!r.length) return c; var sem = r.filter(function (x) { return !(x.mitigacao || '').trim(); }).length; if (sem) c.push(sem + ' risco(s) sem plano de mitigação: sem ele, a tarefa gerada fica vazia.'); if (r.length >= 4 && r.every(function (x) { return x.probabilidade * x.impacto >= 15; })) c.push('Todos os riscos estão no vermelho: confira se a escala está calibrada, senão nada fica priorizado.'); return c; }
+  });
+})();
+/* ===== AJUSTES 51 - FIM ===== */
+/* ===== AJUSTES 52 - DIAGNÓSTICO: FERRAMENTAS DE DEPOIS DO EVENTO ===== */
+(function () {
+  if (!window.NFD || NFD.eventoOk) return;
+  NFD.eventoOk = true;
+  var U = NFD.U, h = U.h, S = NFD.S;
+  function novoId(p) { return p + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+  function sa(s) { return String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim(); }
+  function hoje() { return U.hoje(); }
+  function fmtD(s) { var d = U.data(s); return d ? U.pad(d.getDate()) + '/' + U.pad(d.getMonth() + 1) + '/' + d.getFullYear() : ''; }
+  function projetoDe(st) { return NFD.projeto(st.reg.projeto_id) || null; }
+  /* o que o servidor guarda: toda causa, com a evidência que a sustenta (sem evidência fica como opinião) */
+  function causasDe(lista) {
+    return lista.filter(function (c) { return String(c.texto || '').trim(); }).map(function (c, i) {
+      return { id: c.id, texto: String(c.texto).trim(), categoria: NFD.normCat(c.categoria), nivel: c.nivel || (i + 1), evidencias: (c.evidencias || []).map(function (e) { return { id: e.id, tipo: e.tipo, resumo: e.resumo, ref: e.ref || '' }; }), peso_dias: Math.max(0, Math.min(999, Number(c.peso_dias) || 0)), opiniao: !(c.evidencias || []).length };
+    });
+  }
+  function aviso(txt, cls) { var d = h('div', cls || 'nf-dg-aviso', txt); return d; }
+  /* evidência externa: link, trecho ou fato que o sistema não registrou */
+  function evExternas(box, st) {
+    var d = st.dados; d.evidencias_externas = d.evidencias_externas || [];
+    var c = h('div', 'nf-dg-card'); c.setAttribute('data-externas', '1');
+    c.appendChild(h('h4', null, 'Evidência externa (fora do sistema)'));
+    var l = h('div', 'nf-dg-linha');
+    var i = NFD.inp('text', '', 'Ex.: e-mail do fornecedor de 03/11 confirmando atraso de 10 dias', 240); i.setAttribute('aria-label', 'Evidência externa');
+    var b = NFD.btn('Adicionar', '', function () { var t = i.value.trim(); if (!t) return; d.evidencias_externas.push({ id: 'ex:' + novoId(''), resumo: t }); i.value = ''; st.mudou(); st.redesenhar(); });
+    b.style.flex = '0 0 auto'; b.setAttribute('data-acao', 'add-externa'); l.appendChild(i); l.appendChild(b); c.appendChild(l);
+    if (d.evidencias_externas.length) c.appendChild(h('div', 'nf-dg-sub', d.evidencias_externas.length + ' evidência(s) externa(s) disponíveis para ligar às causas.'));
+    box.appendChild(c);
+  }
+  function checarPessoa(texto, st) { var p = NFD.achaPessoa(texto); if (p) st.msg('O texto cita "' + p + '". Descreva a condição (capacidade, clareza de papel, fluxo de decisão, prazo, informação), não a pessoa.', true); return !!p; }
+
+  /* ======================== 1. 5 PORQUÊS ======================== */
+  NFD.registrar({
+    id: 'porques', tipo: 'evento', nome: '5 Porquês com evidência', origem: 'Técnica clássica, com cada elo ancorado em evidência real',
+    resumo: 'Parte do sintoma e pergunta "por quê?" até chegar a uma condição do trabalho. Cada elo aponta para um fato real (mudança de prazo, bloqueio, atraso) ou fica marcado como opinião.',
+    usar: ['Foi uma tarefa ou um evento específico', 'A causa parece seguir uma cadeia', 'Severidade baixa ou média e pouco tempo'],
+    evitar: ['Vários fatores atuaram ao mesmo tempo (use Ishikawa)', 'Você quer culpar alguém: aqui a análise para em condições'],
+    precisa: 'O sintoma (gatilho) e evidências. O app oferece as que já conhece: atrasos, prazos alterados, retrabalho, bloqueios.',
+    ia: 'A cada elo, critica se a causa repete o nível anterior, se ficou no sintoma e se há outra hipótese; sugere onde procurar evidência.',
+    vazio: function (o) { return { gatilho: o && o.gatilho ? { texto: o.gatilho.texto, ref: o.gatilho.ref || '' } : { texto: '', ref: '' }, niveis: [], encerrada: false, causas: [] }; },
+    render: function (box, st) {
+      var d = st.dados; d.niveis = d.niveis || []; d.gatilho = d.gatilho || { texto: '', ref: '' };
+      function sync() { d.causas = causasDe(d.niveis.map(function (n, i) { return Object.assign({}, n, { nivel: i + 1 }); })); }
+      box.appendChild(h('div', 'nf-dg-info', 'O sintoma não é a causa. Pergunte "por que isso aconteceu?" e ligue cada resposta a uma evidência real. Máximo de 5 níveis.'));
+      var g = h('div', 'nf-dg-card'); g.appendChild(h('h4', null, 'Gatilho (o sintoma)'));
+      var ta = document.createElement('textarea'); ta.className = 'nf-dg-in'; ta.value = d.gatilho.texto || ''; ta.placeholder = 'O que aconteceu? Ex.: a concretagem atrasou 6 dias'; ta.setAttribute('aria-label', 'Gatilho');
+      ta.addEventListener('input', function () { d.gatilho.texto = ta.value; st.mudou(); });
+      var opT = [['', 'Ligar a uma tarefa (opcional)']]; var pj = projetoDe(st); (pj ? [pj] : S.ctx.projetos).forEach(function (p) { p.tarefas.forEach(function (t) { opT.push([p.id + ':' + t.id, t.texto.slice(0, 70)]); }); });
+      var st2 = NFD.sel(opT.slice(0, 200), d.gatilho.ref || ''); st2.setAttribute('aria-label', 'Tarefa do gatilho'); st2.addEventListener('change', function () { d.gatilho.ref = st2.value; if (st2.value && !ta.value.trim()) { ta.value = 'Problema na tarefa: ' + st2.options[st2.selectedIndex].text; d.gatilho.texto = ta.value; } st.mudou(); });
+      g.appendChild(ta); st2.style.marginTop = '8px'; g.appendChild(st2); box.appendChild(g);
+      evExternas(box, st);
+      var cadeia = h('div'); box.appendChild(cadeia);
+      var banco = st.banco();
+      var refs = [], refBotoes = {};
+      function atualizarMarcas() {
+        d.niveis.forEach(function (n, i) {
+          var r = refs[i]; if (!r) return;
+          var tem = (n.evidencias || []).length;
+          r.card.classList.toggle('nf-dg-opiniao', !tem && !!n.texto);
+          r.titulo.textContent = 'Por quê? · nível ' + (i + 1) + (tem ? '' : (n.texto ? ' · opinião (sem evidência)' : ''));
+        });
+        var ult = d.niveis[d.niveis.length - 1];
+        var ok = d.niveis.length && ult.texto.trim() && (ult.evidencias || []).length && !d.niveis.some(function (x, i) { return invalidos(i).length; });
+        if (refBotoes.enc) refBotoes.enc.disabled = !ok || d.encerrada;
+      }
+      function invalidos(i) {
+        var n = d.niveis[i], txt = sa(n.texto), problemas = [];
+        if (i > 0 && txt && (txt === sa(d.niveis[i - 1].texto) || NFD.similar(n.texto, d.niveis[i - 1].texto) >= 0.85)) problemas.push('rep');
+        if (txt && NFD.achaPessoa(n.texto)) problemas.push('pessoa');
+        return problemas;
+      }
+      function pintar() {
+        sync(); refs = [];
+        cadeia.textContent = '';
+        var g2 = h('div', 'nf-dg-secao'); g2.appendChild(h('h3', null, 'Cadeia de porquês')); cadeia.appendChild(g2);
+        if (!d.niveis.length) cadeia.appendChild(h('div', 'nf-dg-vazio', 'Comece pelo primeiro "por quê?".'));
+        d.niveis.forEach(function (n, i) {
+          var prob = invalidos(i);
+          var c = h('div', 'nf-dg-card' + (!(n.evidencias || []).length && n.texto ? ' nf-dg-opiniao' : '')); c.style.marginBottom = '10px'; c.setAttribute('data-nivel', String(i + 1));
+          var tit4 = h('h4', null, 'Por quê? · nível ' + (i + 1) + ((n.evidencias || []).length ? '' : (n.texto ? ' · opinião (sem evidência)' : '')));
+          c.appendChild(tit4); refs[i] = { card: c, titulo: tit4 };
+          var t = document.createElement('textarea'); t.className = 'nf-dg-in'; t.value = n.texto || ''; t.placeholder = i === 0 ? 'Por que o sintoma aconteceu?' : 'Por que isso aconteceu? (qual condição permitiu)'; t.setAttribute('aria-label', 'Porquê nível ' + (i + 1)); t.style.minHeight = '60px';
+          t.addEventListener('input', function () { n.texto = t.value; d.encerrada = false; sync(); st.mudou(); });
+          t.addEventListener('change', function () { pintar(); st.etapa('porquê do nível ' + (i + 1)); });
+          c.appendChild(t);
+          if (prob.indexOf('rep') >= 0) c.appendChild(aviso('Isso repete o nível anterior. Qual condição permitiu que isso acontecesse?', 'nf-dg-erro'));
+          if (prob.indexOf('pessoa') >= 0) c.appendChild(aviso('O texto cita uma pessoa. Descreva a condição: capacidade, clareza de papel, fluxo de decisão, prazo ou informação.', 'nf-dg-erro'));
+          if (n.texto && sa(n.texto) === sa(d.gatilho.texto)) c.appendChild(aviso('Esta resposta é igual ao gatilho: a análise parou no sintoma.'));
+          var l = h('div', 'nf-dg-linha'); l.style.marginTop = '8px';
+          var cs = NFD.sel(NFD.CATS, NFD.normCat(n.categoria)); cs.setAttribute('aria-label', 'Categoria'); cs.addEventListener('change', function () { n.categoria = cs.value; sync(); st.mudou(); });
+          var pd = NFD.inp('number', n.peso_dias || 0); pd.min = 0; pd.max = 999; pd.setAttribute('aria-label', 'Dias de atraso atribuídos'); pd.addEventListener('change', function () { n.peso_dias = Math.max(0, Number(pd.value) || 0); sync(); st.mudou(); });
+          l.appendChild(NFD.campo('Categoria da causa', cs)); l.appendChild(NFD.campo('Dias de atraso atribuídos a ela', pd)); c.appendChild(l);
+          n.evidencias = n.evidencias || [];
+          c.appendChild(NFD.pickerEv(banco, n.evidencias, function () { d.encerrada = false; sync(); st.mudou(); atualizarMarcas(); }));
+          var pas = NFD.blocoPassado(n.texto, n.categoria, st.reg.id); if (pas) { pas.style.marginTop = '8px'; c.appendChild(pas); }
+          cadeia.appendChild(c);
+        });
+        var ult = d.niveis[d.niveis.length - 1];
+        var podeAdd = !d.niveis.length || (ult.texto.trim() && !invalidos(d.niveis.length - 1).length);
+        var ac = h('div', 'nf-dg-botoes');
+        var bAdd = NFD.btn(d.niveis.length ? 'Próximo porquê' : 'Primeiro porquê', 'nf-prim', function () { d.niveis.push({ id: novoId('pq'), texto: '', categoria: 'processo', evidencias: [], peso_dias: 0 }); d.encerrada = false; st.mudou(); pintar(); });
+        bAdd.setAttribute('data-acao', 'proximo-porque'); bAdd.disabled = !podeAdd || d.niveis.length >= 5; ac.appendChild(bAdd);
+        var ok = d.niveis.length && ult.texto.trim() && (ult.evidencias || []).length && !d.niveis.some(function (x, i) { return invalidos(i).length; });
+        var bEnc = NFD.btn(d.encerrada ? 'Cadeia encerrada' : 'Encerrar cadeia', '', function () { d.encerrada = true; st.mudou(); pintar(); st.etapa('cadeia encerrada'); });
+        bEnc.setAttribute('data-acao', 'encerrar-cadeia'); bEnc.disabled = !ok || d.encerrada; ac.appendChild(bEnc); refBotoes.enc = bEnc;
+        if (d.niveis.length) ac.appendChild(NFD.btn('Remover último nível', 'nf-perigo', function () { d.niveis.pop(); d.encerrada = false; st.mudou(); pintar(); }));
+        cadeia.appendChild(ac);
+        if (d.niveis.length && !ok) cadeia.appendChild(h('div', 'nf-dg-sub', 'Para encerrar: o último nível precisa ter evidência ligada e nenhum nível pode repetir o anterior ou citar pessoas.'));
+        if (d.niveis.length) {
+          var tx = d.gatilho.texto + '\n' + d.niveis.map(function (n, i) { return '  '.repeat(i) + '→ Por quê? ' + n.texto + ((n.evidencias || []).length ? '  [evidência: ' + n.evidencias.map(function (e) { return e.resumo; }).join('; ') + ']' : '  [opinião]'); }).join('\n');
+          var card = h('div', 'nf-dg-card'); card.style.marginTop = '12px'; card.appendChild(h('h4', null, 'Cadeia em texto corrido'));
+          var pre = h('pre', null, tx); pre.style.cssText = 'white-space:pre-wrap;font:inherit;font-size:13px;margin:0 0 8px'; card.appendChild(pre);
+          var cp = NFD.btn('Copiar', 'nf-peq', function () { NFD.copiar(tx); }); cp.setAttribute('data-ro-ok', '1'); card.appendChild(cp); cadeia.appendChild(card);
+        }
+      }
+      sync(); pintar();
+    },
+    pronto: function (d) {
+      var n = d.niveis || [];
+      if (!n.length) return { ok: false, motivo: 'Registre ao menos um "por quê".' };
+      if (!d.encerrada) return { ok: false, motivo: 'Encerre a cadeia (o último nível precisa ter evidência).' };
+      return { ok: true };
+    },
+    itens: function (d) {
+      var n = (d.niveis || []).filter(function (x) { return (x.evidencias || []).length && x.texto.trim(); });
+      return n.slice(-3).reverse().map(function (x, i) { return { titulo: 'Prevenir: ' + x.texto.slice(0, 120), descricao: 'Ação preventiva sobre a causa registrada. Se a causa já apareceu em outros diagnósticos, atue na classe de falha, não só neste caso.', origem: 'Cadeia de porquês (' + NFD.catNome(NFD.normCat(x.categoria)) + ')' }; });
+    },
+    criticas: function (d) {
+      var c = [], n = d.niveis || [];
+      if (n.length === 1) c.push('A cadeia tem só 1 nível. A causa sistêmica costuma aparecer em 3 ou mais.');
+      if (n.length >= 2 && n.some(function (x) { return x.texto && sa(x.texto) === sa((d.gatilho || {}).texto); })) c.push('Algum nível é igual ao gatilho: a análise parou no sintoma.');
+      var sem = n.filter(function (x) { return x.texto && !(x.evidencias || []).length; }).length;
+      if (sem) c.push(sem + ' nível(is) sem evidência: ficam como opinião e não entram nos padrões nem no Pareto.');
+      return c;
+    }
+  });
+
+  /* ======================== 2. ISHIKAWA ======================== */
+  var PERFIL_B = { estimativa: 'Medida', dependencia: 'Meio ambiente', escopo: 'Material', capacidade: 'Máquina', processo: 'Método', qualidade: 'Mão de obra' };
+  function svgEl(nome, at) { var e = document.createElementNS('http://www.w3.org/2000/svg', nome); Object.keys(at || {}).forEach(function (k) { e.setAttribute(k, at[k]); }); return e; }
+  function curto(t, n) { t = String(t || ''); return t.length > n ? t.slice(0, n - 1) + '…' : t; }
+  NFD.registrar({
+    id: 'ishikawa', tipo: 'evento', nome: 'Diagrama de Ishikawa', origem: 'Espinha de peixe com 6 categorias de entrega',
+    resumo: 'Organiza vários fatores contribuintes em categorias (estimativa, escopo, dependência, capacidade, qualidade, processo). O diagrama é gerado dos dados e cada fator precisa de evidência.',
+    usar: ['Vários fatores atuaram ao mesmo tempo', 'Severidade média, alta ou crítica', 'Projeto, espaço ou equipe inteira envolvidos'],
+    evitar: ['A causa é uma cadeia simples (use 5 Porquês)', 'Há poucas evidências: o diagrama fica vazio'],
+    precisa: 'Evidências reais ou externas. Arraste-as para a categoria ou use o seletor (funciona pelo teclado).',
+    ia: 'Aponta categorias que ninguém olhou, fatores sem evidência e hipóteses alternativas para o fator mais pesado.',
+    vazio: function () { return { perfil: 'A', fatores: [], causas: [] }; },
+    render: function (box, st) {
+      var d = st.dados; d.fatores = d.fatores || []; d.perfil = d.perfil || 'A';
+      function sync() { d.causas = causasDe(d.fatores); }
+      function rot(cat) { return d.perfil === 'B' ? PERFIL_B[cat] : NFD.catNome(cat); }
+      var banco = st.banco();
+      var topo = h('div', 'nf-dg-linha');
+      var perf = NFD.sel([['A', 'Entrega (padrão)'], ['B', '6M clássico (industrial)']], d.perfil); perf.setAttribute('aria-label', 'Perfil da espinha'); var infoB = h('div', 'nf-dg-info', '"Mão de obra" aceita só condições de trabalho: competência necessária, disponibilidade e clareza de papel. Nunca o nome de uma pessoa.');
+      infoB.hidden = d.perfil !== 'B';
+      perf.addEventListener('change', function () { d.perfil = perf.value; infoB.hidden = d.perfil !== 'B'; st.mudou(); pintarTudo(); });
+      topo.appendChild(NFD.campo('Perfil das categorias', perf)); box.appendChild(topo); box.appendChild(infoB);
+      evExternas(box, st);
+      var banc = h('div', 'nf-dg-card'); banc.appendChild(h('h4', null, 'Evidências disponíveis: arraste para uma categoria'));
+      var chips = h('div', 'nf-ev-chips'); chips.setAttribute('data-banco', '1');
+      banco.slice(0, 30).forEach(function (e) {
+        var c = h('span', 'nf-ev-chip'); c.draggable = true; c.setAttribute('data-ev', e.id); c.appendChild(h('span', null, (NFD.tipoEvNome[e.tipo] || e.tipo) + ': ' + e.resumo)); c.title = e.resumo; c.style.cursor = 'grab';
+        c.addEventListener('dragstart', function (ev) { ev.dataTransfer.setData('text/plain', e.id); ev.dataTransfer.effectAllowed = 'copy'; });
+        chips.appendChild(c);
+      });
+      if (!banco.length) chips.appendChild(h('span', 'nf-dg-sub', 'Nenhuma evidência real encontrada para este escopo. Adicione uma evidência externa.'));
+      banc.appendChild(chips);
+      var tec = h('div', 'nf-dg-linha'); tec.style.marginTop = '8px';
+      var selE = NFD.sel([['', 'Escolher evidência...']].concat(banco.slice(0, 80).map(function (e) { return [e.id, curto((NFD.tipoEvNome[e.tipo] || e.tipo) + ': ' + e.resumo, 80)]; })), ''); selE.setAttribute('aria-label', 'Evidência para criar fator');
+      var selC = NFD.sel(NFD.CATS.map(function (c) { return [c[0], rot(c[0])]; }), 'processo'); selC.setAttribute('aria-label', 'Categoria do fator');
+      var bCr = NFD.btn('Criar fator com esta evidência', '', function () { if (!selE.value) return; criarComEv(selE.value, selC.value); }); bCr.style.flex = '0 0 auto'; bCr.setAttribute('data-acao', 'criar-fator-teclado');
+      tec.appendChild(selE); tec.appendChild(selC); tec.appendChild(bCr); banc.appendChild(tec); box.appendChild(banc);
+      var svgBox = h('div', 'nf-dg-card'); svgBox.style.overflow = 'auto'; svgBox.setAttribute('data-diagrama', '1'); box.appendChild(svgBox);
+      var cols = h('div', 'nf-dg-grade'); cols.style.marginTop = '12px'; box.appendChild(cols);
+      var sem = h('div'); box.appendChild(sem);
+      function achar(id) { for (var i = 0; i < banco.length; i++) if (banco[i].id === id) return banco[i]; return null; }
+      function criarComEv(evId, cat) {
+        var e = achar(evId); if (!e) return;
+        d.fatores.push({ id: novoId('fx'), texto: '', categoria: cat, evidencias: [{ id: e.id, tipo: e.tipo, resumo: e.resumo, ref: e.ref || '' }], peso_dias: 0, novo: true });
+        st.mudou(); pintarTudo(); var inp = cols.querySelector('[data-novo="1"]'); if (inp) inp.focus();
+      }
+      function desenhoSVG() {
+        svgBox.textContent = '';
+        svgBox.appendChild(h('h4', null, 'Diagrama (gerado dos dados)'));
+        var s = svgEl('svg', { viewBox: '0 0 900 400', width: '100%', role: 'img', 'aria-label': 'Diagrama de Ishikawa com ' + d.fatores.filter(function (f) { return f.texto; }).length + ' fatores' });
+        s.style.minWidth = '720px'; s.style.maxHeight = '420px';
+        s.appendChild(svgEl('line', { x1: 30, y1: 200, x2: 730, y2: 200, stroke: 'currentColor', 'stroke-width': 3 }));
+        s.appendChild(svgEl('polygon', { points: '730,188 752,200 730,212', fill: 'currentColor' }));
+        var head = svgEl('rect', { x: 752, y: 170, width: 140, height: 60, rx: 10, fill: 'none', stroke: 'currentColor', 'stroke-width': 2 }); s.appendChild(head);
+        var tt = svgEl('text', { x: 822, y: 205, 'text-anchor': 'middle', 'font-size': 12, 'font-weight': 700, fill: 'currentColor' }); tt.textContent = curto(st.reg.titulo, 20); s.appendChild(tt);
+        NFD.CATS.forEach(function (c, i) {
+          var top = i < 3, bx = 190 + (i % 3) * 210, y0 = top ? 30 : 370;
+          s.appendChild(svgEl('line', { x1: bx - 70, y1: y0, x2: bx, y2: 200, stroke: 'currentColor', 'stroke-width': 2, opacity: .75 }));
+          var lb = svgEl('text', { x: bx - 70, y: top ? 18 : 392, 'text-anchor': 'middle', 'font-size': 13, 'font-weight': 800, fill: 'currentColor' }); lb.textContent = rot(c[0]); s.appendChild(lb);
+          var fs = d.fatores.filter(function (f) { return NFD.normCat(f.categoria) === c[0] && f.texto; });
+          fs.slice(0, 4).forEach(function (f, k) {
+            var y = top ? 62 + k * 34 : 338 - k * 34, x = bx - 70 * (Math.abs(200 - y) / 170) ;
+            s.appendChild(svgEl('line', { x1: x - 10, y1: y, x2: x - 30, y2: y, stroke: 'currentColor', 'stroke-width': 1.5, 'stroke-dasharray': (f.evidencias || []).length ? '' : '4 3' }));
+            var t = svgEl('text', { x: x - 34, y: y + 4, 'text-anchor': 'end', 'font-size': 11, fill: 'currentColor' }); t.textContent = curto(f.texto, 24) + (f.peso_dias ? ' (' + f.peso_dias + 'd)' : ''); s.appendChild(t);
+          });
+          if (fs.length > 4) { var m = svgEl('text', { x: bx - 70, y: top ? 190 : 214, 'text-anchor': 'middle', 'font-size': 11, fill: 'currentColor' }); m.textContent = '+' + (fs.length - 4) + ' fatores'; s.appendChild(m); }
+        });
+        svgBox.appendChild(s);
+        var ac = h('div', 'nf-dg-botoes');
+        var tx = NFD.CATS.map(function (c) { var fs = d.fatores.filter(function (f) { return NFD.normCat(f.categoria) === c[0] && f.texto; }); return rot(c[0]) + ' (' + fs.reduce(function (a, f) { return a + (Number(f.peso_dias) || 0); }, 0) + ' dias)\n' + (fs.length ? fs.map(function (f) { return '  - ' + f.texto + ((f.evidencias || []).length ? '' : ' [sem evidência]'); }).join('\n') : '  (nenhum fator)'); }).join('\n');
+        var b1 = NFD.btn('Copiar como lista', 'nf-peq', function () { NFD.copiar(st.reg.titulo + '\n\n' + tx); }); b1.setAttribute('data-ro-ok', '1');
+        var b2 = NFD.btn('Baixar imagem (SVG)', 'nf-peq', function () { var blob = new Blob([new XMLSerializer().serializeToString(s)], { type: 'image/svg+xml' }); var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'ishikawa.svg'; a.click(); }); b2.setAttribute('data-ro-ok', '1');
+        ac.appendChild(b1); ac.appendChild(b2); svgBox.appendChild(ac);
+      }
+      function colunas() {
+        cols.textContent = '';
+        NFD.CATS.forEach(function (c) {
+          var fs = d.fatores.filter(function (f) { return NFD.normCat(f.categoria) === c[0]; });
+          var col = h('div', 'nf-dg-card'); col.setAttribute('data-cat', c[0]);
+          var tot = fs.reduce(function (a, f) { return a + (Number(f.peso_dias) || 0); }, 0);
+          col.appendChild(h('h4', null, rot(c[0]) + ' · ' + fs.length + ' fator(es) · ' + tot + ' dias'));
+          col.addEventListener('dragover', function (e) { e.preventDefault(); col.style.outline = '2px dashed var(--azul,#2F5BFF)'; });
+          col.addEventListener('dragleave', function () { col.style.outline = ''; });
+          col.addEventListener('drop', function (e) { e.preventDefault(); col.style.outline = ''; var id = e.dataTransfer.getData('text/plain'); if (id) criarComEv(id, c[0]); });
+          fs.forEach(function (f) {
+            var it = h('div', (f.evidencias || []).length ? '' : 'nf-dg-opiniao'); it.style.cssText = 'padding:8px;margin:0 0 8px;border:1px solid var(--borda,#E2E5F0);border-radius:12px'; it.setAttribute('data-fator', f.id);
+            var i = NFD.inp('text', f.texto, f.novo ? 'Dê um nome a este fator' : 'Fator contribuinte', 200); i.setAttribute('aria-label', 'Fator em ' + rot(c[0])); if (f.novo && !f.texto) i.setAttribute('data-novo', '1');
+            i.addEventListener('input', function () { f.texto = i.value; sync(); st.mudou(); });
+            i.addEventListener('change', function () { f.novo = false; checarPessoa(f.texto, st); desenhoSVG(); colunas(); st.etapa('fator em ' + rot(c[0])); });
+            var pd = NFD.inp('number', f.peso_dias || 0); pd.min = 0; pd.style.marginTop = '6px'; pd.setAttribute('aria-label', 'Dias de atraso deste fator'); pd.title = 'Dias de atraso atribuídos a este fator'; pd.addEventListener('change', function () { f.peso_dias = Math.max(0, Number(pd.value) || 0); sync(); st.mudou(); desenhoSVG(); colunas(); });
+            f.evidencias = f.evidencias || [];
+            it.appendChild(i); it.appendChild(h('div', 'nf-dg-sub', 'Dias de atraso atribuídos:')); it.appendChild(pd);
+            it.appendChild(NFD.pickerEv(banco, f.evidencias, function () { sync(); st.mudou(); desenhoSVG(); it.classList.toggle('nf-dg-opiniao', !f.evidencias.length); avisoSem(); }));
+            var rm = NFD.btn('Remover fator', 'nf-peq nf-perigo', function () { d.fatores = d.fatores.filter(function (x) { return x.id !== f.id; }); sync(); st.mudou(); pintarTudo(); }); rm.style.marginTop = '6px'; it.appendChild(rm);
+            col.appendChild(it);
+          });
+          var add = NFD.btn('+ Fator', 'nf-peq', function () { d.fatores.push({ id: novoId('fx'), texto: '', categoria: c[0], evidencias: [], peso_dias: 0, novo: true }); st.mudou(); pintarTudo(); var x = cols.querySelector('[data-novo="1"]'); if (x) x.focus(); }); col.appendChild(add);
+          cols.appendChild(col);
+        });
+        avisoSem();
+      }
+      function avisoSem() {
+        sem.textContent = '';
+        var sf = d.fatores.filter(function (f) { return !(f.evidencias || []).length; });
+        if (sf.length) { var p = h('div', 'nf-dg-aviso'); p.setAttribute('data-sem-evidencia', '1'); p.textContent = sf.length + ' fator(es) sem evidência (borda tracejada): complete a ligação com um fato real ou remova. Sem evidência, o fator não entra no Pareto nem nos padrões.'; sem.appendChild(p); }
+      }
+      function pintarTudo() { sync(); desenhoSVG(); colunas(); }
+      pintarTudo();
+    },
+    pronto: function (d) {
+      var f = (d.fatores || []).filter(function (x) { return x.texto && (x.evidencias || []).length; });
+      if (!f.length) return { ok: false, motivo: 'Registre ao menos um fator com nome e evidência.' };
+      if ((d.fatores || []).some(function (x) { return !x.texto; })) return { ok: false, motivo: 'Há fatores sem nome. Dê um nome ou remova.' };
+      return { ok: true };
+    },
+    itens: function (d) { return (d.fatores || []).filter(function (f) { return f.texto && (f.evidencias || []).length; }).sort(function (a, b) { return (Number(b.peso_dias) || 0) - (Number(a.peso_dias) || 0); }).slice(0, 12).map(function (f) { return { titulo: 'Reduzir: ' + f.texto.slice(0, 120), descricao: 'Fator de ' + NFD.catNome(NFD.normCat(f.categoria)) + (f.peso_dias ? ' (' + f.peso_dias + ' dias de atraso atribuídos).' : '.'), origem: 'Ishikawa · ' + NFD.catNome(NFD.normCat(f.categoria)) }; }); },
+    criticas: function (d) {
+      var c = [], f = d.fatores || [];
+      var usadas = {}; f.forEach(function (x) { if (x.texto) usadas[NFD.normCat(x.categoria)] = 1; });
+      if (f.length >= 3 && Object.keys(usadas).length === 1) c.push('Todos os fatores estão em uma categoria. Vale perguntar o que há nas outras cinco.');
+      var vazias = NFD.CATS.filter(function (x) { return !usadas[x[0]]; });
+      if (f.length >= 2 && vazias.length && vazias.length < 6) c.push('Ninguém olhou: ' + vazias.map(function (x) { return x[1]; }).join(', ') + '.');
+      var sem = f.filter(function (x) { return !(x.evidencias || []).length; }).length; if (sem) c.push(sem + ' fator(es) sem evidência.');
+      return c;
+    }
+  });
+
+  /* ======================== 3. LINHA DO TEMPO ======================== */
+  function eventosTempo(st, pid) {
+    var hj = hoje(), out = [], banco = NFD.banco(pid, st.dados.evidencias_externas);
+    banco.forEach(function (e) {
+      var data = '';
+      if (e.ocorrido_em) data = String(e.ocorrido_em).slice(0, 10);
+      else if (e.tipo === 'atraso' || e.tipo === 'lacuna' || e.tipo === 'bloqueio') { var p = NFD.projeto(e.projeto_id), t = p && p.tarefas.filter(function (x) { return x.id === e.tarefa_id; })[0]; if (t && t.prazo) data = t.prazo; }
+      if (!data) data = U.ymd(hj);
+      out.push({ id: e.id, tipo: e.tipo, resumo: e.resumo, data: data, ref: e.ref, e: e });
+    });
+    (NFD.projeto(pid) ? [NFD.projeto(pid)] : S.ctx.projetos).forEach(function (p) { p.tarefas.forEach(function (t) { if (t.prazo) out.push({ id: 'prazo:' + p.id + ':' + t.id, tipo: 'regra', resumo: 'Prazo previsto de "' + t.texto + '"' + (NFD.feita(t) ? ' (concluída)' : ''), data: t.prazo, ref: p.id + ':' + t.id, e: { id: 'prazo:' + p.id + ':' + t.id, tipo: 'regra', resumo: 'Prazo previsto de "' + t.texto + '" em ' + fmtD(t.prazo), ref: p.id + ':' + t.id } }); }); });
+    return out.sort(function (a, b) { return String(a.data).localeCompare(String(b.data)); });
+  }
+  NFD.registrar({
+    id: 'timeline', tipo: 'evento', nome: 'Reconstrução da linha do tempo', origem: 'Linha do tempo montada dos dados, sem IA',
+    resumo: 'Monta a sequência do que aconteceu: prazos, mudanças de data, retrabalho, bloqueios e lacunas. Você fixa as evidências que contam a história e registra os achados.',
+    usar: ['Precisa entender a sequência dos fatos', 'Há dúvida sobre quando e como o problema começou', 'Quer conferir o que ninguém viu (lacunas)'],
+    evitar: ['O espaço é novo e quase não tem registros', 'Você já sabe a causa e só precisa organizá-la (use Ishikawa)'],
+    precisa: 'Prazos das tarefas e o histórico anotado pelo diagnóstico. O app ainda não guarda a data de cada mudança passada: só as anotadas a partir de agora.',
+    ia: 'Lê a sequência e aponta saltos, lacunas e perguntas que a linha do tempo ainda não responde.',
+    vazio: function () { return { fixadas: [], ocultas: [], achados: [], gatilho_data: '', causas: [] }; },
+    render: function (box, st) {
+      var d = st.dados; d.fixadas = d.fixadas || []; d.ocultas = d.ocultas || []; d.achados = d.achados || [];
+      function sync() { d.causas = causasDe(d.achados); }
+      box.appendChild(h('div', 'nf-dg-info', 'Lacuna também é evidência: o que deveria ter sido registrado e não foi aparece em destaque. Fixe o que sustenta a história e descarte o ruído (descartar só oculta).'));
+      var topo = h('div', 'nf-dg-linha');
+      var gd = NFD.inp('date', d.gatilho_data || ''); gd.setAttribute('aria-label', 'Data do gatilho'); gd.addEventListener('change', function () { d.gatilho_data = gd.value; st.mudou(); pintar(); });
+      var fs = NFD.sel([['', 'Todos os tipos'], ['atraso', 'Atrasos'], ['mudanca_data', 'Mudanças de data'], ['reabertura', 'Retrabalho'], ['bloqueio', 'Bloqueios'], ['lacuna', 'Lacunas'], ['regra', 'Prazos previstos']], d.filtro || ''); fs.setAttribute('aria-label', 'Filtrar por tipo'); fs.addEventListener('change', function () { d.filtro = fs.value; pintar(); });
+      var mo = document.createElement('label'); mo.className = 'nf-dg-chk'; var ck = document.createElement('input'); ck.type = 'checkbox'; ck.checked = !!d.mostrarOcultas; ck.setAttribute('data-ro-ok', '1'); ck.addEventListener('change', function () { d.mostrarOcultas = ck.checked; pintar(); }); mo.appendChild(ck); mo.appendChild(document.createTextNode('Mostrar descartadas'));
+      topo.appendChild(NFD.campo('Data em que o problema apareceu (opcional)', gd)); topo.appendChild(NFD.campo('Filtro', fs)); topo.appendChild(mo); box.appendChild(topo);
+      evExternas(box, st);
+      var linha = h('div'); box.appendChild(linha);
+      var ach = h('div'); box.appendChild(ach);
+      function pintar() {
+        sync(); linha.textContent = '';
+        var evs = eventosTempo(st, st.reg.projeto_id).filter(function (e) { return (!d.filtro || e.tipo === d.filtro) && (d.mostrarOcultas || d.ocultas.indexOf(e.id) < 0); });
+        var g = h('div', 'nf-dg-secao'); g.appendChild(h('h3', null, 'Linha do tempo (' + evs.length + ' eventos)')); linha.appendChild(g);
+        if (!evs.length) linha.appendChild(h('div', 'nf-dg-vazio', 'Nada para mostrar com este filtro.'));
+        var ul = h('div', 'nf-dg-lista'), ant = '', lado = '';
+        var fixadas = d.fixadas.map(function (x) { return x.id; });
+        evs.forEach(function (e) {
+          if (ant && e.data !== ant) { var dif = U.dif(U.data(ant), U.data(e.data)); if (dif >= 7) { var gp = h('div', 'nf-dg-sub', '... ' + dif + ' dias sem registros ...'); gp.style.cssText = 'text-align:center;padding:2px'; gp.setAttribute('data-lacuna-tempo', String(dif)); ul.appendChild(gp); } }
+          if (d.gatilho_data) { var l2 = e.data < d.gatilho_data ? 'antes' : 'depois'; if (l2 !== lado) { lado = l2; var sp = h('div', 'nf-dg-chip', l2 === 'antes' ? 'ANTES do problema (' + fmtD(d.gatilho_data) + ')' : 'A PARTIR do problema'); sp.style.alignSelf = 'flex-start'; ul.appendChild(sp); } }
+          ant = e.data;
+          var it = h('div', 'nf-dg-item' + (e.tipo === 'lacuna' ? ' nf-dg-opiniao' : '')); it.setAttribute('data-evento', e.id); it.style.setProperty('--c', e.tipo === 'lacuna' ? '#E5202E' : (e.tipo === 'bloqueio' || e.tipo === 'atraso' ? '#FF8A1F' : (e.tipo === 'regra' ? '#8E96B5' : '#2F5BFF')));
+          if (d.ocultas.indexOf(e.id) >= 0) it.style.opacity = .5;
+          var t = h('div', 'nf-t'); var b = h('b', null, (NFD.tipoEvNome[e.tipo] || e.tipo) + ' · ' + fmtD(e.data)); t.appendChild(b); var sm = h('small', null, e.resumo); sm.style.whiteSpace = 'normal'; t.appendChild(sm); it.appendChild(t);
+          var f = fixadas.indexOf(e.id) >= 0;
+          it.appendChild(NFD.btn(f ? 'Fixada' : 'Fixar', 'nf-peq' + (f ? ' nf-prim' : ''), function () { if (f) d.fixadas = d.fixadas.filter(function (x) { return x.id !== e.id; }); else d.fixadas.push({ id: e.id, tipo: e.tipo === 'regra' ? 'regra' : e.tipo, resumo: e.e.resumo, ref: e.ref || '' }); st.mudou(); pintar(); }));
+          var oc = d.ocultas.indexOf(e.id) >= 0;
+          it.appendChild(NFD.btn(oc ? 'Voltar' : 'Descartar', 'nf-peq', function () { if (oc) d.ocultas = d.ocultas.filter(function (x) { return x !== e.id; }); else d.ocultas.push(e.id); st.mudou(); pintar(); }));
+          ul.appendChild(it);
+        });
+        linha.appendChild(ul);
+        pintarAchados();
+      }
+      function pintarAchados() {
+        sync();
+        ach.textContent = '';
+        var g = h('div', 'nf-dg-secao'); g.appendChild(h('h3', null, 'Achados da investigação (' + d.achados.length + ')')); ach.appendChild(g);
+        ach.appendChild(h('div', 'nf-dg-sub', 'Cada achado nasce ligado às evidências fixadas que você escolher. Fixadas agora: ' + d.fixadas.length + '.'));
+        var card = h('div', 'nf-dg-card'); card.style.margin = '8px 0';
+        var t = document.createElement('textarea'); t.className = 'nf-dg-in'; t.placeholder = 'O que a sequência mostra? Ex.: o prazo mudou 3 vezes sem que ninguém fosse avisado'; t.setAttribute('aria-label', 'Novo achado');
+        var l = h('div', 'nf-dg-linha'); l.style.marginTop = '8px';
+        var cs = NFD.sel(NFD.CATS, 'processo'), pd = NFD.inp('number', 0); pd.min = 0; pd.setAttribute('aria-label', 'Dias de atraso atribuídos');
+        l.appendChild(NFD.campo('Categoria', cs)); l.appendChild(NFD.campo('Dias de atraso atribuídos', pd));
+        var er = h('div', 'nf-dg-erro'); er.hidden = true;
+        var b = NFD.btn('Registrar achado com as evidências fixadas', 'nf-prim', function () {
+          er.hidden = true;
+          if (!t.value.trim()) { er.textContent = 'Escreva o achado.'; er.hidden = false; return; }
+          if (NFD.achaPessoa(t.value)) { er.textContent = 'O achado cita uma pessoa. Descreva a condição.'; er.hidden = false; return; }
+          d.achados.push({ id: novoId('ac'), texto: t.value.trim(), categoria: cs.value, evidencias: d.fixadas.slice(), peso_dias: Number(pd.value) || 0 });
+          st.mudou(); pintarAchados(); st.etapa('achado registrado');
+        });
+        b.setAttribute('data-acao', 'registrar-achado');
+        card.appendChild(t); card.appendChild(l); card.appendChild(er); card.appendChild(b); ach.appendChild(card);
+        d.achados.forEach(function (a) {
+          var it = h('div', 'nf-dg-card' + ((a.evidencias || []).length ? '' : ' nf-dg-opiniao')); it.style.marginBottom = '8px'; it.setAttribute('data-achado', a.id);
+          it.appendChild(h('b', null, a.texto)); it.appendChild(h('div', 'nf-dg-sub', NFD.catNome(NFD.normCat(a.categoria)) + ' · ' + (a.peso_dias || 0) + ' dias · ' + ((a.evidencias || []).length ? a.evidencias.length + ' evidência(s)' : 'opinião, sem evidência')));
+          it.appendChild(NFD.btn('Remover', 'nf-peq nf-perigo', function () { d.achados = d.achados.filter(function (x) { return x.id !== a.id; }); st.mudou(); pintarAchados(); }));
+          ach.appendChild(it);
+        });
+      }
+      sync(); pintar();
+    },
+    pronto: function (d) { return (d.achados || []).some(function (a) { return (a.evidencias || []).length; }) ? { ok: true } : { ok: false, motivo: 'Registre ao menos um achado ligado a evidências fixadas.' }; },
+    itens: function (d) { return (d.achados || []).filter(function (a) { return (a.evidencias || []).length; }).slice(0, 10).map(function (a) { return { titulo: 'Tratar: ' + a.texto.slice(0, 120), descricao: a.texto, origem: 'Achado da linha do tempo (' + NFD.catNome(NFD.normCat(a.categoria)) + ')' }; }); },
+    criticas: function (d) {
+      var c = [];
+      if (!(d.fixadas || []).length) c.push('Nenhuma evidência fixada ainda: a história precisa de fatos que a sustentem.');
+      var lac = NFD.banco(S.editor && S.editor.reg.projeto_id).filter(function (e) { return e.tipo === 'lacuna'; }).length;
+      if (lac && !(d.fixadas || []).some(function (x) { return x.tipo === 'lacuna'; })) c.push('Há ' + lac + ' lacuna(s) no período e nenhuma foi fixada. O que deveria ter sido registrado e não foi também conta como evidência.');
+      return c;
+    }
+  });
+
+  /* ======================== 4. PARETO POR DIAS DE ATRASO ======================== */
+  function agregarPareto(st) {
+    var cats = {}, filtro = st.dados.filtro_projeto || '';
+    S.ctx.registros.forEach(function (r) {
+      if (r.tipo !== 'evento' || r.estado !== 'concluido' || r.id === st.reg.id) return;
+      if (filtro && r.projeto_id !== filtro) return;
+      ((r.dados && r.dados.causas) || []).forEach(function (c) {
+        if (!c || !(c.evidencias || []).length) return;
+        var k = NFD.normCat(c.categoria); var o = cats[k] || (cats[k] = { cat: k, freq: 0, dias: 0, diags: {} });
+        o.freq++; o.dias += Number(c.peso_dias) || 0; o.diags[r.id] = r.titulo;
+      });
+    });
+    return Object.keys(cats).map(function (k) { return cats[k]; });
+  }
+  NFD.registrar({
+    id: 'pareto', tipo: 'evento', nome: 'Pareto por custo em dias', origem: 'Pareto ponderado pelos dias de atraso',
+    resumo: 'Junta as causas ancoradas de todos os diagnósticos concluídos e mostra quais categorias mais aparecem e quais mais custam em dias de atraso. É a "qual tipo de causa é mais cara".',
+    usar: ['Já há vários diagnósticos concluídos', 'Quer decidir onde investir prevenção', 'Precisa mostrar o custo dos problemas em dias'],
+    evitar: ['Há menos de 3 causas ancoradas: o gráfico engana', 'As causas não têm dias de atraso atribuídos'],
+    precisa: 'Diagnósticos de "depois do evento" concluídos, com causas ancoradas e dias atribuídos.',
+    ia: 'Questiona o resultado (poucos casos, uma categoria dominando) e sugere onde investigar mais fundo.',
+    vazio: function () { return { metrica: 'dias', filtro_projeto: '', achados: [], causas: [] }; },
+    render: function (box, st) {
+      var d = st.dados; d.achados = d.achados || []; d.metrica = d.metrica || 'dias';
+      function sync() { d.causas = causasDe(d.achados); }
+      box.appendChild(h('div', 'nf-dg-info', 'Este gráfico usa os diagnósticos já concluídos deste espaço. Quanto mais casos, mais confiável. Causas sem evidência não entram.'));
+      var l = h('div', 'nf-dg-linha');
+      var ms = NFD.sel([['dias', 'Por dias de atraso (custo)'], ['freq', 'Por frequência']], d.metrica); ms.setAttribute('aria-label', 'Métrica'); ms.addEventListener('change', function () { d.metrica = ms.value; st.mudou(); pintar(); });
+      var fp = NFD.sel([['', 'Todos os projetos']].concat(S.ctx.projetos.map(function (p) { return [p.id, p.nome]; })), d.filtro_projeto || ''); fp.setAttribute('aria-label', 'Projeto'); fp.addEventListener('change', function () { d.filtro_projeto = fp.value; st.mudou(); pintar(); });
+      l.appendChild(NFD.campo('Métrica', ms)); l.appendChild(NFD.campo('Projeto', fp)); box.appendChild(l);
+      var res = h('div'); box.appendChild(res);
+      function pintar() {
+        sync(); res.textContent = '';
+        var ag = agregarPareto(st), total = ag.reduce(function (a, x) { return a + x.freq; }, 0);
+        var chave = d.metrica === 'freq' ? 'freq' : 'dias';
+        ag.sort(function (a, b) { return b[chave] - a[chave]; });
+        if (total < 3) { res.appendChild(h('div', 'nf-dg-vazio', 'Ainda há só ' + total + ' causa(s) ancorada(s) em diagnósticos concluídos. O Pareto precisa de pelo menos 3 para não enganar. Conclua mais diagnósticos de "depois do evento".')); return; }
+        var soma = ag.reduce(function (a, x) { return a + x[chave]; }, 0) || 1, acum = 0, mx = Math.max.apply(null, ag.map(function (x) { return x[chave]; })) || 1;
+        var gr = h('div', 'nf-dg-card'); gr.appendChild(h('h4', null, 'Pareto · ' + (chave === 'dias' ? 'dias de atraso por categoria' : 'ocorrências por categoria')));
+        if (chave === 'dias' && ag.every(function (x) { return !x.dias; })) gr.appendChild(aviso('Nenhuma causa tem dias de atraso atribuídos. Preencha os dias nos diagnósticos (ou veja por frequência).'));
+        ag.forEach(function (x) {
+          acum += x[chave];
+          var li = h('div'); li.style.cssText = 'display:flex;gap:10px;align-items:center;margin:7px 0;font-size:13px'; li.setAttribute('data-pareto', x.cat);
+          li.appendChild(h('span', null, NFD.catNome(x.cat))); li.firstChild.style.cssText = 'flex:0 0 190px';
+          var bar = h('div'); bar.style.cssText = 'flex:1;height:18px;border-radius:5px;background:rgba(127,127,127,.15);overflow:hidden'; var f = h('div'); f.style.cssText = 'height:100%;background:var(--azul,#2F5BFF);width:' + Math.round(x[chave] / mx * 100) + '%'; bar.appendChild(f); li.appendChild(bar);
+          li.appendChild(h('b', null, x[chave] + (chave === 'dias' ? ' d' : ''))); li.appendChild(h('span', 'nf-dg-sub', Math.round(acum / soma * 100) + '% acum.'));
+          gr.appendChild(li);
+        });
+        res.appendChild(gr);
+        var g = h('div', 'nf-dg-secao'); g.appendChild(h('h3', null, 'Interpretação: por que estas categorias dominam?')); res.appendChild(g);
+        ag.slice(0, 3).forEach(function (x) {
+          var c = h('div', 'nf-dg-card'); c.style.marginBottom = '10px'; c.setAttribute('data-interp', x.cat);
+          var ds = Object.keys(x.diags);
+          c.appendChild(h('h4', null, NFD.catNome(x.cat) + ' · ' + x.freq + ' ocorrência(s) · ' + x.dias + ' dias · ' + ds.length + ' diagnóstico(s)'));
+          var t = document.createElement('textarea'); t.className = 'nf-dg-in'; t.placeholder = 'O que explica esta categoria custar tanto? Descreva a condição que se repete.'; t.setAttribute('aria-label', 'Interpretação de ' + NFD.catNome(x.cat));
+          var er = h('div', 'nf-dg-erro'); er.hidden = true;
+          var b = NFD.btn('Registrar como causa (ancorada nesses diagnósticos)', 'nf-peq nf-prim', function () {
+            if (!t.value.trim()) { er.textContent = 'Escreva a interpretação.'; er.hidden = false; return; }
+            if (NFD.achaPessoa(t.value)) { er.textContent = 'O texto cita uma pessoa. Descreva a condição.'; er.hidden = false; return; }
+            d.achados.push({ id: novoId('pt'), texto: t.value.trim(), categoria: x.cat, peso_dias: x.dias, evidencias: ds.slice(0, 10).map(function (id) { return { id: 'diag:' + id, tipo: 'diagnostico', resumo: 'Diagnóstico "' + x.diags[id] + '"', ref: id }; }) });
+            st.mudou(); pintar(); st.etapa('interpretação do Pareto');
+          });
+          b.setAttribute('data-acao', 'registrar-pareto');
+          c.appendChild(t); c.appendChild(er); c.appendChild(b); res.appendChild(c);
+        });
+        if (d.achados.length) { var g2 = h('div', 'nf-dg-secao'); g2.appendChild(h('h3', null, 'Interpretações registradas (' + d.achados.length + ')')); res.appendChild(g2); d.achados.forEach(function (a) { var c = h('div', 'nf-dg-card'); c.style.marginBottom = '8px'; c.appendChild(h('b', null, a.texto)); c.appendChild(h('div', 'nf-dg-sub', NFD.catNome(NFD.normCat(a.categoria)) + ' · ' + a.evidencias.length + ' diagnóstico(s) como evidência')); c.appendChild(NFD.btn('Remover', 'nf-peq nf-perigo', function () { d.achados = d.achados.filter(function (y) { return y.id !== a.id; }); st.mudou(); pintar(); })); res.appendChild(c); }); }
+      }
+      pintar();
+    },
+    pronto: function (d) { return (d.achados || []).length ? { ok: true } : { ok: false, motivo: 'Registre ao menos uma interpretação das categorias que mais custam.' }; },
+    itens: function (d) { return (d.achados || []).slice(0, 8).map(function (a) { return { titulo: 'Plano preventivo para ' + NFD.catNome(NFD.normCat(a.categoria)) + ': ' + a.texto.slice(0, 90), descricao: a.texto, origem: 'Pareto (' + (a.peso_dias || 0) + ' dias de atraso na categoria)' }; }); },
+    criticas: function () { var c = [], ag = agregarPareto({ dados: S.editor ? S.editor.dados : {}, reg: S.editor ? S.editor.reg : {} }); var tot = ag.reduce(function (a, x) { return a + x.freq; }, 0); if (tot < 6) c.push('Só ' + tot + ' causas ancoradas: uma categoria pode dominar por acaso. Trate o resultado como pista, não como prova.'); if (ag.length === 1) c.push('Só existe uma categoria nos dados. O Pareto não compara nada ainda.'); return c; }
+  });
+
+  /* ======================== 5. ÁRVORE DE FALHAS ======================== */
+  function filhos(nos, id) { return nos.filter(function (n) { return n.pai === id; }); }
+  function conjuntos(nos, no) {
+    var fs = filhos(nos, no.id);
+    if (!fs.length) return [[no.id]];
+    var sub = fs.map(function (f) { return conjuntos(nos, f); });
+    if (no.porta === 'E') { var r = [[]]; sub.forEach(function (s) { var n = []; r.forEach(function (a) { s.forEach(function (b) { n.push(a.concat(b)); }); }); r = n; }); return r; }
+    return [].concat.apply([], sub);
+  }
+  function minimos(sets) {
+    var u = sets.map(function (s) { return s.filter(function (x, i) { return s.indexOf(x) === i; }).sort(); });
+    return u.filter(function (s, i) { return !u.some(function (o, j) { return j !== i && o.length < s.length && o.every(function (x) { return s.indexOf(x) >= 0; }) || (j < i && o.length === s.length && o.join() === s.join()); }); });
+  }
+  NFD.registrar({
+    id: 'arvore', tipo: 'evento', nome: 'Árvore de falhas', origem: 'Árvore E/OU sobre o grafo de dependências',
+    resumo: 'Parte do evento-topo e abre até 3 níveis de causas com portas E/OU. Calcula os caminhos mínimos de corte: as menores combinações de falhas que levam ao problema, incluindo pontos únicos de falha.',
+    usar: ['A falha depende de combinações de problemas', 'Há dependências entre tarefas envolvidas', 'Quer achar pontos únicos de falha'],
+    evitar: ['A causa é simples e linear (use 5 Porquês)', 'Você ainda não conhece as dependências'],
+    precisa: 'Um evento-topo e evidências. O app sugere a primeira camada a partir das dependências, atrasos e histórico da tarefa.',
+    ia: 'Confere se as portas E/OU fazem sentido, se falta algum ramo e se há combinações que a árvore ainda não considerou.',
+    vazio: function (o) { return { topo: { texto: o && o.gatilho ? o.gatilho.texto : '', ref: o && o.gatilho ? o.gatilho.ref : '' }, nos: [], causas: [] }; },
+    render: function (box, st) {
+      var d = st.dados; d.nos = d.nos || []; d.topo = d.topo || { texto: '', ref: '' };
+      d.nos.forEach(function (n) { n.porta = n.porta || 'OU'; });
+      var raiz = { id: 'topo', porta: d.topo.porta || 'OU' };
+      function nivel(n) { var k = 0, x = n; while (x && x.pai && x.pai !== 'topo') { x = d.nos.filter(function (y) { return y.id === x.pai; })[0]; k++; } return k + 1; }
+      function sync() {
+        var folhas = d.nos.filter(function (n) { return !filhos(d.nos, n.id).length; });
+        d.causas = causasDe(folhas.map(function (n) { return { id: n.id, texto: n.texto, categoria: n.categoria, evidencias: n.evidencias, peso_dias: 0 }; }));
+      }
+      box.appendChild(h('div', 'nf-dg-info', 'Portas: OU = qualquer filho basta para a falha acontecer; E = só acontece se todos os filhos ocorrerem. Máximo de 3 níveis. As falhas básicas (pontas da árvore) precisam de evidência.'));
+      var g = h('div', 'nf-dg-card'); g.appendChild(h('h4', null, 'Evento-topo (o problema a explicar)'));
+      var ta = document.createElement('textarea'); ta.className = 'nf-dg-in'; ta.value = d.topo.texto || ''; ta.placeholder = 'Ex.: a entrega do módulo A atrasou 12 dias'; ta.setAttribute('aria-label', 'Evento-topo');
+      ta.addEventListener('input', function () { d.topo.texto = ta.value; st.mudou(); });
+      var pj = projetoDe(st); var opT = [['', 'Sugerir a primeira camada a partir de uma tarefa...']]; (pj ? [pj] : S.ctx.projetos).forEach(function (p) { p.tarefas.filter(function (t) { return !NFD.feita(t) || t.deps.length; }).forEach(function (t) { opT.push([p.id + ':' + t.id, t.texto.slice(0, 70)]); }); });
+      var sg = NFD.sel(opT.slice(0, 200), ''); sg.setAttribute('aria-label', 'Tarefa para sugerir causas');
+      var bs = NFD.btn('Sugerir camada 1 pelas dependências', '', function () {
+        if (!sg.value) return;
+        var pid = sg.value.split(':')[0], tid = sg.value.slice(pid.length + 1), p = NFD.projeto(pid), t = p.tarefas.filter(function (x) { return x.id === tid; })[0]; if (!t) return;
+        d.topo.ref = sg.value; if (!ta.value.trim()) { ta.value = 'Problema em "' + t.texto + '"'; d.topo.texto = ta.value; }
+        var banco = NFD.banco(pid, d.evidencias_externas), sug = [];
+        t.deps.forEach(function (did) { var pr = p.tarefas.filter(function (x) { return x.id === did; })[0]; if (pr && !NFD.feita(pr)) { var ev = banco.filter(function (e) { return e.tarefa_id === did && (e.tipo === 'atraso' || e.tipo === 'bloqueio') || (e.tipo === 'bloqueio' && e.id.indexOf(did) > 0); })[0]; sug.push({ texto: 'A predecessora "' + pr.texto + '" não foi concluída a tempo', categoria: 'dependencia', evidencias: ev ? [{ id: ev.id, tipo: ev.tipo, resumo: ev.resumo, ref: ev.ref }] : [] }); } });
+        banco.filter(function (e) { return e.tarefa_id === tid; }).forEach(function (e) { if (e.tipo === 'mudanca_data') sug.push({ texto: 'O prazo foi alterado várias vezes sem replanejamento', categoria: 'estimativa', evidencias: [{ id: e.id, tipo: e.tipo, resumo: e.resumo, ref: e.ref }] }); if (e.tipo === 'reabertura') sug.push({ texto: 'O trabalho voltou para ajustes depois de entregue', categoria: 'qualidade', evidencias: [{ id: e.id, tipo: e.tipo, resumo: e.resumo, ref: e.ref }] }); if (e.tipo === 'sem_responsavel') sug.push({ texto: 'A tarefa ficou sem responsável definido', categoria: 'capacidade', evidencias: [{ id: e.id, tipo: e.tipo, resumo: e.resumo, ref: e.ref }] }); if (e.tipo === 'atraso' || e.tipo === 'lacuna') { if (e.tipo === 'lacuna') sug.push({ texto: 'O atraso não gerou aviso nem registro', categoria: 'processo', evidencias: [{ id: e.id, tipo: e.tipo, resumo: e.resumo, ref: e.ref }] }); } });
+        if (!sug.length) { st.msg('Não encontrei causas pelas dependências e pelo histórico desta tarefa. Adicione os ramos à mão.', true); return; }
+        sug.forEach(function (s) { d.nos.push({ id: novoId('nd'), pai: 'topo', texto: s.texto, categoria: s.categoria, evidencias: s.evidencias, porta: 'OU' }); });
+        st.mudou(); pintar(); st.etapa('camada 1 sugerida');
+      });
+      bs.setAttribute('data-acao', 'sugerir-camada'); bs.style.marginTop = '8px';
+      g.appendChild(ta); sg.style.marginTop = '8px'; g.appendChild(sg); g.appendChild(bs); box.appendChild(g);
+      evExternas(box, st);
+      var arv = h('div'); box.appendChild(arv);
+      var cortes = h('div'); box.appendChild(cortes);
+      function pintar() {
+        sync(); arv.textContent = ''; cortes.textContent = '';
+        var banco = st.banco();
+        var sec = h('div', 'nf-dg-secao'); sec.appendChild(h('h3', null, 'Árvore')); arv.appendChild(sec);
+        var rootBox = h('div', 'nf-dg-card'); rootBox.appendChild(h('b', null, 'TOPO: ' + (d.topo.texto || '(escreva o evento-topo)')));
+        if (filhos(d.nos, 'topo').length) { var ps = NFD.sel([['OU', 'Porta OU: qualquer filho causa o evento'], ['E', 'Porta E: só se todos ocorrerem']], d.topo.porta || 'OU'); ps.setAttribute('aria-label', 'Porta do topo'); ps.style.marginTop = '6px'; ps.addEventListener('change', function () { d.topo.porta = ps.value; st.mudou(); pintar(); }); rootBox.appendChild(ps); }
+        arv.appendChild(rootBox);
+        function desenhar(paiId, pai, nv) {
+          filhos(d.nos, paiId).forEach(function (n) {
+            var tem = filhos(d.nos, n.id).length, lv = nv;
+            var c = h('div', 'nf-dg-card' + (!tem && !(n.evidencias || []).length ? ' nf-dg-opiniao' : '')); c.style.cssText = 'margin:8px 0 0 ' + (lv * 26) + 'px'; c.setAttribute('data-no', n.id); c.setAttribute('data-nivel', String(lv));
+            var tit = h('h4', null, 'Nível ' + lv + (tem ? ' · porta ' + n.porta : ' · falha básica' + ((n.evidencias || []).length ? '' : ' · sem evidência')));
+            c.appendChild(tit);
+            var i = NFD.inp('text', n.texto, 'Causa', 200); i.setAttribute('aria-label', 'Causa do nível ' + lv); i.addEventListener('input', function () { n.texto = i.value; sync(); st.mudou(); }); i.addEventListener('change', function () { checarPessoa(n.texto, st); pintar(); st.etapa('causa no nível ' + lv); });
+            var l = h('div', 'nf-dg-linha'); l.style.marginTop = '6px';
+            var cs = NFD.sel(NFD.CATS, NFD.normCat(n.categoria)); cs.setAttribute('aria-label', 'Categoria'); cs.addEventListener('change', function () { n.categoria = cs.value; sync(); st.mudou(); }); l.appendChild(cs);
+            if (tem) { var po = NFD.sel([['OU', 'Porta OU'], ['E', 'Porta E']], n.porta); po.setAttribute('aria-label', 'Porta'); po.addEventListener('change', function () { n.porta = po.value; st.mudou(); pintar(); }); l.appendChild(po); }
+            c.appendChild(i); c.appendChild(l);
+            n.evidencias = n.evidencias || [];
+            if (!tem) c.appendChild(NFD.pickerEv(banco, n.evidencias, function () { sync(); st.mudou(); c.classList.toggle('nf-dg-opiniao', !n.evidencias.length); tit.textContent = 'Nível ' + lv + ' · falha básica' + (n.evidencias.length ? '' : ' · sem evidência'); }));
+            var ac = h('div', 'nf-dg-botoes');
+            if (lv < 3) { var add = NFD.btn('+ Causa abaixo', 'nf-peq', function () { d.nos.push({ id: novoId('nd'), pai: n.id, texto: '', categoria: n.categoria, evidencias: [], porta: 'OU' }); st.mudou(); pintar(); }); add.setAttribute('data-acao', 'add-filho'); ac.appendChild(add); }
+            ac.appendChild(NFD.btn('Remover', 'nf-peq nf-perigo', function () { var rem = {}; (function col(id) { rem[id] = 1; filhos(d.nos, id).forEach(function (f) { col(f.id); }); })(n.id); d.nos = d.nos.filter(function (x) { return !rem[x.id]; }); st.mudou(); pintar(); }));
+            c.appendChild(ac); arv.appendChild(c);
+            desenhar(n.id, n, lv + 1);
+          });
+        }
+        desenhar('topo', raiz, 1);
+        var bTopo = NFD.btn('+ Causa no primeiro nível', 'nf-prim', function () { d.nos.push({ id: novoId('nd'), pai: 'topo', texto: '', categoria: 'processo', evidencias: [], porta: 'OU' }); st.mudou(); pintar(); });
+        bTopo.setAttribute('data-acao', 'add-nivel1'); bTopo.style.marginTop = '10px'; arv.appendChild(bTopo);
+        if (!d.nos.length) return;
+        var sets = minimos(conjuntos(d.nos.map(function (n) { return n; }), raiz.porta !== undefined ? Object.assign({}, raiz, { porta: d.topo.porta || 'OU' }) : raiz));
+        sets.sort(function (a, b) { return a.length - b.length; });
+        var texto = function (id) { var n = d.nos.filter(function (x) { return x.id === id; })[0]; return n ? (n.texto || '(sem texto)') : id; };
+        var c = h('div', 'nf-dg-card'); c.style.marginTop = '14px'; c.setAttribute('data-cortes', '1');
+        c.appendChild(h('h4', null, 'Caminhos mínimos de corte (' + sets.length + ')'));
+        c.appendChild(h('div', 'nf-dg-sub', 'Cada linha é a menor combinação de falhas básicas que leva ao evento-topo. Quanto menor a combinação, mais frágil o sistema.'));
+        sets.slice(0, 12).forEach(function (s) {
+          var li = h('div', 'nf-dg-item'); li.style.margin = '6px 0'; li.style.setProperty('--c', s.length === 1 ? '#E5202E' : '#E0A800');
+          var t = h('div', 'nf-t'); var b = h('b', null, s.length === 1 ? 'Ponto único de falha' : 'Combinação de ' + s.length + ' falhas'); t.appendChild(b); var sm = h('small', null, s.map(texto).join('  +  ')); sm.style.whiteSpace = 'normal'; t.appendChild(sm); li.appendChild(t); c.appendChild(li);
+        });
+        cortes.appendChild(c);
+      }
+      sync(); pintar();
+    },
+    pronto: function (d) {
+      if (!String((d.topo || {}).texto || '').trim()) return { ok: false, motivo: 'Escreva o evento-topo.' };
+      var folhas = (d.nos || []).filter(function (n) { return !filhos(d.nos, n.id).length && n.texto && (n.evidencias || []).length; });
+      return folhas.length ? { ok: true } : { ok: false, motivo: 'Ao menos uma falha básica (ponta da árvore) precisa ter texto e evidência.' };
+    },
+    itens: function (d) {
+      var nos = d.nos || [], nm = function (id) { var n = nos.filter(function (x) { return x.id === id; })[0]; return n ? n.texto : ''; };
+      var sets = minimos(conjuntos(nos, { id: 'topo', porta: (d.topo || {}).porta || 'OU' })).sort(function (a, b) { return a.length - b.length; });
+      var out = [];
+      sets.filter(function (s) { return s.length === 1; }).slice(0, 5).forEach(function (s) { out.push({ titulo: 'Eliminar ponto único de falha: ' + nm(s[0]).slice(0, 100), descricao: 'Esta falha sozinha leva ao evento-topo.', origem: 'Árvore de falhas (ponto único)' }); });
+      sets.filter(function (s) { return s.length === 2; }).slice(0, 4).forEach(function (s) { out.push({ titulo: 'Quebrar a combinação: ' + s.map(nm).join(' + ').slice(0, 110), descricao: 'Basta neutralizar uma das duas falhas para quebrar este caminho.', origem: 'Árvore de falhas (combinação de 2)' }); });
+      return out;
+    },
+    criticas: function (d) {
+      var c = [], nos = d.nos || [];
+      var folhas = nos.filter(function (n) { return !filhos(nos, n.id).length; });
+      var sem = folhas.filter(function (n) { return !(n.evidencias || []).length; }).length; if (sem) c.push(sem + ' falha(s) básica(s) sem evidência: não entram nos padrões.');
+      if (nos.length >= 3 && nos.every(function (n) { return n.pai === 'topo'; })) c.push('Todas as causas estão no primeiro nível. Pergunte "por que?" de cada uma para abrir o segundo nível.');
+      if (nos.length && !nos.some(function (n) { return n.porta === 'E'; }) && nos.length >= 4) c.push('Só há portas OU. Existe alguma falha que só acontece se duas coisas acontecerem juntas?');
+      return c;
+    }
+  });
+})();
+/* ===== AJUSTES 52 - FIM ===== */
 
 carregarSortable();
 restaurarSessao();
