@@ -17810,1441 +17810,6 @@ function escreverTexto(alvo, texto){
   padronizarIcones();
 })();
 /* ===== AJUSTES 43 - FIM ===== */
-/* ===== AJUSTES 48 - CALENDÁRIO: PRINCIPAL, PROJETOS E ESPAÇOS (substitui o AJUSTES 42) ===== */
-(function () {
-  if (window.NowFindCalendario) { try { console.warn('Calendário: apague o bloco AJUSTES 42 antigo antes de colar este.'); } catch (e) {} return; }
-  if (!window.NFV || typeof apiEventosHome !== 'function' || document.getElementById('nfCal')) return;
-  var U = NFV.u, h = U.h, ICO = U.ICO;
-
-  var HH = 52;
-  var MESES = U.MESES, MESES_CURTOS = U.MESES_CURTOS;
-  var DIAS_CURTOS = ['seg', 'ter', 'qua', 'qui', 'sex', 'sáb', 'dom'];
-  var DIAS_LONGOS = ['segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado', 'domingo'];
-  var COR_PRINCIPAL = '#2F5BFF';
-  var PALETA = ['#E5742F', '#1FA97A', '#9B5DE5', '#D6336C', '#0E9AA7', '#C9A227', '#6C7A89', '#3F8F29', '#B5446E', '#7C4DFF', '#C2410C', '#0F766E',
-    '#B45309', '#4D7C0F', '#A21CAF', '#0369A1', '#BE123C', '#047857', '#6D28D9', '#CA8A04', '#9A3412', '#115E59', '#86198F', '#475569'];
-
-  /* ---------- datas ---------- */
-  var pad = U.pad;
-  function iniDia(d) { var x = new Date(d); x.setHours(0, 0, 0, 0); return x; }
-  function somaDias(d, n) { var x = new Date(d); x.setDate(x.getDate() + n); return x; }
-  function iniSemana(d) { var x = iniDia(d); return somaDias(x, -((x.getDay() + 6) % 7)); }
-  function iniMes(d) { return new Date(d.getFullYear(), d.getMonth(), 1); }
-  function mesmoDia(a, b) { return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate(); }
-  function ymd(d) { return U.ymd(d); }
-  function hhmm(d) { return pad(d.getHours()) + ':' + pad(d.getMinutes()); }
-  function diaSemana(d) { return (d.getDay() + 6) % 7; }
-  function hoje() { return iniDia(new Date()); }
-  function maiuscula(t) { return String(t).charAt(0).toUpperCase() + String(t).slice(1); }
-  function svgIco(nome) { var s = document.createElement('span'); s.innerHTML = ICO[nome] || ''; return s.firstChild; }
-
-  /* ---------- cores e etiquetas ---------- */
-  /* cada projeto tem a sua cor: começa por um cálculo fixo e, se já houver outro projeto com a mesma, pega a próxima livre; fica guardado neste aparelho */
-  var mapaCores = null;
-  function lerCores() {
-    if (mapaCores) return mapaCores;
-    try { mapaCores = JSON.parse(localStorage.getItem('nowfind_cores_projetos') || '{}') || {}; } catch (e) { mapaCores = {}; }
-    return mapaCores;
-  }
-  function corProjeto(id) {
-    var chave = String(id || '');
-    var m = lerCores();
-    if (m[chave] !== undefined) return PALETA[m[chave] % PALETA.length];
-    var x = 7;
-    for (var i = 0; i < chave.length; i++) x = (x * 31 + chave.charCodeAt(i)) % 9973;
-    var usadas = {};
-    Object.keys(m).forEach(function (k) { usadas[m[k]] = true; });
-    var idx = x % PALETA.length;
-    for (var t = 0; t < PALETA.length && usadas[idx]; t++) idx = (idx + 1) % PALETA.length;
-    m[chave] = idx;
-    try { localStorage.setItem('nowfind_cores_projetos', JSON.stringify(m)); } catch (e) {}
-    return PALETA[idx];
-  }
-  /* "Espaço-projeto": o nome do espaço, um traço e o nome do projeto */
-  function rotuloProj(espaco, projeto, ambiente) {
-    if (espaco === '__avulso') return projeto;
-    if (espaco) return espaco + '-' + projeto;
-    return (ambiente === 'profissional' ? 'Profissional' : 'Pessoal') + '-' + projeto;
-  }
-  NFV.cores = { principal: COR_PRINCIPAL, projeto: corProjeto, rotulo: rotuloProj };
-
-  /* ---------- eventos: de onde vêm e como se gravam ---------- */
-  function boolInt(v) { return v === true || Number(v) === 1; }
-  function dePessoal(ev, vinc) {
-    var ini = new Date(ev.inicio), fim = new Date(ev.fim);
-    if (isNaN(ini.getTime())) return null;
-    if (isNaN(fim.getTime()) || fim <= ini) fim = new Date(ini.getTime() + 3600000);
-    var proj = vinc || null;
-    return {
-      chave: 'p:' + ev.id, id: ev.id, origem: 'pessoal', titulo: ev.titulo, ini: ini, fim: fim, inteiro: boolInt(ev.dia_inteiro),
-      fonteId: proj ? 'proj:' + proj.projeto_id : 'principal',
-      cor: proj ? corProjeto(proj.projeto_id) : COR_PRINCIPAL,
-      rotulo: proj ? rotuloProj('', proj.projeto_nome, proj.ambiente) : '',
-      local: ev.local || '', descricao: ev.descricao || '', participantes: [], convite: ev.convite || null,
-      editavel: !ev.convite, projetoId: proj ? proj.projeto_id : '', projetoNome: proj ? proj.projeto_nome : '',
-      ambiente: proj ? proj.ambiente : (ev.tipo === 'profissional' ? 'profissional' : 'pessoal'), tipo: ev.tipo, bruto: ev
-    };
-  }
-  var papeis = {};      /* espaço -> papel do usuário, quando já se sabe */
-  function souDonoDe(espacoId) {
-    if (papeis[espacoId]) return papeis[espacoId] === 'dono';
-    var lista = typeof espacos !== 'undefined' ? espacos : [];
-    for (var i = 0; i < lista.length; i++) if (lista[i].id === espacoId) return lista[i].papel === 'dono';
-    return false;
-  }
-  function doEspaco(a) {
-    var ini = new Date(a.inicio), fim = new Date(a.fim);
-    if (isNaN(ini.getTime())) return null;
-    if (isNaN(fim.getTime()) || fim <= ini) fim = new Date(ini.getTime() + 3600000);
-    var avulso = a.espaco_tipo === 'projeto';
-    var temProj = !!a.projeto_id;
-    var nomeEsp = a.espaco_nome || (typeof espacoSelecionado === 'function' && espacoSelecionado() && espacoSelecionado().id === a.espaco_id ? espacoSelecionado().nome : '');
-    var rotulo = temProj ? (avulso ? a.projeto_nome : (nomeEsp ? rotuloProj(nomeEsp, a.projeto_nome, '') : a.projeto_nome)) : nomeEsp;
-    return {
-      chave: 'a:' + a.id, id: a.id, origem: 'espaco', titulo: a.titulo, ini: ini, fim: fim, inteiro: boolInt(a.dia_inteiro),
-      fonteId: temProj ? 'proj:' + a.projeto_id : 'esp:' + a.espaco_id,
-      cor: corProjeto(temProj ? a.projeto_id : 'esp:' + a.espaco_id),
-      rotulo: rotulo, local: a.local || '', descricao: a.descricao || '', participantes: Array.isArray(a.participantes) ? a.participantes : [],
-      convite: null, editavel: a.criado_por === meuId() || souDonoDe(a.espaco_id), espacoId: a.espaco_id, espacoNome: nomeEsp,
-      projetoId: a.projeto_id || '', projetoNome: a.projeto_nome || '', criadoPorNome: a.criado_por_nome || '', ambiente: 'pessoal', bruto: a
-    };
-  }
-  function enc(x) { return encodeURIComponent(x); }
-  function janelaQS(ini, fim) { return '?inicio=' + enc(ini.toISOString()) + '&fim=' + enc(fim.toISOString()); }
-
-  async function eventosPessoais(ini, fim) {
-    var qs = janelaQS(ini, fim) + '&tipo=todos';
-    var r = await apiEventosHome(qs, 'GET');
-    var lista = (r.dados && r.dados.ok && r.dados.eventos) ? r.dados.eventos : [];
-    var vinc = {};
-    try { var v = await apiEventosHome('/projetos' + qs, 'GET'); if (v.dados && v.dados.ok) vinc = v.dados.vinculos || {}; } catch (e) {}
-    try {
-      var c = await apiEventosHome('/convidados' + qs, 'GET');
-      if (c.dados && c.dados.ok) {
-        lista.forEach(function (ev) { var g = c.dados.doMeu && c.dados.doMeu[ev.id]; if (g) ev.convidados = g; });
-        (c.dados.recebidos || []).forEach(function (ev) { if (!lista.some(function (x) { return x.id === ev.id; })) lista.push(ev); });
-      }
-    } catch (e) {}
-    return lista.map(function (ev) { return dePessoal(ev, vinc[ev.id]); }).filter(Boolean);
-  }
-  async function eventosDeTodosOsEspacos(ini, fim) {
-    try {
-      var r = await apiBruta('/agenda/todos' + janelaQS(ini, fim), 'GET');
-      if (r.j && r.j.ok) return (r.j.eventos || []).map(doEspaco).filter(Boolean);
-    } catch (e) {}
-    return [];
-  }
-  async function eventosDoEspaco(espacoId, ini, fim, projetoId) {
-    try {
-      var r = await apiBruta('/agenda' + janelaQS(ini, fim) + '&id=' + enc(espacoId) + (projetoId ? '&projeto=' + enc(projetoId) : ''), 'GET');
-      if (r.j && r.j.ok) return (r.j.eventos || []).map(function (a) { a.espaco_id = a.espaco_id || espacoId; return doEspaco(a); }).filter(Boolean);
-    } catch (e) {}
-    return [];
-  }
-  /* grava um evento onde ele deve ficar: no calendário pessoal (com ou sem projeto) ou no espaço */
-  async function salvarEvento(destino, d, existente) {
-    var ini = d.ini.toISOString(), fim = d.fim.toISOString();
-    if (destino.kind === 'espaco') {
-      var manter = existente && existente.origem === 'espaco' && existente.espacoId === destino.espacoId && !destino.projetoId;
-      var corpo = { espaco_id: destino.espacoId, projeto_id: manter ? (existente.projetoId || '') : (destino.projetoId || ''), projeto_nome: manter ? (existente.projetoNome || '') : (destino.projetoNome || ''), titulo: d.titulo, inicio: ini, fim: fim, dia_inteiro: !!d.inteiro, local: d.local || '', descricao: d.descricao || '', participantes: d.participantes || [] };
-      if (existente) corpo.id = existente.id;
-      var r = await apiBruta('/agenda/salvar', 'POST', corpo);
-      if (!r.j || !r.j.ok) throw new Error((r.j && r.j.erro) || 'Não foi possível salvar o evento.');
-      return r.j.evento;
-    }
-    var tipo = destino.projetoId ? (destino.ambiente === 'profissional' ? 'profissional' : 'pessoal') : (existente ? existente.tipo : (d.tipo || 'pessoal'));
-    var c2 = { titulo: d.titulo, tipo: tipo, inicio: ini, fim: fim, dia_inteiro: !!d.inteiro, local: d.local || '', descricao: d.descricao || '', lembrete_minutos: null, repeticao: 'nenhuma' };
-    if (existente) {
-      var b = existente.bruto || {};
-      c2.id = existente.id;
-      c2.lembrete_minutos = b.lembrete_minutos == null ? null : b.lembrete_minutos;
-      c2.repeticao = b.repeticao || 'nenhuma';
-      c2.repeticao_config = b.repeticao_config || null;
-    }
-    var r2 = await apiEventosHome('/salvar', 'POST', c2);
-    if (!r2.dados || !r2.dados.ok) throw new Error((r2.dados && r2.dados.erro) || 'Não foi possível salvar o evento.');
-    var salvo = r2.dados.evento;
-    var mudouLigacao = !existente || (existente.projetoId || '') !== (destino.projetoId || '');
-    if (salvo && salvo.id && mudouLigacao && (destino.projetoId || existente)) {
-      try { await apiEventosHome('/projeto', 'POST', { evento_id: salvo.id, projeto_id: destino.projetoId || '', projeto_nome: destino.projetoNome || '', ambiente: destino.ambiente || 'pessoal' }); } catch (e) {}
-    }
-    return salvo;
-  }
-  async function excluirEvento(E) {
-    if (E.origem === 'espaco') {
-      var r = await apiBruta('/agenda/excluir', 'POST', { espaco_id: E.espacoId, id: E.id });
-      if (!r.j || !r.j.ok) throw new Error((r.j && r.j.erro) || 'Não foi possível excluir o evento.');
-      return;
-    }
-    var r2 = await apiEventosHome('/excluir', 'POST', { id: E.id });
-    if (!r2.dados || !r2.dados.ok) throw new Error((r2.dados && r2.dados.erro) || 'Não foi possível excluir o evento.');
-  }
-  var membrosCache = {};
-  async function membrosDe(espacoId) {
-    if (membrosCache[espacoId] && Date.now() - membrosCache[espacoId].t < 60000) return membrosCache[espacoId].l;
-    var lista = [];
-    if (typeof espacoAtual !== 'undefined' && espacoAtual === espacoId && typeof espMembros !== 'undefined' && espMembros.length) lista = espMembros;
-    else {
-      try { var r = await apiBruta('/membros?id=' + enc(espacoId), 'GET'); if (r.j && r.j.ok) lista = r.j.membros || []; } catch (e) {}
-    }
-    membrosCache[espacoId] = { t: Date.now(), l: lista };
-    return lista;
-  }
-  NFV.ev = { dePessoal: dePessoal, doEspaco: doEspaco, eventosPessoais: eventosPessoais, eventosDeTodosOsEspacos: eventosDeTodosOsEspacos, eventosDoEspaco: eventosDoEspaco, salvar: salvarEvento, excluir: excluirEvento, membrosDe: membrosDe, janelaQS: janelaQS };
-
-  /* tarefas com prazo dos projetos locais (Pessoal e Profissional) */
-  function tarefasLocais(ini, fim) {
-    var projs = {};
-    (dados.projetos || []).forEach(function (p) { projs[p.id] = p; });
-    var out = [];
-    (dados.itens || []).forEach(function (i) {
-      if (typeof prazoEhData !== 'function' || !prazoEhData(i.prazo) || i.status === 'validado') return;
-      var d = U.data(i.prazo);
-      if (!d || d < iniDia(ini) || d >= fim) return;
-      var p = i.projetoId ? projs[i.projetoId] : null;
-      out.push({
-        chave: 'tl:' + i.id, id: i.id, titulo: i.texto, data: String(i.prazo).slice(0, 10), marco: !!i.marco, status: i.status,
-        fonteId: p ? 'proj:' + p.id : 'principal', cor: p ? corProjeto(p.id) : COR_PRINCIPAL,
-        rotulo: p ? rotuloProj('', p.nome, p.tipo) : '', responsaveis: [], concluida: i.status === 'realizado',
-        atrasada: i.status !== 'realizado' && d < hoje(), projetoId: p ? p.id : '', local: true, tipo: i.tipo
-      });
-    });
-    return out;
-  }
-  NFV.tarefasLocais = tarefasLocais;
-
-  /* ======================================================================
-     COMPONENTE DE CALENDÁRIO (usado no principal, nos projetos e nos espaços)
-     ====================================================================== */
-  var estiloId = 'nfEstiloCalV2';
-  var estilo = document.createElement('style');
-  estilo.id = estiloId;
-  estilo.textContent = [
-    'body.nf-cal-aberto{overflow:hidden}',
-    'body.nf-cal-aberto .modal{z-index:100010}',
-    'body.nf-cal-aberto .toast{z-index:100020}',
-    '.nf-cal,.nf-ct{color:var(--tx,#14172B);font-size:14px}',
-    '.nf-cal{position:fixed;inset:0;z-index:99990;display:none;flex-direction:column;background:var(--bg,#F5F6FB)}',
-    '.nf-cal.nf-aberto{display:flex}',
-    '.nf-cal button,.nf-ct button{font:inherit;color:inherit;cursor:pointer}',
-    '.nf-cal svg,.nf-ct svg{width:20px;height:20px;display:block}',
-    '.nf-cal-topo{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:calc(12px + env(safe-area-inset-top,0px)) 18px 10px;border-bottom:1px solid var(--borda,#E2E5F0);background:var(--card,#fff)}',
-    '.nf-cal-voltar{display:inline-flex;align-items:center;gap:6px;padding:8px 14px 8px 8px;border-radius:12px;border:1px solid var(--borda,#E2E5F0);background:transparent;font-weight:700}',
-    '.nf-cal-titulo{flex:1;min-width:150px}',
-    '.nf-cal-titulo small{display:block;font-size:10px;font-weight:800;letter-spacing:1.2px;opacity:.7;color:inherit}',
-    '.nf-cal-titulo h2{margin:0;font-size:20px;line-height:1.25}',
-    '.nf-cal-rapido{display:flex;align-items:center;gap:10px;padding:10px 18px;border-bottom:1px solid var(--borda,#E2E5F0);background:var(--card,#fff);flex-wrap:wrap}',
-    '.nf-cal-rapido input{flex:1;min-width:200px;padding:11px 16px;border-radius:14px;border:1px solid var(--borda,#DDDDE8);background:transparent;color:inherit;font:inherit;outline:none}',
-    '.nf-cal-rapido input:focus{border-color:var(--azul,#2F5BFF)}',
-    '.nf-cal-rapido button{padding:10px 18px;border-radius:13px;border:1px solid var(--borda,#DDDDE8);background:transparent;font-weight:700}',
-    '.nf-cal-msg{flex-basis:100%;font-size:12px;opacity:.8}',
-    '.nf-cal-msg.nf-erro{color:#E5202E;opacity:1}',
-    '.nf-cal-corpo{flex:1;min-height:0;display:flex}',
-    /* componente */
-    '.nf-ct{display:flex;flex-direction:column;min-width:0;min-height:0;flex:1}',
-    '.nf-ct-barra{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 12px}',
-    '.nf-ct-titulo{flex:1;min-width:140px;font-size:18px;font-weight:800;line-height:1.25}',
-    '.nf-ct-nav{display:flex;align-items:center;gap:6px}',
-    '.nf-ct-icone{width:36px;height:36px;display:grid;place-items:center;border-radius:12px;border:1px solid var(--borda,#E2E5F0);background:transparent}',
-    '.nf-ct-hoje{padding:8px 14px;border-radius:12px;border:1px solid var(--borda,#E2E5F0);background:transparent;font-weight:700}',
-    '.nf-ct-seg{display:inline-flex;padding:3px;gap:2px;border-radius:13px;background:rgba(127,127,127,.14)}',
-    '.nf-ct-seg button{padding:7px 13px;border:none;border-radius:10px;background:transparent;font-weight:700;font-size:13px;opacity:.75}',
-    '.nf-ct-seg button.nf-sel{background:var(--card,#fff);opacity:1;box-shadow:0 1px 4px rgba(0,0,0,.18)}',
-    '.nf-ct-novo{display:inline-flex;align-items:center;gap:6px;padding:9px 16px 9px 12px;border:none;border-radius:13px;font-weight:800;background:var(--grad-acento,var(--azul,#2F5BFF));color:var(--on-acento,#fff)}',
-    '.nf-ct-novo svg{width:18px;height:18px}',
-    '.nf-ct-area{flex:1;min-height:0;display:flex;gap:16px}',
-    '.nf-ct-principal{flex:1;min-width:0;overflow:auto}',
-    '.nf-ct-lateral{width:290px;flex:none;overflow:auto}',
-    '@media (max-width:980px){.nf-ct-area{flex-direction:column;overflow:auto}.nf-ct-principal{overflow:visible;flex:none}.nf-ct-lateral{width:auto;overflow:visible}}',
-    '@media (max-width:700px){.nf-ct-novo span{display:none}.nf-ct-novo{padding:9px}}',
-    /* chips e blocos */
-    '.nf-ct-chip{display:flex;align-items:center;gap:6px;max-width:100%;padding:3px 7px;border-radius:7px;border:none;border-left:3px solid var(--c);background:color-mix(in srgb,var(--c) 18%,var(--card,#fff));font-size:11.5px;font-weight:600;text-align:left;overflow:hidden;white-space:nowrap}',
-    '.nf-ct-chip span{overflow:hidden;text-overflow:ellipsis}',
-    '.nf-ct-chip.nf-tar{border-left-style:dashed;background:transparent;border:1px dashed var(--c);border-left-width:3px}',
-    '.nf-ct-chip.nf-feita span{text-decoration:line-through;opacity:.6}',
-    '.nf-ct-chip.nf-atrasada{box-shadow:0 0 0 1px #E5202E}',
-    '.nf-ct-chip svg{width:12px;height:12px;flex:none;fill:var(--c);stroke:var(--c)}',
-    '.nf-ct-diatodo{display:flex;flex-wrap:wrap;gap:5px;margin:0 0 8px}',
-    '.nf-ct-diatodo .nf-ct-chip{width:auto;max-width:260px;padding:5px 10px;border-radius:999px;font-size:12px}',
-    /* grade de horas */
-    '.nf-ct-grade{position:relative;display:flex;border:1px solid var(--borda,#E2E5F0);border-radius:18px;background:var(--card,#fff);overflow:hidden}',
-    '.nf-ct-gutter{flex:none;width:52px;position:relative;border-right:1px solid var(--borda,#E2E5F0)}',
-    '.nf-ct-gutter .nf-h{position:absolute;right:8px;transform:translateY(-50%);font-size:11px;opacity:.65;font-weight:600}',
-    '.nf-ct-cols{flex:1;display:flex;min-width:0}',
-    '.nf-ct-col{position:relative;flex:1;min-width:0;border-left:1px solid var(--borda,#E2E5F0);cursor:cell}',
-    '.nf-ct-col:first-child{border-left:none}',
-    '.nf-ct-col .nf-linha{position:absolute;left:0;right:0;border-top:1px solid var(--borda,#E2E5F0);opacity:.7;pointer-events:none}',
-    '.nf-ct-col.nf-hoje{background:color-mix(in srgb,var(--azul,#2F5BFF) 5%,transparent)}',
-    '.nf-ct-ev{position:absolute;overflow:hidden;padding:4px 8px;text-align:left;border:none;border-left:4px solid var(--c);border-radius:9px;background:color-mix(in srgb,var(--c) 20%,var(--card,#fff));box-shadow:0 1px 3px rgba(0,0,0,.14);line-height:1.25}',
-    '.nf-ct-ev:hover{z-index:3;box-shadow:0 4px 12px rgba(0,0,0,.25)}',
-    '.nf-ct-ev b{display:block;font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
-    '.nf-ct-ev small{display:block;font-size:11px;opacity:.78;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
-    '.nf-ct-ev.nf-conv{border-left-style:dashed}',
-    '.nf-ct-agora{position:absolute;left:0;right:0;height:0;border-top:2px solid #E5202E;z-index:4;pointer-events:none}',
-    '.nf-ct-agora::before{content:"";position:absolute;left:-5px;top:-6px;width:10px;height:10px;border-radius:50%;background:#E5202E}',
-    '.nf-ct-pill{position:absolute;left:4px;transform:translateY(-50%);z-index:5;padding:2px 7px;border-radius:999px;background:#E5202E;color:#fff;font-size:11px;font-weight:800;pointer-events:none}',
-    '.nf-ct-inline{position:absolute;left:4px;right:4px;z-index:6;display:flex;gap:6px;padding:5px;border-radius:12px;background:var(--card,#fff);border:2px solid var(--azul,#2F5BFF);box-shadow:0 8px 22px rgba(0,0,0,.3)}',
-    '.nf-ct-inline input{flex:1;min-width:0;border:none;background:transparent;color:inherit;font:inherit;outline:none;padding:4px 6px}',
-    '.nf-ct-inline small{align-self:center;opacity:.65;font-weight:700;white-space:nowrap}',
-    '.nf-ct-semana-cab{display:flex;margin:0 0 6px 52px;position:sticky;top:0;z-index:7;background:var(--bg,#F5F6FB)}',
-    '.nf-ct-semana-cab>div{flex:1;min-width:0;padding:8px 4px;text-align:center;border-radius:12px;cursor:pointer}',
-    '.nf-ct-semana-cab>div small{display:block;font-size:10px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;opacity:.65}',
-    '.nf-ct-semana-cab>div b{font-size:19px}',
-    '.nf-ct-semana-cab>div.nf-hoje{background:var(--grad-acento,var(--azul,#2F5BFF));color:var(--on-acento,#fff)}',
-    '.nf-ct-semana-dt{display:flex;margin:0 0 8px 52px}',
-    '.nf-ct-semana-dt>div{flex:1;min-width:0;padding:0 3px;display:flex;flex-direction:column;gap:3px}',
-    /* mês */
-    '.nf-ct-mes{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));border:1px solid var(--borda,#E2E5F0);border-radius:18px;overflow:hidden;background:var(--card,#fff)}',
-    '.nf-ct-mes .nf-cabm{padding:8px 4px;text-align:center;font-size:10px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;opacity:.65;border-bottom:1px solid var(--borda,#E2E5F0)}',
-    '.nf-ct-cel{min-height:104px;padding:6px 6px 4px;border-top:1px solid var(--borda,#E2E5F0);border-left:1px solid var(--borda,#E2E5F0);background:transparent;border-right:none;border-bottom:none;text-align:left;display:flex;flex-direction:column;gap:3px;cursor:pointer;min-width:0}',
-    '.nf-ct-cel:nth-child(7n+8){border-left:none}',
-    '.nf-ct-cel.nf-fora{opacity:.45}',
-    '.nf-ct-cel .nf-n{align-self:flex-start;min-width:26px;height:26px;display:grid;place-items:center;border-radius:50%;font-weight:700;font-size:13px}',
-    '.nf-ct-cel.nf-hoje .nf-n{background:var(--grad-acento,var(--azul,#2F5BFF));color:var(--on-acento,#fff)}',
-    '.nf-ct-cel .nf-mais{font-size:11px;opacity:.7;font-weight:700}',
-    '@media (max-width:700px){.nf-ct-cel{min-height:62px}.nf-ct-cel .nf-ct-chip span{display:none}.nf-ct-cel .nf-ct-chip{padding:3px;border-radius:50%;width:10px;height:10px;border-left-width:0;background:var(--c)}}',
-    /* equipe */
-    '.nf-eq-semana{display:flex;gap:6px;margin:0 0 10px;overflow-x:auto}',
-    '.nf-eq-semana button{flex:1;min-width:70px;padding:8px 6px;border-radius:12px;border:1px solid var(--borda,#E2E5F0);background:var(--card,#fff);text-align:center}',
-    '.nf-eq-semana button small{display:block;font-size:10px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;opacity:.65}',
-    '.nf-eq-semana button b{font-size:17px}',
-    '.nf-eq-semana button.nf-sel{background:var(--grad-acento,var(--azul,#2F5BFF));color:var(--on-acento,#fff);border-color:transparent}',
-    '.nf-eq-semana button i{display:block;font-style:normal;font-size:10.5px;opacity:.8;margin-top:2px}',
-    '.nf-eq-livre{margin:0 0 10px;padding:10px 14px;border-radius:14px;border:1px solid var(--borda,#E2E5F0);background:var(--card,#fff);font-size:13px;line-height:1.5}',
-    '.nf-eq-livre b{font-weight:800}',
-    '.nf-eq-rolagem{overflow:auto;border:1px solid var(--borda,#E2E5F0);border-radius:16px;background:var(--card,#fff)}',
-    '.nf-eq{display:grid;min-width:880px}',
-    '.nf-eq .nf-eq-cab{padding:8px 0;text-align:left;font-size:10.5px;font-weight:700;border-bottom:1px solid var(--borda,#E2E5F0);border-left:1px solid var(--borda,#E2E5F0);opacity:.8;padding-left:4px}',
-    '.nf-eq .nf-eq-nome{padding:10px 12px;border-bottom:1px solid var(--borda,#E2E5F0);position:sticky;left:0;background:var(--card,#fff);z-index:3;display:flex;flex-direction:column;gap:2px;font-size:13px;font-weight:700}',
-    '.nf-eq .nf-eq-nome small{font-weight:500;opacity:.7;font-size:11px}',
-    '.nf-eq .nf-eq-trilha{position:relative;border-bottom:1px solid var(--borda,#E2E5F0);border-left:1px solid var(--borda,#E2E5F0);background-image:repeating-linear-gradient(to right,transparent 0,transparent calc(var(--hp) - 1px),var(--borda,#E2E5F0) calc(var(--hp) - 1px),var(--borda,#E2E5F0) var(--hp))}',
-    '.nf-eq .nf-eq-bloco{position:absolute;height:26px;display:flex;align-items:center;padding:0 8px;border-radius:8px;border-left:4px solid var(--c);background:color-mix(in srgb,var(--c) 24%,var(--card,#fff));font-size:11.5px;font-weight:700;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;border-top:none;border-right:none;border-bottom:none;text-align:left}',
-    '.nf-eq .nf-eq-prazo{position:absolute;right:6px;top:6px;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;border:1px dashed var(--c,#8E96B5)}',
-    '.nf-eq .nf-eq-agora{position:absolute;top:0;bottom:0;width:2px;background:#E5202E;pointer-events:none;z-index:2}',
-    /* lateral */
-    '.nf-ct-card{margin:0 0 14px;padding:14px;border:1px solid var(--borda,#E2E5F0);border-radius:18px;background:var(--card,#fff)}',
-    '.nf-ct-card h4{margin:0 0 10px;font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;opacity:.7}',
-    '.nf-ct-mini-cab{display:flex;align-items:center;justify-content:space-between;margin:0 0 8px}',
-    '.nf-ct-mini-cab b{font-size:14px}',
-    '.nf-ct-mini-cab button{width:28px;height:28px;display:grid;place-items:center;border:none;border-radius:9px;background:transparent}',
-    '.nf-ct-mini-cab button svg{width:16px;height:16px}',
-    '.nf-ct-mini{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;text-align:center}',
-    '.nf-ct-mini .nf-s{font-size:10px;font-weight:800;opacity:.55;padding:2px 0}',
-    '.nf-ct-mini button{position:relative;height:32px;border:none;border-radius:10px;background:transparent;font-size:12.5px;font-weight:600}',
-    '.nf-ct-mini button.nf-fora{opacity:.35}',
-    '.nf-ct-mini button.nf-hoje{background:var(--grad-acento,var(--azul,#2F5BFF));color:var(--on-acento,#fff);font-weight:800}',
-    '.nf-ct-mini button.nf-sel:not(.nf-hoje){box-shadow:inset 0 0 0 2px var(--azul,#2F5BFF)}',
-    '.nf-ct-mini button i{position:absolute;left:50%;bottom:3px;width:5px;height:5px;margin-left:-2.5px;border-radius:50%;background:var(--azul,#2F5BFF)}',
-    '.nf-ct-leg{display:flex;flex-direction:column;gap:2px}',
-    '.nf-ct-leg .nf-grupo{margin:8px 0 2px;font-size:10.5px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;opacity:.55}',
-    '.nf-ct-leg label{display:flex;align-items:center;gap:9px;padding:5px 4px;border-radius:9px;font-size:13px;cursor:pointer;width:auto;margin:0}',
-    '.nf-ct-leg label:hover{background:rgba(127,127,127,.12)}',
-    '.nf-ct-leg input{accent-color:var(--c);flex:none;width:16px;height:16px;margin:0}',
-    '.nf-ct-leg i{flex:none;width:11px;height:11px;border-radius:4px;background:var(--c)}',
-    '.nf-ct-leg span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
-    '.nf-ct-lista{display:flex;flex-direction:column;gap:7px}',
-    '.nf-ct-item{display:flex;align-items:center;gap:10px;width:100%;padding:8px 10px;border-radius:12px;border:1px solid var(--borda,#E2E5F0);background:var(--card,#fff);text-align:left;border-left:5px solid var(--c,#999)}',
-    '.nf-ct-item .nf-hora{flex:none;width:64px;font-size:11.5px;font-weight:800;opacity:.85}',
-    '.nf-ct-item .nf-t{flex:1;min-width:0}',
-    '.nf-ct-item .nf-t b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}',
-    '.nf-ct-item .nf-t small{display:block;opacity:.7;font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
-    '.nf-ct-item.nf-tar{border-style:dashed;border-left-style:solid}',
-    '.nf-ct-item.nf-feita .nf-t b{text-decoration:line-through;opacity:.6}',
-    '.nf-ct-vazio{padding:18px;text-align:center;opacity:.65;font-size:13px;border:1px dashed var(--borda,#DDD);border-radius:14px}',
-    '.nf-ct-carregando{opacity:.55;transition:opacity .15s}',
-    /* janela de evento */
-    '.nf-ev-campo{display:block;margin:0 0 12px}',
-    '.nf-ev-campo>span{display:block;margin:0 0 5px;font-size:12px;font-weight:800;letter-spacing:.3px;opacity:.75}',
-    '.nf-ev-campo input[type=text],.nf-ev-campo input[type=date],.nf-ev-campo input[type=time],.nf-ev-campo select,.nf-ev-campo textarea{width:100%;padding:10px 12px;border-radius:12px;border:1px solid var(--borda,#DDDDE8);background:transparent;color:inherit;font:inherit;font-size:14px;box-sizing:border-box}',
-    '.nf-ev-campo select option{color:#14172B;background:#fff}',
-    '.nf-ev-campo textarea{min-height:70px;resize:vertical}',
-    '.nf-ev-par{display:grid;grid-template-columns:1fr 1fr;gap:10px}',
-    '.nf-ev-chk{display:flex;align-items:center;gap:8px;margin:0 0 12px;font-size:14px;font-weight:600;cursor:pointer;width:auto}',
-    '.nf-ev-pessoas{display:flex;flex-wrap:wrap;gap:6px}',
-    '.nf-ev-pessoas label{display:inline-flex;align-items:center;gap:6px;padding:6px 11px;border-radius:999px;border:1px solid var(--borda,#DDDDE8);font-size:13px;cursor:pointer;width:auto;margin:0}',
-    '.nf-ev-pessoas label.nf-on{background:var(--azul,#2F5BFF);color:var(--on-acento,#fff);border-color:transparent}',
-    '.nf-ev-pessoas input{display:none}',
-    '.nf-ev-aviso{margin:0 0 12px;padding:9px 12px;border-radius:12px;border-left:4px solid #FFB300;background:rgba(255,179,0,.14);font-size:13px;line-height:1.4}',
-    '.nf-ev-erro{margin:0 0 12px;padding:9px 12px;border-radius:12px;border-left:4px solid #E5202E;background:rgba(229,32,46,.12);font-size:13px}',
-    '.nf-ev-mais{border:none;background:transparent;color:var(--azul,#2F5BFF);font:inherit;font-size:13px;font-weight:700;text-decoration:underline;padding:0;margin:0 0 12px;cursor:pointer}',
-    '.nf-cal-titulo-link{cursor:pointer;border-radius:12px;transition:background .15s}',
-    '.nf-cal-titulo-link:hover,.nf-cal-titulo-link:focus-visible{background:rgba(127,127,127,.14);outline:none}',
-    '.nf-cal-titulo-link small::after{content:"  ·  abrir calendário completo";opacity:.7;font-weight:700;letter-spacing:.3px;text-transform:none}'
-  ].join('\n');
-  document.head.appendChild(estilo);
-
-  var tarefaIcone = '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
-  var marcoIcone = '<svg viewBox="0 0 24 24" aria-hidden="true" stroke-width="1.5" stroke-linejoin="round"><path d="M12 3.5l8 8.5-8 8.5L4 12z"/></svg>';
-
-  function tituloExibido(E) { return E.rotulo ? E.rotulo + ' · ' + E.titulo : E.titulo; }
-  NFV.tituloEvento = tituloExibido;
-
-  NFV.criarCalendario = function (cfg) {
-    var st = {
-      modo: cfg.modo || (cfg.modos && cfg.modos[0] && cfg.modos[0][0]) || 'mes', ref: cfg.ref ? iniDia(cfg.ref) : hoje(),
-      ocultas: {}, eventos: [], tarefas: [], membros: [], carregando: false, diaEquipe: null, inline: null, seq: 0
-    };
-    var raiz = h('div', 'nf-ct');
-    var barra = h('div', 'nf-ct-barra');
-    var area = h('div', 'nf-ct-area');
-    var principal = h('div', 'nf-ct-principal');
-    var lateral = h('div', 'nf-ct-lateral');
-    area.appendChild(principal);
-    if (cfg.lateral !== false) area.appendChild(lateral);
-    raiz.appendChild(barra);
-    raiz.appendChild(area);
-
-    var tit = h('div', 'nf-ct-titulo');
-    var nav = h('div', 'nf-ct-nav');
-    var bAnt = h('button', 'nf-ct-icone'); bAnt.type = 'button'; bAnt.setAttribute('aria-label', 'Anterior'); bAnt.appendChild(svgIco('esq'));
-    var bHoje = h('button', 'nf-ct-hoje', 'Hoje'); bHoje.type = 'button';
-    var bProx = h('button', 'nf-ct-icone'); bProx.type = 'button'; bProx.setAttribute('aria-label', 'Próximo'); bProx.appendChild(svgIco('dir'));
-    nav.appendChild(bAnt); nav.appendChild(bHoje); nav.appendChild(bProx);
-    var seg = h('div', 'nf-ct-seg');
-    seg.setAttribute('role', 'tablist');
-    (cfg.modos || [['mes', 'Mês']]).forEach(function (m) {
-      var b = h('button', null, m[1]);
-      b.type = 'button';
-      b.setAttribute('data-modo', m[0]);
-      b.setAttribute('role', 'tab');
-      b.addEventListener('click', function () { st.modo = m[0]; fecharInline(); desenhar(); recarregar(); rolarAgora(); });
-      seg.appendChild(b);
-    });
-    barra.appendChild(tit);
-    barra.appendChild(nav);
-    if ((cfg.modos || []).length > 1) barra.appendChild(seg);
-    if (cfg.extrasBarra) cfg.extrasBarra(barra);
-    if (cfg.aoCriar) {
-      var bNovo = h('button', 'nf-ct-novo');
-      bNovo.type = 'button';
-      bNovo.setAttribute('data-acao', 'novo-evento');
-      bNovo.appendChild(svgIco('mais'));
-      bNovo.appendChild(h('span', null, 'Evento'));
-      bNovo.addEventListener('click', function () { cfg.aoCriar({ dia: st.ref, minutos: null }); });
-      barra.appendChild(bNovo);
-    }
-
-    /* ---------- dados visíveis ---------- */
-    function visiveis(lista) { return lista.filter(function (x) { return !st.ocultas[x.fonteId]; }); }
-    function eventosDoDia(dia) {
-      var a = iniDia(dia).getTime(), b = somaDias(iniDia(dia), 1).getTime();
-      var inteiros = [], horarios = [];
-      visiveis(st.eventos).forEach(function (n) {
-        if (!(n.ini.getTime() < b && n.fim.getTime() > a)) return;
-        if (n.inteiro) { inteiros.push(n); return; }
-        var i = Math.max(n.ini.getTime(), a), f = Math.min(n.fim.getTime(), b);
-        var mi = Math.round((i - a) / 60000);
-        horarios.push({ n: n, ini: mi, fim: Math.max(Math.round((f - a) / 60000), mi + 20) });
-      });
-      horarios.sort(function (x, y) { return x.ini - y.ini || y.fim - x.fim; });
-      return { inteiros: inteiros, horarios: horarios };
-    }
-    function tarefasDoDia(dia) {
-      var k = ymd(dia);
-      return visiveis(st.tarefas).filter(function (t) { return t.data === k; });
-    }
-    function indice() {
-      var mapa = {};
-      function ao(k) { return mapa[k] || (mapa[k] = { ev: 0, tar: 0, min: 0 }); }
-      visiveis(st.eventos).forEach(function (n) {
-        var d = iniDia(n.ini);
-        for (var k = 0; k < 40 && d.getTime() < n.fim.getTime(); k++) {
-          var r = ao(ymd(d)); r.ev++;
-          if (!n.inteiro) { var a = Math.max(n.ini.getTime(), d.getTime()), b = Math.min(n.fim.getTime(), somaDias(d, 1).getTime()); r.min += Math.max(0, Math.round((b - a) / 60000)); }
-          d = somaDias(d, 1);
-        }
-      });
-      visiveis(st.tarefas).forEach(function (t) { ao(t.data).tar++; });
-      return mapa;
-    }
-    function periodo() {
-      var base = st.ref;
-      var a = iniSemana(iniMes(base));
-      var b = somaDias(iniSemana(new Date(base.getFullYear(), base.getMonth() + 1, 0)), 7);
-      var s = iniSemana(base);
-      return [new Date(Math.min(a.getTime(), s.getTime())), new Date(Math.max(b.getTime(), somaDias(s, 14).getTime()))];
-    }
-    async function recarregar() {
-      var meu = ++st.seq;
-      st.carregando = true;
-      raiz.classList.add('nf-ct-carregando');
-      try {
-        var p = periodo();
-        var r = await cfg.carregar(p[0], p[1]);
-        if (meu !== st.seq) return;
-        st.eventos = r.eventos || [];
-        st.tarefas = r.tarefas || [];
-        st.membros = r.membros || [];
-      } catch (e) {
-        /* sem internet: mantém o que já tinha */
-      } finally {
-        if (meu === st.seq) { st.carregando = false; raiz.classList.remove('nf-ct-carregando'); if (!st.inline) desenhar(); }
-      }
-    }
-
-    /* ---------- peças de desenho ---------- */
-    function chipEvento(n, curto) {
-      var c = h('button', 'nf-ct-chip');
-      c.type = 'button';
-      c.style.setProperty('--c', n.cor);
-      c.setAttribute('data-chave', n.chave);
-      c.title = tituloExibido(n) + (n.inteiro ? '' : ' (' + hhmm(n.ini) + ' – ' + hhmm(n.fim) + ')');
-      c.appendChild(h('span', null, (n.inteiro || curto === false ? '' : hhmm(n.ini) + ' ') + n.titulo));
-      c.addEventListener('click', function (e) { e.stopPropagation(); cfg.aoAbrirEvento && cfg.aoAbrirEvento(n); });
-      return c;
-    }
-    function chipTarefa(t) {
-      var c = h('button', 'nf-ct-chip nf-tar' + (t.concluida ? ' nf-feita' : '') + (t.atrasada ? ' nf-atrasada' : ''));
-      c.type = 'button';
-      c.style.setProperty('--c', t.cor);
-      c.setAttribute('data-chave', t.chave);
-      c.title = (t.marco ? 'Marco: ' : 'Prazo: ') + t.titulo + (t.rotulo ? ' (' + t.rotulo + ')' : '');
-      var i = document.createElement('span');
-      i.innerHTML = t.marco ? marcoIcone : tarefaIcone;
-      c.appendChild(i.firstChild);
-      c.appendChild(h('span', null, t.titulo));
-      c.addEventListener('click', function (e) { e.stopPropagation(); cfg.aoAbrirTarefa && cfg.aoAbrirTarefa(t); });
-      return c;
-    }
-    function colunaDoDia(dia) {
-      var col = h('div', 'nf-ct-col' + (mesmoDia(dia, new Date()) ? ' nf-hoje' : ''));
-      col.style.height = (24 * HH) + 'px';
-      col.setAttribute('data-dia', ymd(dia));
-      for (var k = 1; k < 24; k++) { var l = h('div', 'nf-linha'); l.style.top = (k * HH) + 'px'; col.appendChild(l); }
-      var info = eventosDoDia(dia);
-      var grupos = [], atual = [], fimG = -1;
-      info.horarios.forEach(function (x) {
-        if (atual.length && x.ini >= fimG) { grupos.push(atual); atual = []; fimG = -1; }
-        atual.push(x); fimG = Math.max(fimG, x.fim);
-      });
-      if (atual.length) grupos.push(atual);
-      grupos.forEach(function (g) {
-        var cols = [];
-        g.forEach(function (x) { var c = 0; while (cols[c] !== undefined && cols[c] > x.ini) c++; cols[c] = x.fim; x.col = c; });
-        g.forEach(function (x) { x.cols = cols.length; });
-      });
-      info.horarios.forEach(function (x) {
-        var b = h('button', 'nf-ct-ev' + (x.n.convite ? ' nf-conv' : ''));
-        b.type = 'button';
-        b.setAttribute('data-chave', x.n.chave);
-        b.style.setProperty('--c', x.n.cor);
-        b.style.top = (x.ini / 60 * HH) + 'px';
-        b.style.height = Math.max(22, (x.fim - x.ini) / 60 * HH - 2) + 'px';
-        b.style.left = (x.col / x.cols * 100) + '%';
-        b.style.width = 'calc(' + (100 / x.cols) + '% - 4px)';
-        b.appendChild(h('b', null, x.n.rotulo && (x.fim - x.ini) >= 40 ? x.n.rotulo + ' · ' + x.n.titulo : x.n.titulo));
-        if ((x.fim - x.ini) >= 40) b.appendChild(h('small', null, hhmm(x.n.ini) + ' – ' + hhmm(x.n.fim) + (x.n.local ? ' · ' + x.n.local : '')));
-        b.title = tituloExibido(x.n) + ' (' + hhmm(x.n.ini) + ' – ' + hhmm(x.n.fim) + ')';
-        b.addEventListener('click', function (e) { e.stopPropagation(); fecharInline(); cfg.aoAbrirEvento && cfg.aoAbrirEvento(x.n); });
-        col.appendChild(b);
-      });
-      if (mesmoDia(dia, new Date())) { var ag = h('div', 'nf-ct-agora'); ag.setAttribute('data-agora', '1'); col.appendChild(ag); }
-      if (cfg.aoCriar) col.addEventListener('click', function (e) {
-        if (e.target !== col && !e.target.classList.contains('nf-linha')) return;
-        var y = e.clientY - col.getBoundingClientRect().top;
-        abrirInline(col, dia, Math.max(0, Math.min(23 * 60 + 30, Math.floor(y / HH * 2) * 30)));
-      });
-      return col;
-    }
-    function gutter() {
-      var g = h('div', 'nf-ct-gutter');
-      g.style.height = (24 * HH) + 'px';
-      for (var k = 1; k < 24; k++) { var t = h('span', 'nf-h', pad(k) + ':00'); t.style.top = (k * HH) + 'px'; g.appendChild(t); }
-      var pill = h('span', 'nf-ct-pill', hhmm(new Date()));
-      pill.setAttribute('data-pill', '1');
-      pill.style.display = 'none';
-      g.appendChild(pill);
-      return g;
-    }
-    function atualizarAgora() {
-      var agora = new Date();
-      var top = (agora.getHours() * 60 + agora.getMinutes()) / 60 * HH;
-      raiz.querySelectorAll('[data-agora]').forEach(function (a) { a.style.top = top + 'px'; });
-      var pill = raiz.querySelector('[data-pill]');
-      if (pill) { pill.style.display = raiz.querySelector('[data-agora]') ? 'block' : 'none'; pill.style.top = top + 'px'; pill.textContent = hhmm(agora); }
-    }
-    function rolarAgora() {
-      if (st.modo !== 'dia' && st.modo !== 'semana') return;
-      var grade = principal.querySelector('.nf-ct-grade');
-      if (!grade) return;
-      var agora = new Date();
-      var hojeNaTela = st.modo === 'dia' ? mesmoDia(st.ref, agora) : iniSemana(st.ref).getTime() === iniSemana(agora).getTime();
-      var alvo = hojeNaTela ? ((agora.getHours() * 60 + agora.getMinutes()) / 60 - 1.5) * HH : 7.5 * HH;
-      var rol = cfg.rolagem ? cfg.rolagem() : principal;
-      var topo = rol === grade ? 0 : grade.getBoundingClientRect().top - rol.getBoundingClientRect().top + rol.scrollTop;
-      rol.scrollTop = Math.max(0, topo + Math.max(0, alvo));
-    }
-    function fecharInline() { if (st.inline && st.inline.parentNode) st.inline.parentNode.removeChild(st.inline); st.inline = null; }
-    function abrirInline(col, dia, min) {
-      fecharInline();
-      var box = h('div', 'nf-ct-inline');
-      box.style.top = (min / 60 * HH + 2) + 'px';
-      var inp = document.createElement('input');
-      inp.type = 'text'; inp.maxLength = 200; inp.placeholder = 'Escreva neste horário (Enter) ou Tab para mais opções';
-      inp.setAttribute('aria-label', 'Novo evento às ' + pad(Math.floor(min / 60)) + ':' + pad(min % 60));
-      box.appendChild(h('small', null, pad(Math.floor(min / 60)) + ':' + pad(min % 60)));
-      box.appendChild(inp);
-      var enviado = false;
-      inp.addEventListener('keydown', function (e) {
-        if (e.key === 'Escape') { e.stopPropagation(); fecharInline(); return; }
-        if (e.key === 'Tab') { e.preventDefault(); var t = inp.value.trim(); fecharInline(); cfg.aoCriar({ dia: dia, minutos: min, titulo: t, detalhar: true }); return; }
-        if (e.key !== 'Enter' || enviado) return;
-        e.preventDefault();
-        var t2 = inp.value.trim();
-        if (!t2) { fecharInline(); return; }
-        enviado = true;
-        fecharInline();
-        cfg.aoCriar({ dia: dia, minutos: min, titulo: t2 });
-      });
-      box.addEventListener('click', function (e) { e.stopPropagation(); });
-      col.appendChild(box);
-      st.inline = box;
-      setTimeout(function () { inp.focus(); }, 20);
-    }
-
-    /* ---------- visões ---------- */
-    function visaoHoras(dias) {
-      var ini = dias === 1 ? iniDia(st.ref) : iniSemana(st.ref);
-      if (dias === 7) {
-        var cab = h('div', 'nf-ct-semana-cab');
-        var dt = h('div', 'nf-ct-semana-dt');
-        var haDt = false;
-        for (var k = 0; k < 7; k++) {
-          (function (dia) {
-            var c = h('div', mesmoDia(dia, new Date()) ? 'nf-hoje' : '');
-            c.appendChild(h('small', null, DIAS_CURTOS[diaSemana(dia)]));
-            c.appendChild(h('b', null, String(dia.getDate())));
-            c.addEventListener('click', function () { if ((cfg.modos || []).some(function (m) { return m[0] === 'dia'; })) { st.ref = dia; st.modo = 'dia'; desenhar(); recarregar(); rolarAgora(); } });
-            cab.appendChild(c);
-            var info = eventosDoDia(dia), tar = tarefasDoDia(dia);
-            var cel = h('div');
-            info.inteiros.forEach(function (n) { cel.appendChild(chipEvento(n, false)); haDt = true; });
-            tar.forEach(function (t) { cel.appendChild(chipTarefa(t)); haDt = true; });
-            dt.appendChild(cel);
-          })(somaDias(ini, k));
-        }
-        principal.appendChild(cab);
-        if (haDt) principal.appendChild(dt);
-      } else {
-        var info1 = eventosDoDia(ini), tar1 = tarefasDoDia(ini);
-        if (info1.inteiros.length || tar1.length) {
-          var dd = h('div', 'nf-ct-diatodo');
-          info1.inteiros.forEach(function (n) { dd.appendChild(chipEvento(n, false)); });
-          tar1.forEach(function (t) { dd.appendChild(chipTarefa(t)); });
-          principal.appendChild(dd);
-        }
-      }
-      var grade = h('div', 'nf-ct-grade');
-      grade.appendChild(gutter());
-      var cols = h('div', 'nf-ct-cols');
-      for (var j = 0; j < dias; j++) cols.appendChild(colunaDoDia(somaDias(ini, j)));
-      grade.appendChild(cols);
-      principal.appendChild(grade);
-    }
-    function visaoMes() {
-      var mes = st.ref.getMonth();
-      var ini = iniSemana(iniMes(st.ref));
-      var g = h('div', 'nf-ct-mes');
-      DIAS_CURTOS.forEach(function (n) { g.appendChild(h('div', 'nf-cabm', n)); });
-      for (var k = 0; k < 42; k++) {
-        (function (dia) {
-          var c = h('div', 'nf-ct-cel' + (dia.getMonth() !== mes ? ' nf-fora' : '') + (mesmoDia(dia, new Date()) ? ' nf-hoje' : ''));
-          c.setAttribute('role', 'button');
-          c.setAttribute('tabindex', '0');
-          c.setAttribute('data-dia', ymd(dia));
-          c.appendChild(h('span', 'nf-n', String(dia.getDate())));
-          var info = eventosDoDia(dia);
-          var itens = [];
-          info.inteiros.forEach(function (n) { itens.push(chipEvento(n, false)); });
-          info.horarios.forEach(function (x) { itens.push(chipEvento(x.n, true)); });
-          tarefasDoDia(dia).forEach(function (t) { itens.push(chipTarefa(t)); });
-          itens.slice(0, 3).forEach(function (x) { c.appendChild(x); });
-          if (itens.length > 3) c.appendChild(h('div', 'nf-mais', '+' + (itens.length - 3) + ' mais'));
-          function ir() {
-            st.ref = dia;
-            var temDia = (cfg.modos || []).some(function (m) { return m[0] === 'dia'; });
-            var temSem = (cfg.modos || []).some(function (m) { return m[0] === 'semana'; });
-            if (temDia) st.modo = 'dia'; else if (temSem) st.modo = 'semana';
-            desenhar(); recarregar(); rolarAgora();
-          }
-          c.addEventListener('click', ir);
-          c.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); ir(); } });
-          g.appendChild(c);
-        })(somaDias(ini, k));
-      }
-      principal.appendChild(g);
-    }
-    /* disponibilidade da equipe: quem está ocupado em cada horário do dia */
-    function visaoEquipe() {
-      var dia = st.diaEquipe ? iniDia(st.diaEquipe) : iniDia(st.ref);
-      st.diaEquipe = dia;
-      var H0 = 7, H1 = 21, HP = 62;
-      var membros = st.membros.length ? st.membros : [];
-      var idx = indice();
-      var sem = h('div', 'nf-eq-semana');
-      var ini = iniSemana(dia);
-      for (var k = 0; k < 7; k++) {
-        (function (d) {
-          var b = h('button', mesmoDia(d, dia) ? 'nf-sel' : '');
-          b.type = 'button';
-          b.setAttribute('data-dia', ymd(d));
-          b.appendChild(h('small', null, DIAS_CURTOS[diaSemana(d)]));
-          b.appendChild(h('b', null, String(d.getDate())));
-          var r = idx[ymd(d)];
-          b.appendChild(h('i', null, r && (r.ev || r.tar) ? (r.ev + (r.ev === 1 ? ' evento' : ' eventos')) : 'livre'));
-          b.addEventListener('click', function () { st.diaEquipe = d; st.ref = d; desenhar(); });
-          sem.appendChild(b);
-        })(somaDias(ini, k));
-      }
-      principal.appendChild(sem);
-      if (!membros.length) { principal.appendChild(h('div', 'nf-ct-vazio', 'Nenhum participante para mostrar.')); return; }
-      var info = eventosDoDia(dia);
-      var todos = info.horarios;
-      var diaTodo = info.inteiros;
-      function doMembro(x, id) { return !x.n.participantes.length || x.n.participantes.indexOf(id) >= 0; }
-      void idx;
-      /* horários em que TODOS estão livres (entre 8h e 18h) */
-      var ocupados = [];
-      todos.forEach(function (x) { ocupados.push([x.ini, x.fim]); });
-      ocupados.sort(function (a, b) { return a[0] - b[0]; });
-      var livres = [], cursor = 8 * 60;
-      ocupados.forEach(function (o) { if (o[0] > cursor) livres.push([cursor, Math.min(o[0], 18 * 60)]); cursor = Math.max(cursor, o[1]); });
-      if (cursor < 18 * 60) livres.push([cursor, 18 * 60]);
-      livres = livres.filter(function (l) { return l[1] - l[0] >= 60 && l[0] < 18 * 60; });
-      var fmtM = function (m) { return pad(Math.floor(m / 60)) + ':' + pad(m % 60); };
-      var li = h('div', 'nf-eq-livre');
-      li.appendChild(h('b', null, 'Horário livre para todos: '));
-      li.appendChild(document.createTextNode(livres.length ? livres.slice(0, 4).map(function (l) { return fmtM(l[0]) + ' às ' + fmtM(l[1]); }).join(' · ') : 'não há uma janela de 1 hora entre 8h e 18h neste dia.'));
-      principal.appendChild(li);
-      var roll = h('div', 'nf-eq-rolagem');
-      var g = h('div', 'nf-eq');
-      var larg = (H1 - H0) * HP;
-      g.style.gridTemplateColumns = '170px ' + larg + 'px';
-      g.appendChild(h('div', 'nf-eq-cab', 'Pessoa'));
-      var cabH = h('div', 'nf-eq-cab');
-      cabH.style.position = 'relative';
-      cabH.style.height = '30px';
-      for (var hh = H0; hh < H1; hh++) { var s = h('span', null, pad(hh) + ':00'); s.style.cssText = 'position:absolute;top:8px;left:' + ((hh - H0) * HP + 4) + 'px'; cabH.appendChild(s); }
-      g.appendChild(cabH);
-      var tarefasDia = tarefasDoDia(dia);
-      membros.forEach(function (m) {
-        var meus = todos.filter(function (x) { return doMembro(x, m.id); });
-        var nome = h('div', 'nf-eq-nome');
-        nome.appendChild(h('span', null, m.nome + (m.id === meuId() ? ' (eu)' : '')));
-        var prazosM = tarefasDia.filter(function (t) { return (t.responsaveis || []).indexOf(m.id) >= 0; });
-        var meusDt = diaTodo.filter(function (n) { return !n.participantes.length || n.participantes.indexOf(m.id) >= 0; });
-        nome.appendChild(h('small', null, (meus.length ? meus.length + (meus.length === 1 ? ' compromisso' : ' compromissos') : 'livre') + (meusDt.length ? ' · ' + meusDt.length + ' dia todo' : '')));
-        g.appendChild(nome);
-        var tr = h('div', 'nf-eq-trilha');
-        tr.style.setProperty('--hp', HP + 'px');
-        /* faixas (cada evento em uma linha própria quando se sobrepõe) */
-        var lanes = [];
-        meus.sort(function (a, b) { return a.ini - b.ini; }).forEach(function (x) {
-          var l = 0; while (lanes[l] !== undefined && lanes[l] > x.ini) l++;
-          lanes[l] = x.fim;
-          var ini2 = Math.max(x.ini, H0 * 60), fim2 = Math.min(x.fim, H1 * 60);
-          if (fim2 <= ini2) return;
-          var b = h('button', 'nf-eq-bloco', tituloExibido(x.n));
-          b.type = 'button';
-          b.style.setProperty('--c', x.n.cor);
-          b.style.left = ((ini2 - H0 * 60) / 60 * HP) + 'px';
-          b.style.width = Math.max(24, (fim2 - ini2) / 60 * HP - 2) + 'px';
-          b.style.top = (8 + l * 30) + 'px';
-          b.title = tituloExibido(x.n) + ' (' + (x.n.inteiro ? 'dia todo' : hhmm(x.n.ini) + ' – ' + hhmm(x.n.fim)) + ')';
-          b.addEventListener('click', function () { cfg.aoAbrirEvento && cfg.aoAbrirEvento(x.n); });
-          tr.appendChild(b);
-        });
-        tr.style.height = Math.max(46, 16 + Math.max(1, lanes.length) * 30) + 'px';
-        if (prazosM.length) {
-          var pz = h('span', 'nf-eq-prazo', prazosM.length + (prazosM.length === 1 ? ' prazo hoje' : ' prazos hoje'));
-          pz.title = prazosM.map(function (t) { return t.titulo; }).join(', ');
-          tr.appendChild(pz);
-        }
-        if (mesmoDia(dia, new Date())) {
-          var a = new Date(); var x2 = ((a.getHours() * 60 + a.getMinutes()) - H0 * 60) / 60 * HP;
-          if (x2 >= 0 && x2 <= larg) { var ag = h('div', 'nf-eq-agora'); ag.style.left = x2 + 'px'; tr.appendChild(ag); }
-        }
-        g.appendChild(tr);
-      });
-      roll.appendChild(g);
-      principal.appendChild(roll);
-    }
-
-    /* ---------- painel lateral ---------- */
-    function legenda() {
-      var fontes = cfg.legenda ? cfg.legenda(st) : [];
-      if (!fontes.length) return null;
-      var c = h('div', 'nf-ct-card');
-      c.appendChild(h('h4', null, 'Calendários'));
-      var box = h('div', 'nf-ct-leg');
-      var grupoAtual = null;
-      fontes.forEach(function (f) {
-        if (f.grupo !== grupoAtual) { grupoAtual = f.grupo; if (f.grupo) box.appendChild(h('div', 'nf-grupo', f.grupo)); }
-        var l = h('label');
-        l.style.setProperty('--c', f.cor);
-        var ck = document.createElement('input');
-        ck.type = 'checkbox';
-        ck.checked = !st.ocultas[f.id];
-        ck.setAttribute('data-fonte', f.id);
-        ck.addEventListener('change', function () { if (ck.checked) delete st.ocultas[f.id]; else st.ocultas[f.id] = true; desenhar(); });
-        l.appendChild(ck);
-        l.appendChild(document.createElement('i'));
-        var s = h('span', null, f.rotulo);
-        s.title = f.rotulo;
-        l.appendChild(s);
-        box.appendChild(l);
-      });
-      c.appendChild(box);
-      return c;
-    }
-    function itemLista(n) {
-      var b = h('button', 'nf-ct-item');
-      b.type = 'button';
-      b.style.setProperty('--c', n.cor);
-      b.appendChild(h('span', 'nf-hora', n.inteiro ? 'Dia todo' : hhmm(n.ini) + ' – ' + hhmm(n.fim)));
-      var t = h('span', 'nf-t');
-      t.appendChild(h('b', null, n.titulo));
-      var sub = [];
-      if (n.rotulo) sub.push(n.rotulo);
-      if (n.local) sub.push(n.local);
-      if (n.convite) sub.push('convite de ' + String(n.convite.organizador_nome || n.convite.organizador_email || '').split(' ')[0]);
-      if (sub.length) t.appendChild(h('small', null, sub.join(' · ')));
-      b.appendChild(t);
-      b.addEventListener('click', function () { cfg.aoAbrirEvento && cfg.aoAbrirEvento(n); });
-      return b;
-    }
-    function itemTarefa(t) {
-      var b = h('button', 'nf-ct-item nf-tar' + (t.concluida ? ' nf-feita' : ''));
-      b.type = 'button';
-      b.style.setProperty('--c', t.cor);
-      b.appendChild(h('span', 'nf-hora', t.marco ? 'Marco' : 'Prazo'));
-      var x = h('span', 'nf-t');
-      x.appendChild(h('b', null, t.titulo));
-      if (t.rotulo) x.appendChild(h('small', null, t.rotulo));
-      b.appendChild(x);
-      b.addEventListener('click', function () { cfg.aoAbrirTarefa && cfg.aoAbrirTarefa(t); });
-      return b;
-    }
-    function desenharLateral() {
-      lateral.textContent = '';
-      if (cfg.lateral === false) return;
-      var idx = indice();
-      var c1 = h('div', 'nf-ct-card');
-      var cab = h('div', 'nf-ct-mini-cab');
-      var bA = h('button'); bA.type = 'button'; bA.setAttribute('aria-label', 'Mês anterior'); bA.appendChild(svgIco('esq'));
-      var bP = h('button'); bP.type = 'button'; bP.setAttribute('aria-label', 'Próximo mês'); bP.appendChild(svgIco('dir'));
-      bA.addEventListener('click', function () { st.ref = new Date(st.ref.getFullYear(), st.ref.getMonth() - 1, 1); fecharInline(); desenhar(); recarregar(); });
-      bP.addEventListener('click', function () { st.ref = new Date(st.ref.getFullYear(), st.ref.getMonth() + 1, 1); fecharInline(); desenhar(); recarregar(); });
-      cab.appendChild(bA); cab.appendChild(h('b', null, maiuscula(MESES[st.ref.getMonth()]) + ' de ' + st.ref.getFullYear())); cab.appendChild(bP);
-      c1.appendChild(cab);
-      var mini = h('div', 'nf-ct-mini');
-      DIAS_CURTOS.forEach(function (n) { mini.appendChild(h('div', 'nf-s', n.charAt(0).toUpperCase())); });
-      var ini = iniSemana(iniMes(st.ref));
-      for (var k = 0; k < 42; k++) {
-        (function (dia) {
-          var b = h('button', (dia.getMonth() !== st.ref.getMonth() ? 'nf-fora ' : '') + (mesmoDia(dia, new Date()) ? 'nf-hoje ' : '') + (mesmoDia(dia, st.ref) ? 'nf-sel' : ''), String(dia.getDate()));
-          b.type = 'button';
-          var r = idx[ymd(dia)];
-          if (r && (r.ev || r.tar)) b.appendChild(document.createElement('i'));
-          b.addEventListener('click', function () {
-            st.ref = dia;
-            if (st.modo === 'mes') { var m = (cfg.modos || []).filter(function (x) { return x[0] === 'dia' || x[0] === 'semana'; })[0]; if (m) st.modo = m[0]; }
-            fecharInline(); desenhar(); recarregar(); rolarAgora();
-          });
-          mini.appendChild(b);
-        })(somaDias(ini, k));
-      }
-      c1.appendChild(mini);
-      lateral.appendChild(c1);
-      var leg = legenda();
-      if (leg) lateral.appendChild(leg);
-      var c2 = h('div', 'nf-ct-card');
-      c2.appendChild(h('h4', null, mesmoDia(st.ref, new Date()) ? 'Hoje' : DIAS_LONGOS[diaSemana(st.ref)] + ', ' + st.ref.getDate() + ' ' + MESES_CURTOS[st.ref.getMonth()]));
-      var lista = h('div', 'nf-ct-lista');
-      var info = eventosDoDia(st.ref), tars = tarefasDoDia(st.ref);
-      info.inteiros.forEach(function (n) { lista.appendChild(itemLista(n)); });
-      info.horarios.forEach(function (x) { lista.appendChild(itemLista(x.n)); });
-      tars.forEach(function (t) { lista.appendChild(itemTarefa(t)); });
-      if (!lista.childNodes.length) lista.appendChild(h('div', 'nf-ct-vazio', 'Nada marcado para este dia.'));
-      c2.appendChild(lista);
-      lateral.appendChild(c2);
-    }
-
-    /* ---------- tela ---------- */
-    function rotuloTitulo() {
-      var d = st.ref;
-      if (st.modo === 'dia') return maiuscula(DIAS_LONGOS[diaSemana(d)] + ', ' + d.getDate() + ' de ' + MESES[d.getMonth()]);
-      if (st.modo === 'semana') {
-        var a = iniSemana(d), b = somaDias(a, 6);
-        return a.getMonth() === b.getMonth() ? a.getDate() + ' a ' + b.getDate() + ' de ' + MESES[a.getMonth()] + ' de ' + a.getFullYear() : a.getDate() + ' ' + MESES_CURTOS[a.getMonth()] + ' a ' + b.getDate() + ' ' + MESES_CURTOS[b.getMonth()] + ' de ' + b.getFullYear();
-      }
-      if (st.modo === 'equipe') { var e = st.diaEquipe || d; return 'Disponibilidade · ' + DIAS_LONGOS[diaSemana(e)] + ', ' + e.getDate() + ' de ' + MESES[e.getMonth()]; }
-      return maiuscula(MESES[d.getMonth()] + ' de ' + d.getFullYear());
-    }
-    function desenhar() {
-      var rol = cfg.rolagem ? cfg.rolagem() : principal;
-      var chave = st.modo + '|' + ymd(st.ref) + '|' + (st.diaEquipe ? ymd(st.diaEquipe) : '');
-      var mesma = st.ultimaChave === chave;
-      st.ultimaChave = chave;
-      var yAntes = mesma ? rol.scrollTop : 0;
-      tit.textContent = rotuloTitulo();
-      seg.querySelectorAll('button').forEach(function (b) { var s = b.getAttribute('data-modo') === st.modo; b.classList.toggle('nf-sel', s); b.setAttribute('aria-selected', s ? 'true' : 'false'); });
-      principal.textContent = '';
-      if (st.modo === 'dia') visaoHoras(1);
-      else if (st.modo === 'semana') visaoHoras(7);
-      else if (st.modo === 'equipe') visaoEquipe();
-      else visaoMes();
-      desenharLateral();
-      atualizarAgora();
-      var rol2 = cfg.rolagem ? cfg.rolagem() : principal;
-      if (rol2) rol2.scrollTop = yAntes;
-      if (cfg.aoDesenhar) cfg.aoDesenhar(st);
-    }
-    function passo(s) {
-      fecharInline();
-      if (st.modo === 'dia') st.ref = somaDias(st.ref, s);
-      else if (st.modo === 'semana') st.ref = somaDias(st.ref, 7 * s);
-      else if (st.modo === 'equipe') { st.diaEquipe = somaDias(st.diaEquipe || st.ref, s); st.ref = st.diaEquipe; }
-      else st.ref = new Date(st.ref.getFullYear(), st.ref.getMonth() + s, 1);
-      desenhar(); recarregar(); rolarAgora();
-    }
-    bAnt.addEventListener('click', function () { passo(-1); });
-    bProx.addEventListener('click', function () { passo(1); });
-    bHoje.addEventListener('click', function () { st.ref = hoje(); st.diaEquipe = null; fecharInline(); desenhar(); recarregar(); rolarAgora(); });
-    var timer = null;
-    function iniciar() { clearInterval(timer); timer = setInterval(atualizarAgora, 30000); }
-    function parar() { clearInterval(timer); }
-    return {
-      el: raiz, estado: st, desenhar: desenhar, recarregar: recarregar, rolarAgora: rolarAgora, passo: passo, iniciar: iniciar, parar: parar, fecharInline: fecharInline,
-      definir: function (o) { if (o.modo) st.modo = o.modo; if (o.ref) st.ref = iniDia(o.ref); st.ultimaChave = null; }
-    };
-  };
-
-  /* ======================================================================
-     JANELA ÚNICA DE EVENTO (criar e editar, em qualquer calendário)
-     ====================================================================== */
-  /* op: { evento?, dia?, minutos?, titulo?, destinos:[{id,rotulo,kind,...}], destinoId?, conflitos?(ini,fim,participantes,ignorarChave), aoSalvar() } */
-  NFV.abrirModalEvento = async function (op) {
-    var ev = op.evento || null;
-    var destinos = op.destinos || [];
-    var fundo = h('div', 'nf-v-modal');
-    var folha = h('div', 'nf-v-folha');
-    folha.setAttribute('role', 'dialog');
-    folha.setAttribute('aria-label', ev ? 'Editar evento' : 'Novo evento');
-    folha.appendChild(h('h3', null, ev ? (ev.editavel === false ? 'Evento' : 'Editar evento') : 'Novo evento'));
-    var aviso = h('div');
-    function campo(rotulo, el) { var l = h('label', 'nf-ev-campo'); l.appendChild(h('span', null, rotulo)); l.appendChild(el); return l; }
-    function input(tipo, valor, max) { var i = document.createElement('input'); i.type = tipo; if (valor != null) i.value = valor; if (max) i.maxLength = max; return i; }
-    var base = ev ? ev.ini : (op.dia ? new Date(op.dia) : new Date());
-    if (!ev) { if (op.minutos == null) base.setHours(9, 0, 0, 0); else base.setHours(Math.floor(op.minutos / 60), op.minutos % 60, 0, 0); }
-    var fimBase = ev ? ev.fim : new Date(base.getTime() + 3600000);
-    var inTitulo = input('text', ev ? ev.titulo : (op.titulo || ''), 200);
-    inTitulo.setAttribute('aria-label', 'Título do evento');
-    folha.appendChild(campo('Título', inTitulo));
-    var selDest = document.createElement('select');
-    selDest.setAttribute('aria-label', 'Calendário');
-    destinos.forEach(function (d) { var o = h('option', null, d.rotulo); o.value = d.id; selDest.appendChild(o); });
-    var destinoIni = op.destinoId || (ev ? (ev.fonteId) : (destinos[0] && destinos[0].id));
-    if (destinos.some(function (d) { return d.id === destinoIni; })) selDest.value = destinoIni;
-    if (destinos.length > 1 || (ev && destinos.length)) folha.appendChild(campo('Calendário', selDest));
-    var ckInteiro = document.createElement('input');
-    ckInteiro.type = 'checkbox';
-    ckInteiro.checked = ev ? ev.inteiro : false;
-    var lInt = h('label', 'nf-ev-chk');
-    lInt.appendChild(ckInteiro);
-    lInt.appendChild(document.createTextNode('Dia inteiro'));
-    folha.appendChild(lInt);
-    var par1 = h('div', 'nf-ev-par');
-    var inDataI = input('date', ymd(base)), inHoraI = input('time', hhmm(base));
-    var inDataF = input('date', ymd(fimBase)), inHoraF = input('time', hhmm(fimBase));
-    inDataI.setAttribute('aria-label', 'Data de início'); inHoraI.setAttribute('aria-label', 'Hora de início');
-    inDataF.setAttribute('aria-label', 'Data de término'); inHoraF.setAttribute('aria-label', 'Hora de término');
-    par1.appendChild(campo('Início', inDataI)); par1.appendChild(campo('Hora', inHoraI));
-    var par2 = h('div', 'nf-ev-par');
-    par2.appendChild(campo('Término', inDataF)); par2.appendChild(campo('Hora', inHoraF));
-    folha.appendChild(par1); folha.appendChild(par2);
-    folha.appendChild(aviso);
-    var inLocal = input('text', ev ? ev.local : '', 300);
-    inLocal.setAttribute('aria-label', 'Local');
-    folha.appendChild(campo('Local', inLocal));
-    var inDesc = document.createElement('textarea');
-    inDesc.value = ev ? ev.descricao : '';
-    inDesc.setAttribute('aria-label', 'Descrição');
-    folha.appendChild(campo('Descrição', inDesc));
-    var boxPessoas = h('div');
-    var rotPessoas = h('span', null, 'Participantes');
-    var wrapPessoas = h('div', 'nf-ev-campo');
-    var listaPessoas = h('div', 'nf-ev-pessoas');
-    wrapPessoas.appendChild(rotPessoas);
-    wrapPessoas.appendChild(listaPessoas);
-    boxPessoas.appendChild(wrapPessoas);
-    folha.appendChild(boxPessoas);
-    var erro = h('div', 'nf-ev-erro');
-    erro.hidden = true;
-    folha.appendChild(erro);
-    var maisOp = null;
-    if (ev && ev.origem === 'pessoal' && typeof abrirEditarEventoHome === 'function') {
-      maisOp = h('button', 'nf-ev-mais', 'Mais opções (lembrete, repetição e convidados)');
-      maisOp.type = 'button';
-      maisOp.addEventListener('click', function () { fechar(); if (typeof homeEventos !== 'undefined' && !(typeof eventoHomePorId === 'function' && eventoHomePorId(ev.id))) homeEventos.push(ev.bruto); abrirEditarEventoHome(ev.id); });
-      folha.appendChild(maisOp);
-    }
-    var acoes = h('div', 'nf-v-acoes');
-    var bExcluir = h('button', 'nf-v-btn nf-v-perigo', 'Excluir');
-    bExcluir.type = 'button';
-    var bCancelar = h('button', 'nf-v-btn', 'Cancelar');
-    bCancelar.type = 'button';
-    var bSalvar = h('button', 'nf-v-btn nf-v-prim', 'Salvar');
-    bSalvar.type = 'button';
-    var somenteLeitura = !!(ev && ev.editavel === false);
-    if (ev && !somenteLeitura) acoes.appendChild(bExcluir);
-    acoes.appendChild(bCancelar);
-    if (!somenteLeitura) acoes.appendChild(bSalvar);
-    folha.appendChild(acoes);
-    fundo.appendChild(folha);
-    document.body.appendChild(fundo);
-    function fechar() { fundo.remove(); document.removeEventListener('keydown', tecla, true); }
-    function tecla(e) { if (e.key === 'Escape') { e.stopPropagation(); fechar(); } }
-    document.addEventListener('keydown', tecla, true);
-    fundo.addEventListener('click', function (e) { if (e.target === fundo) fechar(); });
-    bCancelar.addEventListener('click', fechar);
-    inTitulo.focus();
-
-    function destinoAtual() { return destinos.filter(function (d) { return d.id === selDest.value; })[0] || destinos[0]; }
-    var membros = [];
-    var escolhidos = ev ? ev.participantes.slice() : null;
-    async function atualizarPessoas() {
-      var d = destinoAtual();
-      boxPessoas.hidden = !(d && d.kind === 'espaco');
-      listaPessoas.textContent = '';
-      if (boxPessoas.hidden) { membros = []; return; }
-      membros = d.membros || (await NFV.ev.membrosDe(d.espacoId));
-      if (escolhidos === null) escolhidos = membros.map(function (m) { return m.id; });
-      membros.forEach(function (m) {
-        var l = h('label', escolhidos.indexOf(m.id) >= 0 ? 'nf-on' : '');
-        var ck = document.createElement('input');
-        ck.type = 'checkbox';
-        ck.checked = escolhidos.indexOf(m.id) >= 0;
-        ck.setAttribute('data-pessoa', m.id);
-        ck.disabled = somenteLeitura;
-        ck.addEventListener('change', function () {
-          var i = escolhidos.indexOf(m.id);
-          if (ck.checked && i < 0) escolhidos.push(m.id);
-          if (!ck.checked && i >= 0) escolhidos.splice(i, 1);
-          l.classList.toggle('nf-on', ck.checked);
-          verConflitos();
-        });
-        l.appendChild(ck);
-        l.appendChild(document.createTextNode(m.nome + (m.id === meuId() ? ' (eu)' : '')));
-        listaPessoas.appendChild(l);
-      });
-      verConflitos();
-    }
-    function lerDatas() {
-      var inteiro = ckInteiro.checked;
-      var di = U.data(inDataI.value), df = U.data(inDataF.value);
-      if (!di || !df) return null;
-      var hi = (inHoraI.value || '09:00').split(':'), hf = (inHoraF.value || '10:00').split(':');
-      var ini = new Date(di.getFullYear(), di.getMonth(), di.getDate(), inteiro ? 0 : +hi[0], inteiro ? 0 : +hi[1], 0, 0);
-      var fim = new Date(df.getFullYear(), df.getMonth(), df.getDate(), inteiro ? 23 : +hf[0], inteiro ? 59 : +hf[1], 0, 0);
-      return { ini: ini, fim: fim, inteiro: inteiro };
-    }
-    function verConflitos() {
-      aviso.textContent = '';
-      aviso.className = '';
-      var d = lerDatas();
-      if (!d || !op.conflitos || boxPessoas.hidden || d.fim <= d.ini) return;
-      var nomes = op.conflitos(d.ini, d.fim, escolhidos || [], ev ? ev.chave : null);
-      if (nomes && nomes.length) {
-        aviso.className = 'nf-ev-aviso';
-        aviso.textContent = 'Atenção: ' + nomes.join(', ') + (nomes.length === 1 ? ' já tem' : ' já têm') + ' compromisso neste horário.';
-      }
-    }
-    function atualizarHoras() { [inHoraI, inHoraF].forEach(function (i) { i.disabled = ckInteiro.checked || somenteLeitura; }); }
-    ckInteiro.addEventListener('change', function () { atualizarHoras(); verConflitos(); });
-    [inDataI, inHoraI, inDataF, inHoraF].forEach(function (i) { i.addEventListener('change', verConflitos); });
-    inDataI.addEventListener('change', function () { if (inDataF.value < inDataI.value) inDataF.value = inDataI.value; });
-    inHoraI.addEventListener('change', function () {
-      var d = lerDatas();
-      if (d && d.fim <= d.ini) { var n = new Date(d.ini.getTime() + 3600000); inDataF.value = ymd(n); inHoraF.value = hhmm(n); }
-    });
-    selDest.addEventListener('change', function () { escolhidos = null; atualizarPessoas(); });
-    if (somenteLeitura) { [inTitulo, selDest, ckInteiro, inLocal, inDesc].forEach(function (i) { i.disabled = true; }); [inDataI, inDataF].forEach(function (i) { i.disabled = true; }); }
-    atualizarHoras();
-    await atualizarPessoas();
-
-    bSalvar.addEventListener('click', async function () {
-      erro.hidden = true;
-      var titulo = inTitulo.value.trim();
-      var d = lerDatas();
-      if (!titulo) { erro.textContent = 'Digite o título do evento.'; erro.hidden = false; return; }
-      if (!d) { erro.textContent = 'Informe as datas de início e término.'; erro.hidden = false; return; }
-      if (d.fim <= d.ini) { erro.textContent = 'O término precisa ser posterior ao início.'; erro.hidden = false; return; }
-      bSalvar.disabled = true;
-      bSalvar.textContent = 'Salvando...';
-      try {
-        var dest = destinoAtual();
-        var salvo = await NFV.ev.salvar(dest, { titulo: titulo, ini: d.ini, fim: d.fim, inteiro: d.inteiro, local: inLocal.value.trim(), descricao: inDesc.value.trim(), participantes: dest.kind === 'espaco' ? (escolhidos || []) : [], tipo: dest.tipo }, ev);
-        if (ev && ev.origem !== (dest.kind === 'espaco' ? 'espaco' : 'pessoal')) { try { await NFV.ev.excluir(ev); } catch (e2) {} }
-        fechar();
-        if (typeof toast === 'function') toast(ev ? 'Evento atualizado.' : 'Evento criado.', false);
-        if (op.aoSalvar) op.aoSalvar(salvo);
-      } catch (e) {
-        erro.textContent = e.message || 'Não foi possível salvar.';
-        erro.hidden = false;
-        bSalvar.disabled = false;
-        bSalvar.textContent = 'Salvar';
-      }
-    });
-    bExcluir.addEventListener('click', async function () {
-      if (!confirm('Excluir o evento "' + ev.titulo + '"?')) return;
-      bExcluir.disabled = true;
-      try {
-        await NFV.ev.excluir(ev);
-        fechar();
-        if (typeof toast === 'function') toast('Evento excluído.', false);
-        if (op.aoSalvar) op.aoSalvar(null);
-      } catch (e) {
-        erro.textContent = e.message || 'Não foi possível excluir.';
-        erro.hidden = false;
-        bExcluir.disabled = false;
-      }
-    });
-  };
-
-  /* ======================================================================
-     CALENDÁRIO PRINCIPAL (tela cheia) com todos os projetos de que participo
-     ====================================================================== */
-  /* "Reunião amanhã 14h", "Dentista sexta 9:30", "Pagar boleto hoje" */
-  function interpretarRapido(texto, base) {
-    var t = ' ' + String(texto || '').trim() + ' ';
-    var dia = iniDia(base || new Date());
-    var minutos = null, m;
-    if (/\sdepois de amanh[ãa]\s/i.test(t)) { dia = somaDias(hoje(), 2); t = t.replace(/\sdepois de amanh[ãa]\s/i, ' '); }
-    else if (/\samanh[ãa]\s/i.test(t)) { dia = somaDias(hoje(), 1); t = t.replace(/\samanh[ãa]\s/i, ' '); }
-    else if (/\shoje\s/i.test(t)) { dia = hoje(); t = t.replace(/\shoje\s/i, ' '); }
-    else {
-      var nomes = [/segunda/i, /ter[çc]a/i, /quarta/i, /quinta/i, /sexta/i, /s[áa]bado/i, /domingo/i];
-      for (var i = 0; i < nomes.length; i++) {
-        var re = new RegExp('\\s(?:na |no |para |pra )?(' + nomes[i].source + ')(?:-feira)?\\s', 'i');
-        if (re.test(t)) { var alvo = hoje(); do { alvo = somaDias(alvo, 1); } while (diaSemana(alvo) !== i); dia = alvo; t = t.replace(re, ' '); break; }
-      }
-    }
-    m = /\s(?:às|as|a)?\s*(\d{1,2})\s*(?:h|:)\s*(\d{2})?(?=\s|$)/i.exec(t);
-    if (m) { var hh = +m[1], mm = m[2] ? +m[2] : 0; if (hh <= 23 && mm <= 59) { minutos = hh * 60 + mm; t = t.replace(m[0], ' '); } }
-    var titulo = t.replace(/\s+/g, ' ').replace(/^\s*(?:às|as|a|na|no|para|pra)\s+/i, '').trim();
-    if (!titulo) return null;
-    return { titulo: titulo.charAt(0).toUpperCase() + titulo.slice(1), dia: dia, minutos: minutos };
-  }
-  window.__nfCalInterpretar = interpretarRapido;
-
-  var tela = h('div', 'nf-cal');
-  tela.id = 'nfCal';
-  tela.setAttribute('role', 'dialog');
-  tela.setAttribute('aria-label', 'Calendário');
-  var topo = h('div', 'nf-cal-topo'); /* não usar <header>: o app esconde os botões de qualquer <header> */
-  topo.setAttribute('role', 'banner');
-  var btnVoltar = h('button', 'nf-cal-voltar');
-  btnVoltar.type = 'button';
-  btnVoltar.appendChild(svgIco('esq'));
-  btnVoltar.appendChild(h('span', null, 'Início'));
-  var titBloco = h('div', 'nf-cal-titulo');
-  titBloco.appendChild(h('small', null, 'CALENDÁRIO'));
-  var titH2 = h('h2', null, 'Todos os seus projetos e eventos');
-  titBloco.appendChild(titH2);
-  topo.appendChild(btnVoltar);
-  topo.appendChild(titBloco);
-  var rapido = h('form', 'nf-cal-rapido');
-  var inRapido = document.createElement('input');
-  inRapido.type = 'text'; inRapido.id = 'nfCalRapido'; inRapido.maxLength = 200; inRapido.autocomplete = 'off';
-  inRapido.placeholder = 'Escreva um evento: "Reunião amanhã 14h", "Dentista sexta 9:30"...';
-  inRapido.setAttribute('aria-label', 'Escrever um evento');
-  var btnRapido = h('button', null, 'Adicionar');
-  btnRapido.type = 'submit';
-  var msgRapido = h('span', 'nf-cal-msg');
-  rapido.appendChild(inRapido); rapido.appendChild(btnRapido); rapido.appendChild(msgRapido);
-  var corpoTela = h('div', 'nf-cal-corpo');
-  corpoTela.style.padding = '16px 18px 0';
-  tela.appendChild(topo); tela.appendChild(rapido); tela.appendChild(corpoTela);
-  document.body.appendChild(tela);
-
-  function mostrarMsg(txt, erro) {
-    msgRapido.textContent = txt || '';
-    msgRapido.className = 'nf-cal-msg' + (erro ? ' nf-erro' : '');
-    clearTimeout(mostrarMsg.t);
-    if (txt) mostrarMsg.t = setTimeout(function () { msgRapido.textContent = ''; }, 5000);
-  }
-  var espacosCache = null;
-  async function listaEspacos() {
-    if (espacosCache && Date.now() - espacosCache.t < 60000) return espacosCache.l;
-    var l = [];
-    try { var r = await apiBruta('', 'GET'); if (r.j && r.j.ok) l = r.j.espacos || []; } catch (e) {}
-    l.forEach(function (e) { papeis[e.id] = e.papel; });
-    espacosCache = { t: Date.now(), l: l };
-    return l;
-  }
-  /* destinos onde se pode criar um evento a partir do calendário principal */
-  async function destinosPrincipais() {
-    var d = [{ id: 'principal', rotulo: 'Calendário principal', kind: 'pessoal', tipo: 'pessoal', projetoId: '', ambiente: 'pessoal' }];
-    (dados.projetos || []).forEach(function (p) {
-      d.push({ id: 'proj:' + p.id, rotulo: rotuloProj('', p.nome, p.tipo), kind: 'pessoal', projetoId: p.id, projetoNome: p.nome, ambiente: p.tipo === 'profissional' ? 'profissional' : 'pessoal' });
-    });
-    var esp = await listaEspacos();
-    esp.forEach(function (e) {
-      d.push({ id: 'esp:' + e.id, rotulo: e.tipo === 'projeto' ? 'Projeto avulso: ' + e.nome : 'Espaço: ' + e.nome, kind: 'espaco', espacoId: e.id, projetoId: '', projetoNome: '', espaco: e });
-    });
-    return d;
-  }
-  NFV.destinosPrincipais = destinosPrincipais;
-
-  var principalCal = null;
-  var fontesVistas = {};
-  function legendaPrincipal() {
-    var itens = [{ id: 'principal', rotulo: 'Calendário principal', cor: COR_PRINCIPAL, grupo: 'Principal' }];
-    var ja = { principal: true };
-    (dados.projetos || []).forEach(function (p) {
-      var id = 'proj:' + p.id;
-      ja[id] = true;
-      itens.push({ id: id, rotulo: rotuloProj('', p.nome, p.tipo), cor: corProjeto(p.id), grupo: p.tipo === 'profissional' ? 'Projetos profissionais' : 'Projetos pessoais' });
-    });
-    Object.keys(fontesVistas).forEach(function (id) { if (!ja[id]) itens.push(Object.assign({ grupo: 'Espaços compartilhados' }, fontesVistas[id])); });
-    var ordem = { 'Principal': 0, 'Projetos pessoais': 1, 'Projetos profissionais': 2, 'Espaços compartilhados': 3 };
-    itens.sort(function (a, b) { return (ordem[a.grupo] - ordem[b.grupo]) || String(a.rotulo).localeCompare(String(b.rotulo), 'pt-BR'); });
-    return itens;
-  }
-  async function carregarPrincipal(ini, fim) {
-    var partes = await Promise.all([eventosPessoais(ini, fim), eventosDeTodosOsEspacos(ini, fim)]);
-    var eventos = partes[0].concat(partes[1]);
-    var locais = {};
-    (dados.projetos || []).forEach(function (p) { locais['proj:' + p.id] = true; });
-    eventos.forEach(function (e) {
-      if (e.fonteId === 'principal' || locais[e.fonteId]) return;
-      fontesVistas[e.fonteId] = { id: e.fonteId, rotulo: e.rotulo || 'Espaço', cor: e.cor };
-    });
-    return { eventos: eventos, tarefas: tarefasLocais(ini, fim), membros: [] };
-  }
-  /* para um evento de projeto compartilhado, o calendário dele aparece como opção (Espaço-projeto) */
-  function destinosDoEvento(destinos, E) {
-    if (E.origem === 'espaco' && E.projetoId) {
-      destinos = [{ id: E.fonteId, rotulo: E.rotulo, kind: 'espaco', espacoId: E.espacoId, projetoId: E.projetoId, projetoNome: E.projetoNome }].concat(destinos);
-    }
-    return destinos;
-  }
-  NFV.destinosDoEvento = destinosDoEvento;
-  function abrirEventoPrincipal(E) {
-    destinosPrincipais().then(function (destinos) {
-      NFV.abrirModalEvento({ evento: E, destinos: destinosDoEvento(destinos, E), destinoId: E.origem === 'espaco' ? E.fonteId : E.fonteId, aoSalvar: function () { principalCal.recarregar(); if (typeof carregarEventosHome === 'function') carregarEventosHome(); } });
-    });
-  }
-  async function criarNoPrincipal(info) {
-    if (info.titulo && !info.detalhar) {
-      var ini = iniDia(info.dia); ini.setHours(0, info.minutos || 0, 0, 0);
-      try {
-        await NFV.ev.salvar({ kind: 'pessoal', projetoId: '', tipo: 'pessoal' }, { titulo: info.titulo, ini: ini, fim: new Date(ini.getTime() + 3600000), inteiro: false }, null);
-        if (typeof toast === 'function') toast('Evento criado.', false);
-        principalCal.recarregar();
-        if (typeof carregarEventosHome === 'function') carregarEventosHome();
-      } catch (e) { mostrarMsg(e.message, true); }
-      return;
-    }
-    var destinos = await destinosPrincipais();
-    NFV.abrirModalEvento({ dia: info.dia, minutos: info.minutos, titulo: info.titulo || '', destinos: destinos, destinoId: 'principal', aoSalvar: function () { principalCal.recarregar(); if (typeof carregarEventosHome === 'function') carregarEventosHome(); } });
-  }
-  function abrirTarefaPrincipal(t) {
-    if (typeof abrirCaptura === 'function' && t.local) abrirCaptura(t.id);
-  }
-  principalCal = NFV.criarCalendario({
-    modos: [['dia', 'Dia'], ['semana', 'Semana'], ['mes', 'Mês']], modo: 'mes', lateral: true,
-    carregar: carregarPrincipal, legenda: legendaPrincipal,
-    aoCriar: criarNoPrincipal, aoAbrirEvento: abrirEventoPrincipal, aoAbrirTarefa: abrirTarefaPrincipal,
-    rolagem: function () { return principalCal.el.querySelector(window.matchMedia('(max-width:980px)').matches ? '.nf-ct-area' : '.nf-ct-principal'); }
-  });
-  corpoTela.appendChild(principalCal.el);
-  principalCal.el.style.flex = '1';
-
-  var aberto = false;
-  function aoTeclar(e) {
-    if (!aberto) return;
-    if (document.querySelector('.nf-v-modal') || document.querySelector('.modal:not(.oculto)')) return;
-    var emCampo = /^(INPUT|TEXTAREA|SELECT)$/.test((document.activeElement || {}).tagName || '');
-    if (e.key === 'Escape') { if (principalCal.estado.inline) { principalCal.fecharInline(); return; } fechar(); return; }
-    if (emCampo) return;
-    if (e.key === 'ArrowLeft') { principalCal.passo(-1); e.preventDefault(); }
-    else if (e.key === 'ArrowRight') { principalCal.passo(1); e.preventDefault(); }
-  }
-  function abrir(o) {
-    if (typeof tokenAtual !== 'function' || !tokenAtual()) return;
-    if (typeof o === 'string') o = { modo: o };
-    o = o || {};
-    aberto = true;
-    principalCal.definir({ modo: o.modo || 'mes', ref: o.ref || hoje() });
-    var sobre = document.documentElement.style.getPropertyValue('--on-acento');
-    if (sobre) tela.style.setProperty('--on-acento', sobre.trim());
-    tela.classList.add('nf-aberto');
-    document.body.classList.add('nf-cal-aberto');
-    document.addEventListener('keydown', aoTeclar);
-    principalCal.desenhar();
-    principalCal.rolarAgora();
-    principalCal.recarregar();
-    principalCal.iniciar();
-  }
-  function fechar() {
-    aberto = false;
-    principalCal.fecharInline();
-    principalCal.parar();
-    tela.classList.remove('nf-aberto');
-    document.body.classList.remove('nf-cal-aberto');
-    document.removeEventListener('keydown', aoTeclar);
-    if (typeof carregarEventosHome === 'function') carregarEventosHome();
-  }
-  btnVoltar.addEventListener('click', fechar);
-  rapido.addEventListener('submit', async function (e) {
-    e.preventDefault();
-    var r = interpretarRapido(inRapido.value, principalCal.estado.ref);
-    if (!r) { mostrarMsg('Escreva o título do evento.', true); return; }
-    btnRapido.disabled = true;
-    try {
-      var ini = iniDia(r.dia); var inteiro = r.minutos == null;
-      if (!inteiro) ini.setHours(0, r.minutos, 0, 0);
-      var fim = inteiro ? new Date(ini.getFullYear(), ini.getMonth(), ini.getDate(), 23, 59) : new Date(ini.getTime() + 3600000);
-      await NFV.ev.salvar({ kind: 'pessoal', projetoId: '', tipo: 'pessoal' }, { titulo: r.titulo, ini: ini, fim: fim, inteiro: inteiro }, null);
-      inRapido.value = '';
-      mostrarMsg('Evento "' + r.titulo + '" criado para ' + r.dia.getDate() + ' de ' + MESES[r.dia.getMonth()] + (inteiro ? ' (dia todo).' : ' às ' + pad(Math.floor(r.minutos / 60)) + ':' + pad(r.minutos % 60) + '.'), false);
-      principalCal.definir({ ref: r.dia });
-      principalCal.desenhar();
-      principalCal.recarregar();
-      if (typeof carregarEventosHome === 'function') carregarEventosHome();
-    } catch (er) { mostrarMsg(er.message, true); }
-    finally { btnRapido.disabled = false; }
-  });
-  window.NowFindCalendario = { abrir: abrir, fechar: fechar, v2: true };
-
-  /* o app redesenha: mantém a tela em dia */
-  var renderizarBase = renderizar;
-  renderizar = function () { renderizarBase.apply(this, arguments); if (aberto) principalCal.desenhar(); };
-
-  /* ---------- menu: atalho para o calendário ---------- */
-  function botaoNoMenu() {
-    var nav = document.querySelector('nav');
-    if (!nav || document.getElementById('navCalendario')) return;
-    var ref = nav.querySelector('#btnMais') || nav.querySelector('button[data-view="projetos"]');
-    var b = document.createElement('button');
-    b.type = 'button'; b.id = 'navCalendario'; b.className = 'nf-nav-cal';
-    var ico = h('span', 'nav-ico nf-ico-svg'); ico.appendChild(svgIco('cal'));
-    var rot = h('span', 'nav-rot', 'Calendário');
-    b.appendChild(ico); b.appendChild(rot);
-    b.setAttribute('data-tip', 'Calendário');
-    b.addEventListener('click', function () { abrir('mes'); });
-    if (ref && ref.nextSibling) nav.insertBefore(b, ref.nextSibling); else nav.appendChild(b);
-  }
-  botaoNoMenu();
-  new MutationObserver(function () { botaoNoMenu(); }).observe(document.body, { childList: true, subtree: true });
-
-  /* ======================================================================
-     TELA INICIAL: o calendário da frente mostra os eventos dos projetos
-     ====================================================================== */
-  /* a entrada para o calendário completo é a linha do título do calendário da tela inicial */
-  (function () {
-    var cab = document.querySelector('.home-calendario-card .home-card-topo > div:first-child');
-    if (!cab || cab.getAttribute('data-nf-link')) return;
-    cab.setAttribute('data-nf-link', '1');
-    cab.classList.add('nf-cal-titulo-link');
-    cab.setAttribute('role', 'button');
-    cab.setAttribute('tabindex', '0');
-    cab.setAttribute('aria-label', 'Abrir o calendário completo');
-    function ir() {
-      /* abre no mês que está na tela; se for o mês atual, já posiciona em hoje */
-      var m = typeof homeMesExibido !== 'undefined' ? homeMesExibido : hoje();
-      var h0 = hoje();
-      abrir({ modo: 'mes', ref: (m.getFullYear() === h0.getFullYear() && m.getMonth() === h0.getMonth()) ? h0 : m });
-    }
-    cab.addEventListener('click', ir);
-    cab.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); ir(); } });
-  })();
-
-  function corHome(ev) { return ev._proj ? ev._proj.cor : COR_PRINCIPAL; }
-  function colorirHome() {
-    try {
-      document.querySelectorAll('#homeCalendario .cal-dia[data-data]').forEach(function (cel) {
-        var p = String(cel.getAttribute('data-data')).split('-');
-        var evs = eventosHomeDoDia(new Date(+p[0], +p[1] - 1, +p[2]));
-        var chips = cel.querySelectorAll('.cal-evento');
-        chips.forEach(function (c, i) {
-          var ev = evs[i];
-          if (!ev) return;
-          var cor = corHome(ev);
-          c.style.setProperty('background', 'color-mix(in srgb, ' + cor + ' 26%, transparent)', 'important');
-          c.style.setProperty('border-left-color', cor, 'important');
-          c.setAttribute('data-cor', cor);
-          c.title = ev._proj ? ev._proj.rotulo + ' · ' + ev.titulo : ev.titulo;
-        });
-      });
-    } catch (e) {}
-  }
-  var renderCalBase = renderizarCalendarioHome;
-  renderizarCalendarioHome = function () { renderCalBase.apply(this, arguments); colorirHome(); };
-
-  /* lista "Agenda do dia" da tela inicial */
-  var criarItemBase = criarItemAgendaHome;
-  criarItemAgendaHome = function (evento) {
-    var item = criarItemBase(evento);
-    var cor = corHome(evento);
-    var barra = item.querySelector('.agenda-evento-barra');
-    if (barra) { barra.style.setProperty('background', cor, 'important'); }
-    if (evento._proj) {
-      var forte = item.querySelector('.agenda-evento-info strong');
-      if (forte) forte.textContent = evento._proj.rotulo + ' · ' + evento.titulo;
-    }
-    if (evento._agenda) {
-      var lix = item.querySelector('.nf-ev-lixeira');
-      if (lix) lix.remove();
-      item.classList.remove('nf-com-lixeira');
-    }
-    return item;
-  };
-  /* eventos de espaço abrem a janela única, não a janela antiga do app */
-  var abrirEditarBase = abrirEditarEventoHome;
-  abrirEditarEventoHome = function (id) {
-    var ev = typeof eventoHomePorId === 'function' ? eventoHomePorId(id) : null;
-    if (ev && ev._agenda) {
-      var E = doEspaco(ev._agenda);
-      destinosPrincipais().then(function (destinos) {
-        NFV.abrirModalEvento({ evento: E, destinos: destinosDoEvento(destinos, E), destinoId: E.fonteId, aoSalvar: function () { if (typeof carregarEventosHome === 'function') carregarEventosHome(); } });
-      });
-      return;
-    }
-    return abrirEditarBase.apply(this, arguments);
-  };
-  /* a janela de eventos junta os de todos os projetos aos do calendário principal */
-  var carregarBase = carregarEventosHome;
-  carregarEventosHome = async function () {
-    await carregarBase.apply(this, arguments);
-    try {
-      var primeiro = iniSemana(iniMes(homeMesExibido));
-      var ultimo = somaDias(iniSemana(new Date(homeMesExibido.getFullYear(), homeMesExibido.getMonth() + 1, 0)), 7);
-      var qs = janelaQS(primeiro, ultimo) + '&tipo=todos';
-      var vinc = {};
-      try { var v = await apiEventosHome('/projetos' + qs, 'GET'); if (v.dados && v.dados.ok) vinc = v.dados.vinculos || {}; } catch (e) {}
-      homeEventos = homeEventos.filter(function (e) { return !e._agenda; });
-      homeEventos.forEach(function (ev) {
-        var v1 = vinc[ev.id];
-        ev._proj = v1 ? { cor: corProjeto(v1.projeto_id), rotulo: rotuloProj('', v1.projeto_nome, v1.ambiente), id: v1.projeto_id } : null;
-      });
-      var compart = await eventosDeTodosOsEspacos(primeiro, ultimo);
-      compart.forEach(function (E) {
-        homeEventos.push({
-          id: 'ag:' + E.id, titulo: E.titulo, tipo: 'profissional', inicio: E.ini.toISOString(), fim: E.fim.toISOString(), dia_inteiro: E.inteiro ? 1 : 0,
-          local: E.local, descricao: E.descricao, lembrete_minutos: null, repeticao: 'nenhuma', repeticao_config: null,
-          _agenda: E.bruto, _proj: { cor: E.cor, rotulo: E.rotulo, id: E.projetoId || E.espacoId }
-        });
-      });
-      renderizarCalendarioHome();
-      renderizarAgendaHome();
-    } catch (e) {}
-  };
-})();
-/* ===== AJUSTES 48 - FIM ===== */
-
 /* ===== AJUSTES 44 - ASSISTENTE (no lugar dos botões Texto, Áudio e Arquivo) ===== */
 (function () {
   var cartao = document.querySelector('#view-hoje .captura');
@@ -21996,6 +20561,1600 @@ function escreverTexto(alvo, texto){
   NFV.renderLinha = function (caixa, pid) { renderGantt(caixa, pid); };
 })();
 /* ===== AJUSTES 47 - FIM ===== */
+    /* ===== AJUSTES 48 - CALENDÁRIO: PRINCIPAL, PROJETOS E ESPAÇOS (substitui o AJUSTES 42) ===== */
+(function () {
+  if (window.NowFindCalendario) { try { console.warn('Calendário: apague o bloco AJUSTES 42 antigo antes de colar este.'); } catch (e) {} return; }
+  if (!window.NFV || typeof apiEventosHome !== 'function' || document.getElementById('nfCal')) return;
+  var U = NFV.u, h = U.h, ICO = U.ICO;
+
+  var HH = 52;
+  var MESES = U.MESES, MESES_CURTOS = U.MESES_CURTOS;
+  var DIAS_CURTOS = ['seg', 'ter', 'qua', 'qui', 'sex', 'sáb', 'dom'];
+  var DIAS_LONGOS = ['segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado', 'domingo'];
+  var COR_PRINCIPAL = '#2F5BFF';
+  var PALETA = ['#E5742F', '#1FA97A', '#9B5DE5', '#D6336C', '#0E9AA7', '#C9A227', '#6C7A89', '#3F8F29', '#B5446E', '#7C4DFF', '#C2410C', '#0F766E',
+    '#B45309', '#4D7C0F', '#A21CAF', '#0369A1', '#BE123C', '#047857', '#6D28D9', '#CA8A04', '#9A3412', '#115E59', '#86198F', '#475569'];
+
+  /* ---------- datas ---------- */
+  var pad = U.pad;
+  function iniDia(d) { var x = new Date(d); x.setHours(0, 0, 0, 0); return x; }
+  function somaDias(d, n) { var x = new Date(d); x.setDate(x.getDate() + n); return x; }
+  function iniSemana(d) { var x = iniDia(d); return somaDias(x, -((x.getDay() + 6) % 7)); }
+  function iniMes(d) { return new Date(d.getFullYear(), d.getMonth(), 1); }
+  function mesmoDia(a, b) { return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate(); }
+  function ymd(d) { return U.ymd(d); }
+  function hhmm(d) { return pad(d.getHours()) + ':' + pad(d.getMinutes()); }
+  function diaSemana(d) { return (d.getDay() + 6) % 7; }
+  function hoje() { return iniDia(new Date()); }
+  function maiuscula(t) { return String(t).charAt(0).toUpperCase() + String(t).slice(1); }
+  function svgIco(nome) { var s = document.createElement('span'); s.innerHTML = ICO[nome] || ''; return s.firstChild; }
+
+  /* ---------- cores e etiquetas ---------- */
+  /* cada projeto tem a sua cor: começa por um cálculo fixo e, se já houver outro projeto com a mesma, pega a próxima livre; fica guardado neste aparelho */
+  var mapaCores = null;
+  function lerCores() {
+    if (mapaCores) return mapaCores;
+    try { mapaCores = JSON.parse(localStorage.getItem('nowfind_cores_projetos') || '{}') || {}; } catch (e) { mapaCores = {}; }
+    return mapaCores;
+  }
+  function corProjeto(id) {
+    var chave = String(id || '');
+    var m = lerCores();
+    if (m[chave] !== undefined) return PALETA[m[chave] % PALETA.length];
+    var x = 7;
+    for (var i = 0; i < chave.length; i++) x = (x * 31 + chave.charCodeAt(i)) % 9973;
+    var usadas = {};
+    Object.keys(m).forEach(function (k) { usadas[m[k]] = true; });
+    var idx = x % PALETA.length;
+    for (var t = 0; t < PALETA.length && usadas[idx]; t++) idx = (idx + 1) % PALETA.length;
+    m[chave] = idx;
+    try { localStorage.setItem('nowfind_cores_projetos', JSON.stringify(m)); } catch (e) {}
+    return PALETA[idx];
+  }
+  /* "Espaço-projeto": o nome do espaço, um traço e o nome do projeto */
+  function rotuloProj(espaco, projeto, ambiente) {
+    if (espaco === '__avulso') return projeto;
+    if (espaco) return espaco + '-' + projeto;
+    return (ambiente === 'profissional' ? 'Profissional' : 'Pessoal') + '-' + projeto;
+  }
+  NFV.cores = { principal: COR_PRINCIPAL, projeto: corProjeto, rotulo: rotuloProj };
+
+  /* ---------- eventos: de onde vêm e como se gravam ---------- */
+  function boolInt(v) { return v === true || Number(v) === 1; }
+  function dePessoal(ev, vinc) {
+    var ini = new Date(ev.inicio), fim = new Date(ev.fim);
+    if (isNaN(ini.getTime())) return null;
+    if (isNaN(fim.getTime()) || fim <= ini) fim = new Date(ini.getTime() + 3600000);
+    var proj = vinc || null;
+    return {
+      chave: 'p:' + ev.id, id: ev.id, origem: 'pessoal', titulo: ev.titulo, ini: ini, fim: fim, inteiro: boolInt(ev.dia_inteiro),
+      fonteId: proj ? 'proj:' + proj.projeto_id : 'principal',
+      cor: proj ? corProjeto(proj.projeto_id) : COR_PRINCIPAL,
+      rotulo: proj ? rotuloProj('', proj.projeto_nome, proj.ambiente) : '',
+      local: ev.local || '', descricao: ev.descricao || '', participantes: [], convite: ev.convite || null,
+      editavel: !ev.convite, projetoId: proj ? proj.projeto_id : '', projetoNome: proj ? proj.projeto_nome : '',
+      ambiente: proj ? proj.ambiente : (ev.tipo === 'profissional' ? 'profissional' : 'pessoal'), tipo: ev.tipo, bruto: ev
+    };
+  }
+  var papeis = {};      /* espaço -> papel do usuário, quando já se sabe */
+  function souDonoDe(espacoId) {
+    if (papeis[espacoId]) return papeis[espacoId] === 'dono';
+    var lista = typeof espacos !== 'undefined' ? espacos : [];
+    for (var i = 0; i < lista.length; i++) if (lista[i].id === espacoId) return lista[i].papel === 'dono';
+    return false;
+  }
+  function doEspaco(a) {
+    var ini = new Date(a.inicio), fim = new Date(a.fim);
+    if (isNaN(ini.getTime())) return null;
+    if (isNaN(fim.getTime()) || fim <= ini) fim = new Date(ini.getTime() + 3600000);
+    var avulso = a.espaco_tipo === 'projeto';
+    var temProj = !!a.projeto_id;
+    var nomeEsp = a.espaco_nome || (typeof espacoSelecionado === 'function' && espacoSelecionado() && espacoSelecionado().id === a.espaco_id ? espacoSelecionado().nome : '');
+    var rotulo = temProj ? (avulso ? a.projeto_nome : (nomeEsp ? rotuloProj(nomeEsp, a.projeto_nome, '') : a.projeto_nome)) : nomeEsp;
+    return {
+      chave: 'a:' + a.id, id: a.id, origem: 'espaco', titulo: a.titulo, ini: ini, fim: fim, inteiro: boolInt(a.dia_inteiro),
+      fonteId: temProj ? 'proj:' + a.projeto_id : 'esp:' + a.espaco_id,
+      cor: corProjeto(temProj ? a.projeto_id : 'esp:' + a.espaco_id),
+      rotulo: rotulo, local: a.local || '', descricao: a.descricao || '', participantes: Array.isArray(a.participantes) ? a.participantes : [],
+      convite: null, editavel: a.criado_por === meuId() || souDonoDe(a.espaco_id), espacoId: a.espaco_id, espacoNome: nomeEsp,
+      projetoId: a.projeto_id || '', projetoNome: a.projeto_nome || '', criadoPorNome: a.criado_por_nome || '', ambiente: 'pessoal', bruto: a
+    };
+  }
+  function enc(x) { return encodeURIComponent(x); }
+  function janelaQS(ini, fim) { return '?inicio=' + enc(ini.toISOString()) + '&fim=' + enc(fim.toISOString()); }
+
+  async function eventosPessoais(ini, fim) {
+    var qs = janelaQS(ini, fim) + '&tipo=todos';
+    var r = await apiEventosHome(qs, 'GET');
+    var lista = (r.dados && r.dados.ok && r.dados.eventos) ? r.dados.eventos : [];
+    var vinc = {};
+    try { var v = await apiEventosHome('/projetos' + qs, 'GET'); if (v.dados && v.dados.ok) vinc = v.dados.vinculos || {}; } catch (e) {}
+    try {
+      var c = await apiEventosHome('/convidados' + qs, 'GET');
+      if (c.dados && c.dados.ok) {
+        lista.forEach(function (ev) { var g = c.dados.doMeu && c.dados.doMeu[ev.id]; if (g) ev.convidados = g; });
+        (c.dados.recebidos || []).forEach(function (ev) { if (!lista.some(function (x) { return x.id === ev.id; })) lista.push(ev); });
+      }
+    } catch (e) {}
+    return lista.map(function (ev) { return dePessoal(ev, vinc[ev.id]); }).filter(Boolean);
+  }
+  async function eventosDeTodosOsEspacos(ini, fim) {
+    try {
+      var r = await apiBruta('/agenda/todos' + janelaQS(ini, fim), 'GET');
+      if (r.j && r.j.ok) return (r.j.eventos || []).map(doEspaco).filter(Boolean);
+    } catch (e) {}
+    return [];
+  }
+  async function eventosDoEspaco(espacoId, ini, fim, projetoId) {
+    try {
+      var r = await apiBruta('/agenda' + janelaQS(ini, fim) + '&id=' + enc(espacoId) + (projetoId ? '&projeto=' + enc(projetoId) : ''), 'GET');
+      if (r.j && r.j.ok) return (r.j.eventos || []).map(function (a) { a.espaco_id = a.espaco_id || espacoId; return doEspaco(a); }).filter(Boolean);
+    } catch (e) {}
+    return [];
+  }
+  /* grava um evento onde ele deve ficar: no calendário pessoal (com ou sem projeto) ou no espaço */
+  async function salvarEvento(destino, d, existente) {
+    var ini = d.ini.toISOString(), fim = d.fim.toISOString();
+    if (destino.kind === 'espaco') {
+      var manter = existente && existente.origem === 'espaco' && existente.espacoId === destino.espacoId && !destino.projetoId;
+      var corpo = { espaco_id: destino.espacoId, projeto_id: manter ? (existente.projetoId || '') : (destino.projetoId || ''), projeto_nome: manter ? (existente.projetoNome || '') : (destino.projetoNome || ''), titulo: d.titulo, inicio: ini, fim: fim, dia_inteiro: !!d.inteiro, local: d.local || '', descricao: d.descricao || '', participantes: d.participantes || [] };
+      if (existente) corpo.id = existente.id;
+      var r = await apiBruta('/agenda/salvar', 'POST', corpo);
+      if (!r.j || !r.j.ok) throw new Error((r.j && r.j.erro) || 'Não foi possível salvar o evento.');
+      return r.j.evento;
+    }
+    var tipo = destino.projetoId ? (destino.ambiente === 'profissional' ? 'profissional' : 'pessoal') : (existente ? existente.tipo : (d.tipo || 'pessoal'));
+    var c2 = { titulo: d.titulo, tipo: tipo, inicio: ini, fim: fim, dia_inteiro: !!d.inteiro, local: d.local || '', descricao: d.descricao || '', lembrete_minutos: null, repeticao: 'nenhuma' };
+    if (existente) {
+      var b = existente.bruto || {};
+      c2.id = existente.id;
+      c2.lembrete_minutos = b.lembrete_minutos == null ? null : b.lembrete_minutos;
+      c2.repeticao = b.repeticao || 'nenhuma';
+      c2.repeticao_config = b.repeticao_config || null;
+    }
+    var r2 = await apiEventosHome('/salvar', 'POST', c2);
+    if (!r2.dados || !r2.dados.ok) throw new Error((r2.dados && r2.dados.erro) || 'Não foi possível salvar o evento.');
+    var salvo = r2.dados.evento;
+    var mudouLigacao = !existente || (existente.projetoId || '') !== (destino.projetoId || '');
+    if (salvo && salvo.id && mudouLigacao && (destino.projetoId || existente)) {
+      try { await apiEventosHome('/projeto', 'POST', { evento_id: salvo.id, projeto_id: destino.projetoId || '', projeto_nome: destino.projetoNome || '', ambiente: destino.ambiente || 'pessoal' }); } catch (e) {}
+    }
+    return salvo;
+  }
+  async function excluirEvento(E) {
+    if (E.origem === 'espaco') {
+      var r = await apiBruta('/agenda/excluir', 'POST', { espaco_id: E.espacoId, id: E.id });
+      if (!r.j || !r.j.ok) throw new Error((r.j && r.j.erro) || 'Não foi possível excluir o evento.');
+      return;
+    }
+    var r2 = await apiEventosHome('/excluir', 'POST', { id: E.id });
+    if (!r2.dados || !r2.dados.ok) throw new Error((r2.dados && r2.dados.erro) || 'Não foi possível excluir o evento.');
+  }
+  var membrosCache = {};
+  async function membrosDe(espacoId) {
+    if (membrosCache[espacoId] && Date.now() - membrosCache[espacoId].t < 60000) return membrosCache[espacoId].l;
+    var lista = [];
+    if (typeof espacoAtual !== 'undefined' && espacoAtual === espacoId && typeof espMembros !== 'undefined' && espMembros.length) lista = espMembros;
+    else {
+      try { var r = await apiBruta('/membros?id=' + enc(espacoId), 'GET'); if (r.j && r.j.ok) lista = r.j.membros || []; } catch (e) {}
+    }
+    membrosCache[espacoId] = { t: Date.now(), l: lista };
+    return lista;
+  }
+  NFV.ev = { dePessoal: dePessoal, doEspaco: doEspaco, eventosPessoais: eventosPessoais, eventosDeTodosOsEspacos: eventosDeTodosOsEspacos, eventosDoEspaco: eventosDoEspaco, salvar: salvarEvento, excluir: excluirEvento, membrosDe: membrosDe, janelaQS: janelaQS };
+
+  /* tarefas com prazo dos projetos locais (Pessoal e Profissional) */
+  function tarefasLocais(ini, fim) {
+    var projs = {};
+    (dados.projetos || []).forEach(function (p) { projs[p.id] = p; });
+    var out = [];
+    (dados.itens || []).forEach(function (i) {
+      if (typeof prazoEhData !== 'function' || !prazoEhData(i.prazo) || i.status === 'validado') return;
+      var d = U.data(i.prazo);
+      if (!d || d < iniDia(ini) || d >= fim) return;
+      var p = i.projetoId ? projs[i.projetoId] : null;
+      out.push({
+        chave: 'tl:' + i.id, id: i.id, titulo: i.texto, data: String(i.prazo).slice(0, 10), marco: !!i.marco, status: i.status,
+        fonteId: p ? 'proj:' + p.id : 'principal', cor: p ? corProjeto(p.id) : COR_PRINCIPAL,
+        rotulo: p ? rotuloProj('', p.nome, p.tipo) : '', responsaveis: [], concluida: i.status === 'realizado',
+        atrasada: i.status !== 'realizado' && d < hoje(), projetoId: p ? p.id : '', local: true, tipo: i.tipo
+      });
+    });
+    return out;
+  }
+  NFV.tarefasLocais = tarefasLocais;
+
+  /* ======================================================================
+     COMPONENTE DE CALENDÁRIO (usado no principal, nos projetos e nos espaços)
+     ====================================================================== */
+  var estiloId = 'nfEstiloCalV2';
+  var estilo = document.createElement('style');
+  estilo.id = estiloId;
+  estilo.textContent = [
+    'body.nf-cal-aberto{overflow:hidden}',
+    'body.nf-cal-aberto .modal{z-index:100010}',
+    'body.nf-cal-aberto .toast{z-index:100020}',
+    '.nf-cal,.nf-ct{color:var(--tx,#14172B);font-size:14px}',
+    '.nf-cal{position:fixed;inset:0;z-index:99990;display:none;flex-direction:column;background:var(--bg,#F5F6FB)}',
+    '.nf-cal.nf-aberto{display:flex}',
+    '.nf-cal button,.nf-ct button{font:inherit;color:inherit;cursor:pointer}',
+    '.nf-cal svg,.nf-ct svg{width:20px;height:20px;display:block}',
+    '.nf-cal-topo{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:calc(12px + env(safe-area-inset-top,0px)) 18px 10px;border-bottom:1px solid var(--borda,#E2E5F0);background:var(--card,#fff)}',
+    '.nf-cal-voltar{display:inline-flex;align-items:center;gap:6px;padding:8px 14px 8px 8px;border-radius:12px;border:1px solid var(--borda,#E2E5F0);background:transparent;font-weight:700}',
+    '.nf-cal-titulo{flex:1;min-width:150px}',
+    '.nf-cal-titulo small{display:block;font-size:10px;font-weight:800;letter-spacing:1.2px;opacity:.7;color:inherit}',
+    '.nf-cal-titulo h2{margin:0;font-size:20px;line-height:1.25}',
+    '.nf-cal-rapido{display:flex;align-items:center;gap:10px;padding:10px 18px;border-bottom:1px solid var(--borda,#E2E5F0);background:var(--card,#fff);flex-wrap:wrap}',
+    '.nf-cal-rapido input{flex:1;min-width:200px;padding:11px 16px;border-radius:14px;border:1px solid var(--borda,#DDDDE8);background:transparent;color:inherit;font:inherit;outline:none}',
+    '.nf-cal-rapido input:focus{border-color:var(--azul,#2F5BFF)}',
+    '.nf-cal-rapido button{padding:10px 18px;border-radius:13px;border:1px solid var(--borda,#DDDDE8);background:transparent;font-weight:700}',
+    '.nf-cal-msg{flex-basis:100%;font-size:12px;opacity:.8}',
+    '.nf-cal-msg.nf-erro{color:#E5202E;opacity:1}',
+    '.nf-cal-corpo{flex:1;min-height:0;display:flex}',
+    /* componente */
+    '.nf-ct{display:flex;flex-direction:column;min-width:0;min-height:0;flex:1}',
+    '.nf-ct-barra{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 12px}',
+    '.nf-ct-titulo{flex:1;min-width:140px;font-size:18px;font-weight:800;line-height:1.25}',
+    '.nf-ct-nav{display:flex;align-items:center;gap:6px}',
+    '.nf-ct-icone{width:36px;height:36px;display:grid;place-items:center;border-radius:12px;border:1px solid var(--borda,#E2E5F0);background:transparent}',
+    '.nf-ct-hoje{padding:8px 14px;border-radius:12px;border:1px solid var(--borda,#E2E5F0);background:transparent;font-weight:700}',
+    '.nf-ct-seg{display:inline-flex;padding:3px;gap:2px;border-radius:13px;background:rgba(127,127,127,.14)}',
+    '.nf-ct-seg button{padding:7px 13px;border:none;border-radius:10px;background:transparent;font-weight:700;font-size:13px;opacity:.75}',
+    '.nf-ct-seg button.nf-sel{background:var(--card,#fff);opacity:1;box-shadow:0 1px 4px rgba(0,0,0,.18)}',
+    '.nf-ct-novo{display:inline-flex;align-items:center;gap:6px;padding:9px 16px 9px 12px;border:none;border-radius:13px;font-weight:800;background:var(--grad-acento,var(--azul,#2F5BFF));color:var(--on-acento,#fff)}',
+    '.nf-ct-novo svg{width:18px;height:18px}',
+    '.nf-ct-area{flex:1;min-height:0;display:flex;gap:16px}',
+    '.nf-ct-principal{flex:1;min-width:0;overflow:auto}',
+    '.nf-ct-lateral{width:290px;flex:none;overflow:auto}',
+    '@media (max-width:980px){.nf-ct-area{flex-direction:column;overflow:auto}.nf-ct-principal{overflow:visible;flex:none}.nf-ct-lateral{width:auto;overflow:visible}}',
+    '@media (max-width:700px){.nf-ct-novo span{display:none}.nf-ct-novo{padding:9px}}',
+    /* chips e blocos */
+    '.nf-ct-chip{display:flex;align-items:center;gap:6px;max-width:100%;padding:3px 7px;border-radius:7px;border:none;border-left:3px solid var(--c);background:color-mix(in srgb,var(--c) 18%,var(--card,#fff));font-size:11.5px;font-weight:600;text-align:left;overflow:hidden;white-space:nowrap}',
+    '.nf-ct-chip span{overflow:hidden;text-overflow:ellipsis}',
+    '.nf-ct-chip.nf-tar{border-left-style:dashed;background:transparent;border:1px dashed var(--c);border-left-width:3px}',
+    '.nf-ct-chip.nf-feita span{text-decoration:line-through;opacity:.6}',
+    '.nf-ct-chip.nf-atrasada{box-shadow:0 0 0 1px #E5202E}',
+    '.nf-ct-chip svg{width:12px;height:12px;flex:none;fill:var(--c);stroke:var(--c)}',
+    '.nf-ct-diatodo{display:flex;flex-wrap:wrap;gap:5px;margin:0 0 8px}',
+    '.nf-ct-diatodo .nf-ct-chip{width:auto;max-width:260px;padding:5px 10px;border-radius:999px;font-size:12px}',
+    /* grade de horas */
+    '.nf-ct-grade{position:relative;display:flex;border:1px solid var(--borda,#E2E5F0);border-radius:18px;background:var(--card,#fff);overflow:hidden}',
+    '.nf-ct-gutter{flex:none;width:52px;position:relative;border-right:1px solid var(--borda,#E2E5F0)}',
+    '.nf-ct-gutter .nf-h{position:absolute;right:8px;transform:translateY(-50%);font-size:11px;opacity:.65;font-weight:600}',
+    '.nf-ct-cols{flex:1;display:flex;min-width:0}',
+    '.nf-ct-col{position:relative;flex:1;min-width:0;border-left:1px solid var(--borda,#E2E5F0);cursor:cell}',
+    '.nf-ct-col:first-child{border-left:none}',
+    '.nf-ct-col .nf-linha{position:absolute;left:0;right:0;border-top:1px solid var(--borda,#E2E5F0);opacity:.7;pointer-events:none}',
+    '.nf-ct-col.nf-hoje{background:color-mix(in srgb,var(--azul,#2F5BFF) 5%,transparent)}',
+    '.nf-ct-ev{position:absolute;overflow:hidden;padding:4px 8px;text-align:left;border:none;border-left:4px solid var(--c);border-radius:9px;background:color-mix(in srgb,var(--c) 20%,var(--card,#fff));box-shadow:0 1px 3px rgba(0,0,0,.14);line-height:1.25}',
+    '.nf-ct-ev:hover{z-index:3;box-shadow:0 4px 12px rgba(0,0,0,.25)}',
+    '.nf-ct-ev b{display:block;font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+    '.nf-ct-ev small{display:block;font-size:11px;opacity:.78;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+    '.nf-ct-ev.nf-conv{border-left-style:dashed}',
+    '.nf-ct-agora{position:absolute;left:0;right:0;height:0;border-top:2px solid #E5202E;z-index:4;pointer-events:none}',
+    '.nf-ct-agora::before{content:"";position:absolute;left:-5px;top:-6px;width:10px;height:10px;border-radius:50%;background:#E5202E}',
+    '.nf-ct-pill{position:absolute;left:4px;transform:translateY(-50%);z-index:5;padding:2px 7px;border-radius:999px;background:#E5202E;color:#fff;font-size:11px;font-weight:800;pointer-events:none}',
+    '.nf-ct-inline{position:absolute;left:4px;right:4px;z-index:6;display:flex;gap:6px;padding:5px;border-radius:12px;background:var(--card,#fff);border:2px solid var(--azul,#2F5BFF);box-shadow:0 8px 22px rgba(0,0,0,.3)}',
+    '.nf-ct-inline input{flex:1;min-width:0;border:none;background:transparent;color:inherit;font:inherit;outline:none;padding:4px 6px}',
+    '.nf-ct-inline small{align-self:center;opacity:.65;font-weight:700;white-space:nowrap}',
+    '.nf-ct-semana-cab{display:flex;margin:0 0 6px 52px;position:sticky;top:0;z-index:7;background:var(--bg,#F5F6FB)}',
+    '.nf-ct-semana-cab>div{flex:1;min-width:0;padding:8px 4px;text-align:center;border-radius:12px;cursor:pointer}',
+    '.nf-ct-semana-cab>div small{display:block;font-size:10px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;opacity:.65}',
+    '.nf-ct-semana-cab>div b{font-size:19px}',
+    '.nf-ct-semana-cab>div.nf-hoje{background:var(--grad-acento,var(--azul,#2F5BFF));color:var(--on-acento,#fff)}',
+    '.nf-ct-semana-dt{display:flex;margin:0 0 8px 52px}',
+    '.nf-ct-semana-dt>div{flex:1;min-width:0;padding:0 3px;display:flex;flex-direction:column;gap:3px}',
+    /* mês */
+    '.nf-ct-mes{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));border:1px solid var(--borda,#E2E5F0);border-radius:18px;overflow:hidden;background:var(--card,#fff)}',
+    '.nf-ct-mes .nf-cabm{padding:8px 4px;text-align:center;font-size:10px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;opacity:.65;border-bottom:1px solid var(--borda,#E2E5F0)}',
+    '.nf-ct-cel{min-height:104px;padding:6px 6px 4px;border-top:1px solid var(--borda,#E2E5F0);border-left:1px solid var(--borda,#E2E5F0);background:transparent;border-right:none;border-bottom:none;text-align:left;display:flex;flex-direction:column;gap:3px;cursor:pointer;min-width:0}',
+    '.nf-ct-cel:nth-child(7n+8){border-left:none}',
+    '.nf-ct-cel.nf-fora{opacity:.45}',
+    '.nf-ct-cel .nf-n{align-self:flex-start;min-width:26px;height:26px;display:grid;place-items:center;border-radius:50%;font-weight:700;font-size:13px}',
+    '.nf-ct-cel.nf-hoje .nf-n{background:var(--grad-acento,var(--azul,#2F5BFF));color:var(--on-acento,#fff)}',
+    '.nf-ct-cel .nf-mais{font-size:11px;opacity:.7;font-weight:700}',
+    '@media (max-width:700px){.nf-ct-cel{min-height:62px}.nf-ct-cel .nf-ct-chip span{display:none}.nf-ct-cel .nf-ct-chip{padding:3px;border-radius:50%;width:10px;height:10px;border-left-width:0;background:var(--c)}}',
+    /* equipe */
+    '.nf-eq-semana{display:flex;gap:6px;margin:0 0 10px;overflow-x:auto}',
+    '.nf-eq-semana button{flex:1;min-width:70px;padding:8px 6px;border-radius:12px;border:1px solid var(--borda,#E2E5F0);background:var(--card,#fff);text-align:center}',
+    '.nf-eq-semana button small{display:block;font-size:10px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;opacity:.65}',
+    '.nf-eq-semana button b{font-size:17px}',
+    '.nf-eq-semana button.nf-sel{background:var(--grad-acento,var(--azul,#2F5BFF));color:var(--on-acento,#fff);border-color:transparent}',
+    '.nf-eq-semana button i{display:block;font-style:normal;font-size:10.5px;opacity:.8;margin-top:2px}',
+    '.nf-eq-livre{margin:0 0 10px;padding:10px 14px;border-radius:14px;border:1px solid var(--borda,#E2E5F0);background:var(--card,#fff);font-size:13px;line-height:1.5}',
+    '.nf-eq-livre b{font-weight:800}',
+    '.nf-eq-rolagem{overflow:auto;border:1px solid var(--borda,#E2E5F0);border-radius:16px;background:var(--card,#fff)}',
+    '.nf-eq{display:grid;min-width:880px}',
+    '.nf-eq .nf-eq-cab{padding:8px 0;text-align:left;font-size:10.5px;font-weight:700;border-bottom:1px solid var(--borda,#E2E5F0);border-left:1px solid var(--borda,#E2E5F0);opacity:.8;padding-left:4px}',
+    '.nf-eq .nf-eq-nome{padding:10px 12px;border-bottom:1px solid var(--borda,#E2E5F0);position:sticky;left:0;background:var(--card,#fff);z-index:3;display:flex;flex-direction:column;gap:2px;font-size:13px;font-weight:700}',
+    '.nf-eq .nf-eq-nome small{font-weight:500;opacity:.7;font-size:11px}',
+    '.nf-eq .nf-eq-trilha{position:relative;border-bottom:1px solid var(--borda,#E2E5F0);border-left:1px solid var(--borda,#E2E5F0);background-image:repeating-linear-gradient(to right,transparent 0,transparent calc(var(--hp) - 1px),var(--borda,#E2E5F0) calc(var(--hp) - 1px),var(--borda,#E2E5F0) var(--hp))}',
+    '.nf-eq .nf-eq-bloco{position:absolute;height:26px;display:flex;align-items:center;padding:0 8px;border-radius:8px;border-left:4px solid var(--c);background:color-mix(in srgb,var(--c) 24%,var(--card,#fff));font-size:11.5px;font-weight:700;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;border-top:none;border-right:none;border-bottom:none;text-align:left}',
+    '.nf-eq .nf-eq-prazo{position:absolute;right:6px;top:6px;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;border:1px dashed var(--c,#8E96B5)}',
+    '.nf-eq .nf-eq-agora{position:absolute;top:0;bottom:0;width:2px;background:#E5202E;pointer-events:none;z-index:2}',
+    /* lateral */
+    '.nf-ct-card{margin:0 0 14px;padding:14px;border:1px solid var(--borda,#E2E5F0);border-radius:18px;background:var(--card,#fff)}',
+    '.nf-ct-card h4{margin:0 0 10px;font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;opacity:.7}',
+    '.nf-ct-mini-cab{display:flex;align-items:center;justify-content:space-between;margin:0 0 8px}',
+    '.nf-ct-mini-cab b{font-size:14px}',
+    '.nf-ct-mini-cab button{width:28px;height:28px;display:grid;place-items:center;border:none;border-radius:9px;background:transparent}',
+    '.nf-ct-mini-cab button svg{width:16px;height:16px}',
+    '.nf-ct-mini{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;text-align:center}',
+    '.nf-ct-mini .nf-s{font-size:10px;font-weight:800;opacity:.55;padding:2px 0}',
+    '.nf-ct-mini button{position:relative;height:32px;border:none;border-radius:10px;background:transparent;font-size:12.5px;font-weight:600}',
+    '.nf-ct-mini button.nf-fora{opacity:.35}',
+    '.nf-ct-mini button.nf-hoje{background:var(--grad-acento,var(--azul,#2F5BFF));color:var(--on-acento,#fff);font-weight:800}',
+    '.nf-ct-mini button.nf-sel:not(.nf-hoje){box-shadow:inset 0 0 0 2px var(--azul,#2F5BFF)}',
+    '.nf-ct-mini button i{position:absolute;left:50%;bottom:3px;width:5px;height:5px;margin-left:-2.5px;border-radius:50%;background:var(--azul,#2F5BFF)}',
+    '.nf-ct-leg{display:flex;flex-direction:column;gap:2px}',
+    '.nf-ct-leg .nf-grupo{margin:8px 0 2px;font-size:10.5px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;opacity:.55}',
+    '.nf-ct-leg label{display:flex;align-items:center;gap:9px;padding:5px 4px;border-radius:9px;font-size:13px;cursor:pointer;width:auto;margin:0}',
+    '.nf-ct-leg label:hover{background:rgba(127,127,127,.12)}',
+    '.nf-ct-leg input{accent-color:var(--c);flex:none;width:16px;height:16px;margin:0}',
+    '.nf-ct-leg i{flex:none;width:11px;height:11px;border-radius:4px;background:var(--c)}',
+    '.nf-ct-leg span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+    '.nf-ct-lista{display:flex;flex-direction:column;gap:7px}',
+    '.nf-ct-item{display:flex;align-items:center;gap:10px;width:100%;padding:8px 10px;border-radius:12px;border:1px solid var(--borda,#E2E5F0);background:var(--card,#fff);text-align:left;border-left:5px solid var(--c,#999)}',
+    '.nf-ct-item .nf-hora{flex:none;width:64px;font-size:11.5px;font-weight:800;opacity:.85}',
+    '.nf-ct-item .nf-t{flex:1;min-width:0}',
+    '.nf-ct-item .nf-t b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}',
+    '.nf-ct-item .nf-t small{display:block;opacity:.7;font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+    '.nf-ct-item.nf-tar{border-style:dashed;border-left-style:solid}',
+    '.nf-ct-item.nf-feita .nf-t b{text-decoration:line-through;opacity:.6}',
+    '.nf-ct-vazio{padding:18px;text-align:center;opacity:.65;font-size:13px;border:1px dashed var(--borda,#DDD);border-radius:14px}',
+    '.nf-ct-carregando{opacity:.55;transition:opacity .15s}',
+    /* janela de evento */
+    '.nf-ev-campo{display:block;margin:0 0 12px}',
+    '.nf-ev-campo>span{display:block;margin:0 0 5px;font-size:12px;font-weight:800;letter-spacing:.3px;opacity:.75}',
+    '.nf-ev-campo input[type=text],.nf-ev-campo input[type=date],.nf-ev-campo input[type=time],.nf-ev-campo select,.nf-ev-campo textarea{width:100%;padding:10px 12px;border-radius:12px;border:1px solid var(--borda,#DDDDE8);background:transparent;color:inherit;font:inherit;font-size:14px;box-sizing:border-box}',
+    '.nf-ev-campo select option{color:#14172B;background:#fff}',
+    '.nf-ev-campo textarea{min-height:70px;resize:vertical}',
+    '.nf-ev-par{display:grid;grid-template-columns:1fr 1fr;gap:10px}',
+    '.nf-ev-chk{display:flex;align-items:center;gap:8px;margin:0 0 12px;font-size:14px;font-weight:600;cursor:pointer;width:auto}',
+    '.nf-ev-pessoas{display:flex;flex-wrap:wrap;gap:6px}',
+    '.nf-ev-pessoas label{display:inline-flex;align-items:center;gap:6px;padding:6px 11px;border-radius:999px;border:1px solid var(--borda,#DDDDE8);font-size:13px;cursor:pointer;width:auto;margin:0}',
+    '.nf-ev-pessoas label.nf-on{background:var(--azul,#2F5BFF);color:var(--on-acento,#fff);border-color:transparent}',
+    '.nf-ev-pessoas input{display:none}',
+    '.nf-ev-aviso{margin:0 0 12px;padding:9px 12px;border-radius:12px;border-left:4px solid #FFB300;background:rgba(255,179,0,.14);font-size:13px;line-height:1.4}',
+    '.nf-ev-erro{margin:0 0 12px;padding:9px 12px;border-radius:12px;border-left:4px solid #E5202E;background:rgba(229,32,46,.12);font-size:13px}',
+    '.nf-ev-mais{border:none;background:transparent;color:var(--azul,#2F5BFF);font:inherit;font-size:13px;font-weight:700;text-decoration:underline;padding:0;margin:0 0 12px;cursor:pointer}',
+    /* folha do dia, como uma folha de calendário */
+    '.nf-ct-folha{position:relative;display:flex;align-items:center;gap:18px;padding:20px 24px;margin:0 0 14px;border-radius:22px;color:var(--on-acento,#fff);background:var(--grad-acento,var(--azul,#2F5BFF));box-shadow:0 14px 34px rgba(0,0,0,.2);overflow:visible}',
+    '.nf-ct-folha::before,.nf-ct-folha::after{content:"";position:absolute;top:-10px;width:13px;height:28px;border-radius:8px;background:rgba(255,255,255,.85);box-shadow:0 2px 5px rgba(0,0,0,.3)}',
+    '.nf-ct-folha::before{left:34px}.nf-ct-folha::after{right:34px}',
+    '.nf-ct-folha .nf-num{font-size:58px;font-weight:800;line-height:1;min-width:72px;text-align:center}',
+    '.nf-ct-folha .nf-txt h3{margin:0 0 4px;font-size:22px}',
+    '.nf-ct-folha .nf-txt p{margin:0;font-size:13.5px;opacity:.92;line-height:1.45}',
+    '@media (max-width:700px){.nf-ct-folha{padding:16px;gap:12px}.nf-ct-folha .nf-num{font-size:44px;min-width:54px}.nf-ct-folha .nf-txt h3{font-size:18px}}',
+    /* painéis laterais: semana, projetos e meses */
+    '.nf-sem{display:flex;align-items:flex-end;gap:6px;height:84px;margin-top:4px}',
+    '.nf-sem>div{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;height:100%;justify-content:flex-end}',
+    '.nf-sem .nf-b{width:100%;min-height:3px;border-radius:6px 6px 3px 3px;background:var(--azul,#2F5BFF);opacity:.85}',
+    '.nf-sem .nf-b.nf-hoje{background:#E5202E}',
+    '.nf-sem small{font-size:10px;font-weight:700;opacity:.65}',
+    '.nf-sem-res{margin:8px 0 0;font-size:12px;opacity:.8}',
+    '.nf-pm-linha{margin:0 0 9px}',
+    '.nf-pm-nome{display:flex;align-items:center;gap:7px;margin:0 0 3px;font-size:12px;font-weight:700}',
+    '.nf-pm-nome i{flex:none;width:9px;height:9px;border-radius:3px;background:var(--c)}',
+    '.nf-pm-nome span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+    '.nf-pm-trilho{position:relative;height:16px;border-radius:6px;background:rgba(127,127,127,.12)}',
+    '.nf-pm-barra{position:absolute;top:2px;bottom:2px;border-radius:5px;background:var(--c);opacity:.85}',
+    '.nf-pm-ponto{position:absolute;top:1px;width:8px;height:14px;margin-left:-4px;border-radius:3px;background:var(--c);border:1px solid var(--card,#fff)}',
+    '.nf-pm-hoje{position:absolute;top:-3px;bottom:-3px;width:2px;background:#E5202E}',
+    '.nf-pm-eixo{display:flex;justify-content:space-between;font-size:10px;opacity:.6;margin:2px 0 8px}',
+    '.nf-ct-mini.nf-compacto button{height:24px;font-size:11px;border-radius:7px}',
+    '.nf-ct-mini.nf-compacto button i{bottom:1px}',
+    '.nf-ct-meses-tit{margin:10px 0 6px;font-size:13px;font-weight:800}',
+    /* entrada para o calendário completo na tela inicial */
+    '.nf-cal-abrir{display:inline-flex;align-items:center;gap:7px;padding:8px 14px;border-radius:12px;border:none;background:var(--grad-acento,var(--azul,#2F5BFF));color:var(--on-acento,#fff);font:inherit;font-size:13px;font-weight:800;cursor:pointer;box-shadow:0 6px 16px rgba(0,0,0,.25)}',
+    '.nf-cal-abrir svg{width:17px;height:17px}',
+    '@media (max-width:700px){.nf-cal-abrir span{display:none}.nf-cal-abrir{padding:8px 10px}}',
+    '.nf-cal-titulo-link{cursor:pointer;border-radius:12px;transition:background .15s}',
+    '.nf-cal-titulo-link:hover,.nf-cal-titulo-link:focus-visible{background:rgba(127,127,127,.14);outline:none}',
+    '.nf-cal-titulo-link small::after{content:"  ·  abrir calendário completo";color:var(--tx,#fff);opacity:.85;font-weight:700;letter-spacing:.3px;text-transform:none}'
+  ].join('\n');
+  document.head.appendChild(estilo);
+
+  var tarefaIcone = '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+  var marcoIcone = '<svg viewBox="0 0 24 24" aria-hidden="true" stroke-width="1.5" stroke-linejoin="round"><path d="M12 3.5l8 8.5-8 8.5L4 12z"/></svg>';
+
+  function tituloExibido(E) { return E.rotulo ? E.rotulo + ' · ' + E.titulo : E.titulo; }
+  NFV.tituloEvento = tituloExibido;
+
+  NFV.criarCalendario = function (cfg) {
+    var st = {
+      modo: cfg.modo || (cfg.modos && cfg.modos[0] && cfg.modos[0][0]) || 'mes', ref: cfg.ref ? iniDia(cfg.ref) : hoje(),
+      ocultas: {}, eventos: [], tarefas: [], membros: [], carregando: false, diaEquipe: null, inline: null, seq: 0
+    };
+    var raiz = h('div', 'nf-ct');
+    var barra = h('div', 'nf-ct-barra');
+    var area = h('div', 'nf-ct-area');
+    var principal = h('div', 'nf-ct-principal');
+    var lateral = h('div', 'nf-ct-lateral');
+    area.appendChild(principal);
+    if (cfg.lateral !== false) area.appendChild(lateral);
+    raiz.appendChild(barra);
+    raiz.appendChild(area);
+
+    var tit = h('div', 'nf-ct-titulo');
+    var nav = h('div', 'nf-ct-nav');
+    var bAnt = h('button', 'nf-ct-icone'); bAnt.type = 'button'; bAnt.setAttribute('aria-label', 'Anterior'); bAnt.appendChild(svgIco('esq'));
+    var bHoje = h('button', 'nf-ct-hoje', 'Hoje'); bHoje.type = 'button';
+    var bProx = h('button', 'nf-ct-icone'); bProx.type = 'button'; bProx.setAttribute('aria-label', 'Próximo'); bProx.appendChild(svgIco('dir'));
+    nav.appendChild(bAnt); nav.appendChild(bHoje); nav.appendChild(bProx);
+    var seg = h('div', 'nf-ct-seg');
+    seg.setAttribute('role', 'tablist');
+    (cfg.modos || [['mes', 'Mês']]).forEach(function (m) {
+      var b = h('button', null, m[1]);
+      b.type = 'button';
+      b.setAttribute('data-modo', m[0]);
+      b.setAttribute('role', 'tab');
+      b.addEventListener('click', function () { st.modo = m[0]; fecharInline(); desenhar(); recarregar(); rolarAgora(); });
+      seg.appendChild(b);
+    });
+    barra.appendChild(tit);
+    barra.appendChild(nav);
+    if ((cfg.modos || []).length > 1) barra.appendChild(seg);
+    if (cfg.extrasBarra) cfg.extrasBarra(barra);
+    if (cfg.aoCriar) {
+      var bNovo = h('button', 'nf-ct-novo');
+      bNovo.type = 'button';
+      bNovo.setAttribute('data-acao', 'novo-evento');
+      bNovo.appendChild(svgIco('mais'));
+      bNovo.appendChild(h('span', null, 'Evento'));
+      bNovo.addEventListener('click', function () { cfg.aoCriar({ dia: st.ref, minutos: null }); });
+      barra.appendChild(bNovo);
+    }
+
+    /* ---------- dados visíveis ---------- */
+    function visiveis(lista) { return lista.filter(function (x) { return !st.ocultas[x.fonteId]; }); }
+    function eventosDoDia(dia) {
+      var a = iniDia(dia).getTime(), b = somaDias(iniDia(dia), 1).getTime();
+      var inteiros = [], horarios = [];
+      visiveis(st.eventos).forEach(function (n) {
+        if (!(n.ini.getTime() < b && n.fim.getTime() > a)) return;
+        if (n.inteiro) { inteiros.push(n); return; }
+        var i = Math.max(n.ini.getTime(), a), f = Math.min(n.fim.getTime(), b);
+        var mi = Math.round((i - a) / 60000);
+        horarios.push({ n: n, ini: mi, fim: Math.max(Math.round((f - a) / 60000), mi + 20) });
+      });
+      horarios.sort(function (x, y) { return x.ini - y.ini || y.fim - x.fim; });
+      return { inteiros: inteiros, horarios: horarios };
+    }
+    function tarefasDoDia(dia) {
+      var k = ymd(dia);
+      return visiveis(st.tarefas).filter(function (t) { return t.data === k; });
+    }
+    function indice() {
+      var mapa = {};
+      function ao(k) { return mapa[k] || (mapa[k] = { ev: 0, tar: 0, min: 0 }); }
+      visiveis(st.eventos).forEach(function (n) {
+        var d = iniDia(n.ini);
+        for (var k = 0; k < 40 && d.getTime() < n.fim.getTime(); k++) {
+          var r = ao(ymd(d)); r.ev++;
+          if (!n.inteiro) { var a = Math.max(n.ini.getTime(), d.getTime()), b = Math.min(n.fim.getTime(), somaDias(d, 1).getTime()); r.min += Math.max(0, Math.round((b - a) / 60000)); }
+          d = somaDias(d, 1);
+        }
+      });
+      visiveis(st.tarefas).forEach(function (t) { ao(t.data).tar++; });
+      return mapa;
+    }
+    function periodo() {
+      var base = st.ref;
+      var a = iniSemana(iniMes(base));
+      var b = somaDias(iniSemana(new Date(base.getFullYear(), base.getMonth() + 1, 0)), 7);
+      var s = iniSemana(base);
+      var fimMax = Math.max(b.getTime(), somaDias(s, 28).getTime());
+      if (cfg.tresMeses) fimMax = Math.max(fimMax, somaDias(iniSemana(new Date(base.getFullYear(), base.getMonth() + 3, 0)), 7).getTime());
+      return [new Date(Math.min(a.getTime(), s.getTime())), new Date(fimMax)];
+    }
+    async function recarregar() {
+      var meu = ++st.seq;
+      st.carregando = true;
+      raiz.classList.add('nf-ct-carregando');
+      try {
+        var p = periodo();
+        var r = await cfg.carregar(p[0], p[1]);
+        if (meu !== st.seq) return;
+        st.eventos = r.eventos || [];
+        st.tarefas = r.tarefas || [];
+        st.membros = r.membros || [];
+      } catch (e) {
+        /* sem internet: mantém o que já tinha */
+      } finally {
+        if (meu === st.seq) { st.carregando = false; raiz.classList.remove('nf-ct-carregando'); if (!st.inline) desenhar(); }
+      }
+    }
+
+    /* ---------- peças de desenho ---------- */
+    function chipEvento(n, curto) {
+      var c = h('button', 'nf-ct-chip');
+      c.type = 'button';
+      c.style.setProperty('--c', n.cor);
+      c.setAttribute('data-chave', n.chave);
+      c.title = tituloExibido(n) + (n.inteiro ? '' : ' (' + hhmm(n.ini) + ' – ' + hhmm(n.fim) + ')');
+      c.appendChild(h('span', null, (n.inteiro || curto === false ? '' : hhmm(n.ini) + ' ') + n.titulo));
+      c.addEventListener('click', function (e) { e.stopPropagation(); cfg.aoAbrirEvento && cfg.aoAbrirEvento(n); });
+      return c;
+    }
+    function chipTarefa(t) {
+      var c = h('button', 'nf-ct-chip nf-tar' + (t.concluida ? ' nf-feita' : '') + (t.atrasada ? ' nf-atrasada' : ''));
+      c.type = 'button';
+      c.style.setProperty('--c', t.cor);
+      c.setAttribute('data-chave', t.chave);
+      c.title = (t.marco ? 'Marco: ' : 'Prazo: ') + t.titulo + (t.rotulo ? ' (' + t.rotulo + ')' : '');
+      var i = document.createElement('span');
+      i.innerHTML = t.marco ? marcoIcone : tarefaIcone;
+      c.appendChild(i.firstChild);
+      c.appendChild(h('span', null, t.titulo));
+      c.addEventListener('click', function (e) { e.stopPropagation(); cfg.aoAbrirTarefa && cfg.aoAbrirTarefa(t); });
+      return c;
+    }
+    function colunaDoDia(dia) {
+      var col = h('div', 'nf-ct-col' + (mesmoDia(dia, new Date()) ? ' nf-hoje' : ''));
+      col.style.height = (24 * HH) + 'px';
+      col.setAttribute('data-dia', ymd(dia));
+      for (var k = 1; k < 24; k++) { var l = h('div', 'nf-linha'); l.style.top = (k * HH) + 'px'; col.appendChild(l); }
+      var info = eventosDoDia(dia);
+      var grupos = [], atual = [], fimG = -1;
+      info.horarios.forEach(function (x) {
+        if (atual.length && x.ini >= fimG) { grupos.push(atual); atual = []; fimG = -1; }
+        atual.push(x); fimG = Math.max(fimG, x.fim);
+      });
+      if (atual.length) grupos.push(atual);
+      grupos.forEach(function (g) {
+        var cols = [];
+        g.forEach(function (x) { var c = 0; while (cols[c] !== undefined && cols[c] > x.ini) c++; cols[c] = x.fim; x.col = c; });
+        g.forEach(function (x) { x.cols = cols.length; });
+      });
+      info.horarios.forEach(function (x) {
+        var b = h('button', 'nf-ct-ev' + (x.n.convite ? ' nf-conv' : ''));
+        b.type = 'button';
+        b.setAttribute('data-chave', x.n.chave);
+        b.style.setProperty('--c', x.n.cor);
+        b.style.top = (x.ini / 60 * HH) + 'px';
+        b.style.height = Math.max(22, (x.fim - x.ini) / 60 * HH - 2) + 'px';
+        b.style.left = (x.col / x.cols * 100) + '%';
+        b.style.width = 'calc(' + (100 / x.cols) + '% - 4px)';
+        b.appendChild(h('b', null, x.n.rotulo && (x.fim - x.ini) >= 40 ? x.n.rotulo + ' · ' + x.n.titulo : x.n.titulo));
+        if ((x.fim - x.ini) >= 40) b.appendChild(h('small', null, hhmm(x.n.ini) + ' – ' + hhmm(x.n.fim) + (x.n.local ? ' · ' + x.n.local : '')));
+        b.title = tituloExibido(x.n) + ' (' + hhmm(x.n.ini) + ' – ' + hhmm(x.n.fim) + ')';
+        b.addEventListener('click', function (e) { e.stopPropagation(); fecharInline(); cfg.aoAbrirEvento && cfg.aoAbrirEvento(x.n); });
+        col.appendChild(b);
+      });
+      if (mesmoDia(dia, new Date())) { var ag = h('div', 'nf-ct-agora'); ag.setAttribute('data-agora', '1'); col.appendChild(ag); }
+      if (cfg.aoCriar) col.addEventListener('click', function (e) {
+        if (e.target !== col && !e.target.classList.contains('nf-linha')) return;
+        var y = e.clientY - col.getBoundingClientRect().top;
+        abrirInline(col, dia, Math.max(0, Math.min(23 * 60 + 30, Math.floor(y / HH * 2) * 30)));
+      });
+      return col;
+    }
+    function gutter() {
+      var g = h('div', 'nf-ct-gutter');
+      g.style.height = (24 * HH) + 'px';
+      for (var k = 1; k < 24; k++) { var t = h('span', 'nf-h', pad(k) + ':00'); t.style.top = (k * HH) + 'px'; g.appendChild(t); }
+      var pill = h('span', 'nf-ct-pill', hhmm(new Date()));
+      pill.setAttribute('data-pill', '1');
+      pill.style.display = 'none';
+      g.appendChild(pill);
+      return g;
+    }
+    function atualizarAgora() {
+      var agora = new Date();
+      var top = (agora.getHours() * 60 + agora.getMinutes()) / 60 * HH;
+      raiz.querySelectorAll('[data-agora]').forEach(function (a) { a.style.top = top + 'px'; });
+      var pill = raiz.querySelector('[data-pill]');
+      if (pill) { pill.style.display = raiz.querySelector('[data-agora]') ? 'block' : 'none'; pill.style.top = top + 'px'; pill.textContent = hhmm(agora); }
+    }
+    function rolarAgora() {
+      if (st.modo !== 'dia' && st.modo !== 'semana') return;
+      var grade = principal.querySelector('.nf-ct-grade');
+      if (!grade) return;
+      var agora = new Date();
+      var hojeNaTela = st.modo === 'dia' ? mesmoDia(st.ref, agora) : iniSemana(st.ref).getTime() === iniSemana(agora).getTime();
+      var rol = cfg.rolagem ? cfg.rolagem() : principal;
+      /* a linha do agora aparece mais ou menos no meio da tela; de manhã cedo nada rola e a "folha" do dia continua visível */
+      var agoraY = (agora.getHours() * 60 + agora.getMinutes()) / 60 * HH;
+      var alvo = hojeNaTela ? agoraY - (rol.clientHeight || 600) * 0.55 : 7 * HH - (rol.clientHeight || 600) * 0.2;
+      var topo = rol === grade ? 0 : grade.getBoundingClientRect().top - rol.getBoundingClientRect().top + rol.scrollTop;
+      rol.scrollTop = Math.max(0, topo + alvo);
+    }
+    function fecharInline() { if (st.inline && st.inline.parentNode) st.inline.parentNode.removeChild(st.inline); st.inline = null; }
+    function abrirInline(col, dia, min) {
+      fecharInline();
+      var box = h('div', 'nf-ct-inline');
+      box.style.top = (min / 60 * HH + 2) + 'px';
+      var inp = document.createElement('input');
+      inp.type = 'text'; inp.maxLength = 200; inp.placeholder = 'Escreva neste horário (Enter) ou Tab para mais opções';
+      inp.setAttribute('aria-label', 'Novo evento às ' + pad(Math.floor(min / 60)) + ':' + pad(min % 60));
+      box.appendChild(h('small', null, pad(Math.floor(min / 60)) + ':' + pad(min % 60)));
+      box.appendChild(inp);
+      var enviado = false;
+      inp.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') { e.stopPropagation(); fecharInline(); return; }
+        if (e.key === 'Tab') { e.preventDefault(); var t = inp.value.trim(); fecharInline(); cfg.aoCriar({ dia: dia, minutos: min, titulo: t, detalhar: true }); return; }
+        if (e.key !== 'Enter' || enviado) return;
+        e.preventDefault();
+        var t2 = inp.value.trim();
+        if (!t2) { fecharInline(); return; }
+        enviado = true;
+        fecharInline();
+        cfg.aoCriar({ dia: dia, minutos: min, titulo: t2 });
+      });
+      box.addEventListener('click', function (e) { e.stopPropagation(); });
+      col.appendChild(box);
+      st.inline = box;
+      setTimeout(function () { inp.focus(); }, 20);
+    }
+
+    /* ---------- visões ---------- */
+    function visaoHoras(dias) {
+      var ini = dias === 1 ? iniDia(st.ref) : iniSemana(st.ref);
+      if (dias === 7) {
+        var cab = h('div', 'nf-ct-semana-cab');
+        var dt = h('div', 'nf-ct-semana-dt');
+        var haDt = false;
+        for (var k = 0; k < 7; k++) {
+          (function (dia) {
+            var c = h('div', mesmoDia(dia, new Date()) ? 'nf-hoje' : '');
+            c.appendChild(h('small', null, DIAS_CURTOS[diaSemana(dia)]));
+            c.appendChild(h('b', null, String(dia.getDate())));
+            c.addEventListener('click', function () { if ((cfg.modos || []).some(function (m) { return m[0] === 'dia'; })) { st.ref = dia; st.modo = 'dia'; desenhar(); recarregar(); rolarAgora(); } });
+            cab.appendChild(c);
+            var info = eventosDoDia(dia), tar = tarefasDoDia(dia);
+            var cel = h('div');
+            info.inteiros.forEach(function (n) { cel.appendChild(chipEvento(n, false)); haDt = true; });
+            tar.forEach(function (t) { cel.appendChild(chipTarefa(t)); haDt = true; });
+            dt.appendChild(cel);
+          })(somaDias(ini, k));
+        }
+        principal.appendChild(cab);
+        if (haDt) principal.appendChild(dt);
+      } else {
+        var info1 = eventosDoDia(ini), tar1 = tarefasDoDia(ini);
+        if (cfg.folhaDia) {
+          var folha = h('div', 'nf-ct-folha');
+          folha.setAttribute('data-folha', '1');
+          folha.appendChild(h('div', 'nf-num', String(ini.getDate())));
+          var tx = h('div', 'nf-txt');
+          var ehHoje = mesmoDia(ini, new Date());
+          tx.appendChild(h('h3', null, ehHoje ? 'Seu dia, hora por hora' : maiuscula(DIAS_LONGOS[diaSemana(ini)])));
+          var totalEv = info1.inteiros.length + info1.horarios.length;
+          tx.appendChild(h('p', null,
+            (totalEv ? totalEv + (totalEv === 1 ? ' evento' : ' eventos') : 'Nenhum evento') +
+            (tar1.length ? ' · ' + tar1.length + (tar1.length === 1 ? ' prazo ou marco' : ' prazos ou marcos') : '') +
+            '. Toque em um horário para escrever nele.' + (ehHoje ? ' A linha vermelha mostra onde você está agora.' : '')));
+          folha.appendChild(tx);
+          principal.appendChild(folha);
+        }
+        if (info1.inteiros.length || tar1.length) {
+          var dd = h('div', 'nf-ct-diatodo');
+          info1.inteiros.forEach(function (n) { dd.appendChild(chipEvento(n, false)); });
+          tar1.forEach(function (t) { dd.appendChild(chipTarefa(t)); });
+          principal.appendChild(dd);
+        }
+      }
+      var grade = h('div', 'nf-ct-grade');
+      grade.appendChild(gutter());
+      var cols = h('div', 'nf-ct-cols');
+      for (var j = 0; j < dias; j++) cols.appendChild(colunaDoDia(somaDias(ini, j)));
+      grade.appendChild(cols);
+      principal.appendChild(grade);
+    }
+    function visaoMes() {
+      var mes = st.ref.getMonth();
+      var ini = iniSemana(iniMes(st.ref));
+      var g = h('div', 'nf-ct-mes');
+      DIAS_CURTOS.forEach(function (n) { g.appendChild(h('div', 'nf-cabm', n)); });
+      for (var k = 0; k < 42; k++) {
+        (function (dia) {
+          var c = h('div', 'nf-ct-cel' + (dia.getMonth() !== mes ? ' nf-fora' : '') + (mesmoDia(dia, new Date()) ? ' nf-hoje' : ''));
+          c.setAttribute('role', 'button');
+          c.setAttribute('tabindex', '0');
+          c.setAttribute('data-dia', ymd(dia));
+          c.appendChild(h('span', 'nf-n', String(dia.getDate())));
+          var info = eventosDoDia(dia);
+          var itens = [];
+          info.inteiros.forEach(function (n) { itens.push(chipEvento(n, false)); });
+          info.horarios.forEach(function (x) { itens.push(chipEvento(x.n, true)); });
+          tarefasDoDia(dia).forEach(function (t) { itens.push(chipTarefa(t)); });
+          itens.slice(0, 3).forEach(function (x) { c.appendChild(x); });
+          if (itens.length > 3) c.appendChild(h('div', 'nf-mais', '+' + (itens.length - 3) + ' mais'));
+          function ir() {
+            st.ref = dia;
+            var temDia = (cfg.modos || []).some(function (m) { return m[0] === 'dia'; });
+            var temSem = (cfg.modos || []).some(function (m) { return m[0] === 'semana'; });
+            if (temDia) st.modo = 'dia'; else if (temSem) st.modo = 'semana';
+            desenhar(); recarregar(); rolarAgora();
+          }
+          c.addEventListener('click', ir);
+          c.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); ir(); } });
+          g.appendChild(c);
+        })(somaDias(ini, k));
+      }
+      principal.appendChild(g);
+    }
+    /* disponibilidade da equipe: quem está ocupado em cada horário do dia */
+    function visaoEquipe() {
+      var dia = st.diaEquipe ? iniDia(st.diaEquipe) : iniDia(st.ref);
+      st.diaEquipe = dia;
+      var H0 = 7, H1 = 21, HP = 62;
+      var membros = st.membros.length ? st.membros : [];
+      var idx = indice();
+      var sem = h('div', 'nf-eq-semana');
+      var ini = iniSemana(dia);
+      for (var k = 0; k < 7; k++) {
+        (function (d) {
+          var b = h('button', mesmoDia(d, dia) ? 'nf-sel' : '');
+          b.type = 'button';
+          b.setAttribute('data-dia', ymd(d));
+          b.appendChild(h('small', null, DIAS_CURTOS[diaSemana(d)]));
+          b.appendChild(h('b', null, String(d.getDate())));
+          var r = idx[ymd(d)];
+          b.appendChild(h('i', null, r && (r.ev || r.tar) ? (r.ev + (r.ev === 1 ? ' evento' : ' eventos')) : 'livre'));
+          b.addEventListener('click', function () { st.diaEquipe = d; st.ref = d; desenhar(); });
+          sem.appendChild(b);
+        })(somaDias(ini, k));
+      }
+      principal.appendChild(sem);
+      if (!membros.length) { principal.appendChild(h('div', 'nf-ct-vazio', 'Nenhum participante para mostrar.')); return; }
+      var info = eventosDoDia(dia);
+      var todos = info.horarios;
+      var diaTodo = info.inteiros;
+      function doMembro(x, id) { return !x.n.participantes.length || x.n.participantes.indexOf(id) >= 0; }
+      void idx;
+      /* horários em que TODOS estão livres (entre 8h e 18h) */
+      var ocupados = [];
+      todos.forEach(function (x) { ocupados.push([x.ini, x.fim]); });
+      ocupados.sort(function (a, b) { return a[0] - b[0]; });
+      var livres = [], cursor = 8 * 60;
+      ocupados.forEach(function (o) { if (o[0] > cursor) livres.push([cursor, Math.min(o[0], 18 * 60)]); cursor = Math.max(cursor, o[1]); });
+      if (cursor < 18 * 60) livres.push([cursor, 18 * 60]);
+      livres = livres.filter(function (l) { return l[1] - l[0] >= 60 && l[0] < 18 * 60; });
+      var fmtM = function (m) { return pad(Math.floor(m / 60)) + ':' + pad(m % 60); };
+      var li = h('div', 'nf-eq-livre');
+      li.appendChild(h('b', null, 'Horário livre para todos: '));
+      li.appendChild(document.createTextNode(livres.length ? livres.slice(0, 4).map(function (l) { return fmtM(l[0]) + ' às ' + fmtM(l[1]); }).join(' · ') : 'não há uma janela de 1 hora entre 8h e 18h neste dia.'));
+      principal.appendChild(li);
+      var roll = h('div', 'nf-eq-rolagem');
+      var g = h('div', 'nf-eq');
+      var larg = (H1 - H0) * HP;
+      g.style.gridTemplateColumns = '170px ' + larg + 'px';
+      g.appendChild(h('div', 'nf-eq-cab', 'Pessoa'));
+      var cabH = h('div', 'nf-eq-cab');
+      cabH.style.position = 'relative';
+      cabH.style.height = '30px';
+      for (var hh = H0; hh < H1; hh++) { var s = h('span', null, pad(hh) + ':00'); s.style.cssText = 'position:absolute;top:8px;left:' + ((hh - H0) * HP + 4) + 'px'; cabH.appendChild(s); }
+      g.appendChild(cabH);
+      var tarefasDia = tarefasDoDia(dia);
+      membros.forEach(function (m) {
+        var meus = todos.filter(function (x) { return doMembro(x, m.id); });
+        var nome = h('div', 'nf-eq-nome');
+        nome.appendChild(h('span', null, m.nome + (m.id === meuId() ? ' (eu)' : '')));
+        var prazosM = tarefasDia.filter(function (t) { return (t.responsaveis || []).indexOf(m.id) >= 0; });
+        var meusDt = diaTodo.filter(function (n) { return !n.participantes.length || n.participantes.indexOf(m.id) >= 0; });
+        nome.appendChild(h('small', null, (meus.length ? meus.length + (meus.length === 1 ? ' compromisso' : ' compromissos') : 'livre') + (meusDt.length ? ' · ' + meusDt.length + ' dia todo' : '')));
+        g.appendChild(nome);
+        var tr = h('div', 'nf-eq-trilha');
+        tr.style.setProperty('--hp', HP + 'px');
+        /* faixas (cada evento em uma linha própria quando se sobrepõe) */
+        var lanes = [];
+        meus.sort(function (a, b) { return a.ini - b.ini; }).forEach(function (x) {
+          var l = 0; while (lanes[l] !== undefined && lanes[l] > x.ini) l++;
+          lanes[l] = x.fim;
+          var ini2 = Math.max(x.ini, H0 * 60), fim2 = Math.min(x.fim, H1 * 60);
+          if (fim2 <= ini2) return;
+          var b = h('button', 'nf-eq-bloco', tituloExibido(x.n));
+          b.type = 'button';
+          b.style.setProperty('--c', x.n.cor);
+          b.style.left = ((ini2 - H0 * 60) / 60 * HP) + 'px';
+          b.style.width = Math.max(24, (fim2 - ini2) / 60 * HP - 2) + 'px';
+          b.style.top = (8 + l * 30) + 'px';
+          b.title = tituloExibido(x.n) + ' (' + (x.n.inteiro ? 'dia todo' : hhmm(x.n.ini) + ' – ' + hhmm(x.n.fim)) + ')';
+          b.addEventListener('click', function () { cfg.aoAbrirEvento && cfg.aoAbrirEvento(x.n); });
+          tr.appendChild(b);
+        });
+        tr.style.height = Math.max(46, 16 + Math.max(1, lanes.length) * 30) + 'px';
+        if (prazosM.length) {
+          var pz = h('span', 'nf-eq-prazo', prazosM.length + (prazosM.length === 1 ? ' prazo hoje' : ' prazos hoje'));
+          pz.title = prazosM.map(function (t) { return t.titulo; }).join(', ');
+          tr.appendChild(pz);
+        }
+        if (mesmoDia(dia, new Date())) {
+          var a = new Date(); var x2 = ((a.getHours() * 60 + a.getMinutes()) - H0 * 60) / 60 * HP;
+          if (x2 >= 0 && x2 <= larg) { var ag = h('div', 'nf-eq-agora'); ag.style.left = x2 + 'px'; tr.appendChild(ag); }
+        }
+        g.appendChild(tr);
+      });
+      roll.appendChild(g);
+      principal.appendChild(roll);
+    }
+
+    /* ---------- painel lateral ---------- */
+    function legenda() {
+      var fontes = cfg.legenda ? cfg.legenda(st) : [];
+      if (!fontes.length) return null;
+      var c = h('div', 'nf-ct-card');
+      c.appendChild(h('h4', null, 'Calendários'));
+      var box = h('div', 'nf-ct-leg');
+      var grupoAtual = null;
+      fontes.forEach(function (f) {
+        if (f.grupo !== grupoAtual) { grupoAtual = f.grupo; if (f.grupo) box.appendChild(h('div', 'nf-grupo', f.grupo)); }
+        var l = h('label');
+        l.style.setProperty('--c', f.cor);
+        var ck = document.createElement('input');
+        ck.type = 'checkbox';
+        ck.checked = !st.ocultas[f.id];
+        ck.setAttribute('data-fonte', f.id);
+        ck.addEventListener('change', function () { if (ck.checked) delete st.ocultas[f.id]; else st.ocultas[f.id] = true; desenhar(); });
+        l.appendChild(ck);
+        l.appendChild(document.createElement('i'));
+        var s = h('span', null, f.rotulo);
+        s.title = f.rotulo;
+        l.appendChild(s);
+        box.appendChild(l);
+      });
+      c.appendChild(box);
+      return c;
+    }
+    function itemLista(n) {
+      var b = h('button', 'nf-ct-item');
+      b.type = 'button';
+      b.style.setProperty('--c', n.cor);
+      b.appendChild(h('span', 'nf-hora', n.inteiro ? 'Dia todo' : hhmm(n.ini) + ' – ' + hhmm(n.fim)));
+      var t = h('span', 'nf-t');
+      t.appendChild(h('b', null, n.titulo));
+      var sub = [];
+      if (n.rotulo) sub.push(n.rotulo);
+      if (n.local) sub.push(n.local);
+      if (n.convite) sub.push('convite de ' + String(n.convite.organizador_nome || n.convite.organizador_email || '').split(' ')[0]);
+      if (sub.length) t.appendChild(h('small', null, sub.join(' · ')));
+      b.appendChild(t);
+      b.addEventListener('click', function () { cfg.aoAbrirEvento && cfg.aoAbrirEvento(n); });
+      return b;
+    }
+    function itemTarefa(t) {
+      var b = h('button', 'nf-ct-item nf-tar' + (t.concluida ? ' nf-feita' : ''));
+      b.type = 'button';
+      b.style.setProperty('--c', t.cor);
+      b.appendChild(h('span', 'nf-hora', t.marco ? 'Marco' : 'Prazo'));
+      var x = h('span', 'nf-t');
+      x.appendChild(h('b', null, t.titulo));
+      if (t.rotulo) x.appendChild(h('small', null, t.rotulo));
+      b.appendChild(x);
+      b.addEventListener('click', function () { cfg.aoAbrirTarefa && cfg.aoAbrirTarefa(t); });
+      return b;
+    }
+    function desenharLateral() {
+      lateral.textContent = '';
+      if (cfg.lateral === false) return;
+      var idx = indice();
+      var c1 = h('div', 'nf-ct-card');
+      var cab = h('div', 'nf-ct-mini-cab');
+      var bA = h('button'); bA.type = 'button'; bA.setAttribute('aria-label', 'Mês anterior'); bA.appendChild(svgIco('esq'));
+      var bP = h('button'); bP.type = 'button'; bP.setAttribute('aria-label', 'Próximo mês'); bP.appendChild(svgIco('dir'));
+      bA.addEventListener('click', function () { st.ref = new Date(st.ref.getFullYear(), st.ref.getMonth() - 1, 1); fecharInline(); desenhar(); recarregar(); });
+      bP.addEventListener('click', function () { st.ref = new Date(st.ref.getFullYear(), st.ref.getMonth() + 1, 1); fecharInline(); desenhar(); recarregar(); });
+      cab.appendChild(bA); cab.appendChild(h('b', null, maiuscula(MESES[st.ref.getMonth()]) + ' de ' + st.ref.getFullYear())); cab.appendChild(bP);
+      c1.appendChild(cab);
+      var mini = h('div', 'nf-ct-mini');
+      DIAS_CURTOS.forEach(function (n) { mini.appendChild(h('div', 'nf-s', n.charAt(0).toUpperCase())); });
+      var ini = iniSemana(iniMes(st.ref));
+      for (var k = 0; k < 42; k++) {
+        (function (dia) {
+          var b = h('button', (dia.getMonth() !== st.ref.getMonth() ? 'nf-fora ' : '') + (mesmoDia(dia, new Date()) ? 'nf-hoje ' : '') + (mesmoDia(dia, st.ref) ? 'nf-sel' : ''), String(dia.getDate()));
+          b.type = 'button';
+          var r = idx[ymd(dia)];
+          if (r && (r.ev || r.tar)) b.appendChild(document.createElement('i'));
+          b.addEventListener('click', function () {
+            st.ref = dia;
+            if (st.modo === 'mes') { var m = (cfg.modos || []).filter(function (x) { return x[0] === 'dia' || x[0] === 'semana'; })[0]; if (m) st.modo = m[0]; }
+            fecharInline(); desenhar(); recarregar(); rolarAgora();
+          });
+          mini.appendChild(b);
+        })(somaDias(ini, k));
+      }
+      c1.appendChild(mini);
+      lateral.appendChild(c1);
+      var leg = legenda();
+      if (leg) lateral.appendChild(leg);
+      var c2 = h('div', 'nf-ct-card');
+      c2.appendChild(h('h4', null, mesmoDia(st.ref, new Date()) ? 'Hoje' : DIAS_LONGOS[diaSemana(st.ref)] + ', ' + st.ref.getDate() + ' ' + MESES_CURTOS[st.ref.getMonth()]));
+      var lista = h('div', 'nf-ct-lista');
+      var info = eventosDoDia(st.ref), tars = tarefasDoDia(st.ref);
+      info.inteiros.forEach(function (n) { lista.appendChild(itemLista(n)); });
+      info.horarios.forEach(function (x) { lista.appendChild(itemLista(x.n)); });
+      tars.forEach(function (t) { lista.appendChild(itemTarefa(t)); });
+      if (!lista.childNodes.length) lista.appendChild(h('div', 'nf-ct-vazio', 'Nada marcado para este dia.'));
+      c2.appendChild(lista);
+      lateral.appendChild(c2);
+      if (cfg.painelSemana) lateral.appendChild(cardSemana(idx));
+      if (cfg.painelProjetos) { var cpj = cardProjetos(); if (cpj) lateral.appendChild(cpj); }
+      if (cfg.tresMeses) lateral.appendChild(cardMeses(idx));
+    }
+    /* horas agendadas em cada dia da semana (como no resumo da semana das suas imagens) */
+    function cardSemana(idx) {
+      var c = h('div', 'nf-ct-card');
+      c.setAttribute('data-card', 'semana');
+      c.appendChild(h('h4', null, 'Esta semana'));
+      var ini = iniSemana(st.ref);
+      var sem = h('div', 'nf-sem');
+      var maxMin = 60, total = 0, nEv = 0;
+      for (var d = 0; d < 7; d++) { var r = idx[ymd(somaDias(ini, d))] || { ev: 0, min: 0 }; maxMin = Math.max(maxMin, r.min); total += r.min; nEv += r.ev; }
+      for (var d2 = 0; d2 < 7; d2++) {
+        var dd = somaDias(ini, d2), rg = idx[ymd(dd)] || { ev: 0, min: 0 };
+        var col = h('div');
+        var b = h('div', 'nf-b' + (mesmoDia(dd, new Date()) ? ' nf-hoje' : ''));
+        b.style.height = Math.max(3, Math.round(rg.min / maxMin * 56)) + 'px';
+        b.title = (rg.min / 60).toFixed(1).replace('.', ',') + ' h agendadas';
+        col.appendChild(b);
+        col.appendChild(h('small', null, DIAS_CURTOS[d2].charAt(0).toUpperCase()));
+        sem.appendChild(col);
+      }
+      c.appendChild(sem);
+      c.appendChild(h('p', 'nf-sem-res', (total / 60).toFixed(1).replace('.', ',') + ' h agendadas · ' + nEv + (nEv === 1 ? ' evento' : ' eventos')));
+      return c;
+    }
+    /* linha do tempo compacta dos projetos: do primeiro ao último prazo nas próximas 4 semanas */
+    function cardProjetos() {
+      var ini = iniSemana(st.ref), DIAS = 28;
+      var porFonte = {};
+      visiveis(st.tarefas).forEach(function (t) {
+        var d = U.data(t.data);
+        if (!d) return;
+        var pos = U.dif(ini, d);
+        if (pos < 0 || pos >= DIAS) return;
+        (porFonte[t.fonteId] = porFonte[t.fonteId] || { cor: t.cor, rotulo: t.rotulo || 'Tarefas', itens: [] }).itens.push(pos);
+      });
+      var chaves = Object.keys(porFonte).slice(0, 6);
+      if (!chaves.length) return null;
+      var c = h('div', 'nf-ct-card');
+      c.setAttribute('data-card', 'projetos');
+      c.appendChild(h('h4', null, 'Projetos · próximas 4 semanas'));
+      chaves.forEach(function (k) {
+        var f = porFonte[k];
+        var menor = Math.min.apply(null, f.itens), maior = Math.max.apply(null, f.itens);
+        var linha = h('div', 'nf-pm-linha');
+        linha.style.setProperty('--c', f.cor);
+        var nome = h('div', 'nf-pm-nome');
+        nome.appendChild(document.createElement('i'));
+        nome.appendChild(h('span', null, f.rotulo));
+        linha.appendChild(nome);
+        var tr = h('div', 'nf-pm-trilho');
+        if (maior > menor) { var br = h('div', 'nf-pm-barra'); br.style.left = (menor / DIAS * 100) + '%'; br.style.width = ((maior - menor + 1) / DIAS * 100) + '%'; tr.appendChild(br); }
+        f.itens.forEach(function (p) { var pt = h('div', 'nf-pm-ponto'); pt.style.left = ((p + .5) / DIAS * 100) + '%'; tr.appendChild(pt); });
+        var ph = U.dif(ini, hoje());
+        if (ph >= 0 && ph < DIAS) { var lh = h('div', 'nf-pm-hoje'); lh.style.left = ((ph + .5) / DIAS * 100) + '%'; tr.appendChild(lh); }
+        linha.appendChild(tr);
+        c.appendChild(linha);
+      });
+      var eixo = h('div', 'nf-pm-eixo');
+      eixo.appendChild(h('span', null, ini.getDate() + ' ' + MESES_CURTOS[ini.getMonth()]));
+      var fimE = somaDias(ini, DIAS - 1);
+      eixo.appendChild(h('span', null, fimE.getDate() + ' ' + MESES_CURTOS[fimE.getMonth()]));
+      c.appendChild(eixo);
+      return c;
+    }
+    /* os dois meses seguintes, em miniatura */
+    function cardMeses(idx) {
+      var c = h('div', 'nf-ct-card');
+      c.setAttribute('data-card', 'meses');
+      c.appendChild(h('h4', null, 'Próximos meses'));
+      [1, 2].forEach(function (n) {
+        var m = new Date(st.ref.getFullYear(), st.ref.getMonth() + n, 1);
+        c.appendChild(h('div', 'nf-ct-meses-tit', maiuscula(MESES[m.getMonth()]) + ' de ' + m.getFullYear()));
+        var mini = h('div', 'nf-ct-mini nf-compacto');
+        DIAS_CURTOS.forEach(function (x) { mini.appendChild(h('div', 'nf-s', x.charAt(0).toUpperCase())); });
+        var ini = iniSemana(m);
+        for (var k = 0; k < 42; k++) {
+          (function (dia) {
+            if (dia.getMonth() !== m.getMonth()) { mini.appendChild(h('span')); return; }
+            var b = h('button', mesmoDia(dia, new Date()) ? 'nf-hoje' : '', String(dia.getDate()));
+            b.type = 'button';
+            var r = idx[ymd(dia)];
+            if (r && (r.ev || r.tar)) b.appendChild(document.createElement('i'));
+            b.addEventListener('click', function () { st.ref = dia; fecharInline(); desenhar(); recarregar(); });
+            mini.appendChild(b);
+          })(somaDias(ini, k));
+        }
+        c.appendChild(mini);
+      });
+      return c;
+    }
+
+    /* ---------- tela ---------- */
+    function rotuloTitulo() {
+      var d = st.ref;
+      if (st.modo === 'dia') return maiuscula(DIAS_LONGOS[diaSemana(d)] + ', ' + d.getDate() + ' de ' + MESES[d.getMonth()]);
+      if (st.modo === 'semana') {
+        var a = iniSemana(d), b = somaDias(a, 6);
+        return a.getMonth() === b.getMonth() ? a.getDate() + ' a ' + b.getDate() + ' de ' + MESES[a.getMonth()] + ' de ' + a.getFullYear() : a.getDate() + ' ' + MESES_CURTOS[a.getMonth()] + ' a ' + b.getDate() + ' ' + MESES_CURTOS[b.getMonth()] + ' de ' + b.getFullYear();
+      }
+      if (st.modo === 'equipe') { var e = st.diaEquipe || d; return 'Disponibilidade · ' + DIAS_LONGOS[diaSemana(e)] + ', ' + e.getDate() + ' de ' + MESES[e.getMonth()]; }
+      return maiuscula(MESES[d.getMonth()] + ' de ' + d.getFullYear());
+    }
+    function desenhar() {
+      var rol = cfg.rolagem ? cfg.rolagem() : principal;
+      var chave = st.modo + '|' + ymd(st.ref) + '|' + (st.diaEquipe ? ymd(st.diaEquipe) : '');
+      var mesma = st.ultimaChave === chave;
+      st.ultimaChave = chave;
+      var yAntes = mesma ? rol.scrollTop : 0;
+      tit.textContent = rotuloTitulo();
+      seg.querySelectorAll('button').forEach(function (b) { var s = b.getAttribute('data-modo') === st.modo; b.classList.toggle('nf-sel', s); b.setAttribute('aria-selected', s ? 'true' : 'false'); });
+      principal.textContent = '';
+      if (st.modo === 'dia') visaoHoras(1);
+      else if (st.modo === 'semana') visaoHoras(7);
+      else if (st.modo === 'equipe') visaoEquipe();
+      else visaoMes();
+      desenharLateral();
+      atualizarAgora();
+      var rol2 = cfg.rolagem ? cfg.rolagem() : principal;
+      if (rol2) rol2.scrollTop = yAntes;
+      if (cfg.aoDesenhar) cfg.aoDesenhar(st);
+    }
+    function passo(s) {
+      fecharInline();
+      if (st.modo === 'dia') st.ref = somaDias(st.ref, s);
+      else if (st.modo === 'semana') st.ref = somaDias(st.ref, 7 * s);
+      else if (st.modo === 'equipe') { st.diaEquipe = somaDias(st.diaEquipe || st.ref, s); st.ref = st.diaEquipe; }
+      else st.ref = new Date(st.ref.getFullYear(), st.ref.getMonth() + s, 1);
+      desenhar(); recarregar(); rolarAgora();
+    }
+    bAnt.addEventListener('click', function () { passo(-1); });
+    bProx.addEventListener('click', function () { passo(1); });
+    bHoje.addEventListener('click', function () { st.ref = hoje(); st.diaEquipe = null; fecharInline(); desenhar(); recarregar(); rolarAgora(); });
+    var timer = null;
+    function iniciar() { clearInterval(timer); timer = setInterval(atualizarAgora, 30000); }
+    function parar() { clearInterval(timer); }
+    return {
+      el: raiz, estado: st, desenhar: desenhar, recarregar: recarregar, rolarAgora: rolarAgora, passo: passo, iniciar: iniciar, parar: parar, fecharInline: fecharInline,
+      definir: function (o) { if (o.modo) st.modo = o.modo; if (o.ref) st.ref = iniDia(o.ref); st.ultimaChave = null; }
+    };
+  };
+
+  /* ======================================================================
+     JANELA ÚNICA DE EVENTO (criar e editar, em qualquer calendário)
+     ====================================================================== */
+  /* op: { evento?, dia?, minutos?, titulo?, destinos:[{id,rotulo,kind,...}], destinoId?, conflitos?(ini,fim,participantes,ignorarChave), aoSalvar() } */
+  NFV.abrirModalEvento = async function (op) {
+    var ev = op.evento || null;
+    var destinos = op.destinos || [];
+    var fundo = h('div', 'nf-v-modal');
+    var folha = h('div', 'nf-v-folha');
+    folha.setAttribute('role', 'dialog');
+    folha.setAttribute('aria-label', ev ? 'Editar evento' : 'Novo evento');
+    folha.appendChild(h('h3', null, ev ? (ev.editavel === false ? 'Evento' : 'Editar evento') : 'Novo evento'));
+    var aviso = h('div');
+    function campo(rotulo, el) { var l = h('label', 'nf-ev-campo'); l.appendChild(h('span', null, rotulo)); l.appendChild(el); return l; }
+    function input(tipo, valor, max) { var i = document.createElement('input'); i.type = tipo; if (valor != null) i.value = valor; if (max) i.maxLength = max; return i; }
+    var base = ev ? ev.ini : (op.dia ? new Date(op.dia) : new Date());
+    if (!ev) { if (op.minutos == null) base.setHours(9, 0, 0, 0); else base.setHours(Math.floor(op.minutos / 60), op.minutos % 60, 0, 0); }
+    var fimBase = ev ? ev.fim : new Date(base.getTime() + 3600000);
+    var inTitulo = input('text', ev ? ev.titulo : (op.titulo || ''), 200);
+    inTitulo.setAttribute('aria-label', 'Título do evento');
+    folha.appendChild(campo('Título', inTitulo));
+    var selDest = document.createElement('select');
+    selDest.setAttribute('aria-label', 'Calendário');
+    destinos.forEach(function (d) { var o = h('option', null, d.rotulo); o.value = d.id; selDest.appendChild(o); });
+    var destinoIni = op.destinoId || (ev ? (ev.fonteId) : (destinos[0] && destinos[0].id));
+    if (destinos.some(function (d) { return d.id === destinoIni; })) selDest.value = destinoIni;
+    if (destinos.length > 1 || (ev && destinos.length)) folha.appendChild(campo('Calendário', selDest));
+    var ckInteiro = document.createElement('input');
+    ckInteiro.type = 'checkbox';
+    ckInteiro.checked = ev ? ev.inteiro : false;
+    var lInt = h('label', 'nf-ev-chk');
+    lInt.appendChild(ckInteiro);
+    lInt.appendChild(document.createTextNode('Dia inteiro'));
+    folha.appendChild(lInt);
+    var par1 = h('div', 'nf-ev-par');
+    var inDataI = input('date', ymd(base)), inHoraI = input('time', hhmm(base));
+    var inDataF = input('date', ymd(fimBase)), inHoraF = input('time', hhmm(fimBase));
+    inDataI.setAttribute('aria-label', 'Data de início'); inHoraI.setAttribute('aria-label', 'Hora de início');
+    inDataF.setAttribute('aria-label', 'Data de término'); inHoraF.setAttribute('aria-label', 'Hora de término');
+    par1.appendChild(campo('Início', inDataI)); par1.appendChild(campo('Hora', inHoraI));
+    var par2 = h('div', 'nf-ev-par');
+    par2.appendChild(campo('Término', inDataF)); par2.appendChild(campo('Hora', inHoraF));
+    folha.appendChild(par1); folha.appendChild(par2);
+    folha.appendChild(aviso);
+    var inLocal = input('text', ev ? ev.local : '', 300);
+    inLocal.setAttribute('aria-label', 'Local');
+    folha.appendChild(campo('Local', inLocal));
+    var inDesc = document.createElement('textarea');
+    inDesc.value = ev ? ev.descricao : '';
+    inDesc.setAttribute('aria-label', 'Descrição');
+    folha.appendChild(campo('Descrição', inDesc));
+    var boxPessoas = h('div');
+    var rotPessoas = h('span', null, 'Participantes');
+    var wrapPessoas = h('div', 'nf-ev-campo');
+    var listaPessoas = h('div', 'nf-ev-pessoas');
+    wrapPessoas.appendChild(rotPessoas);
+    wrapPessoas.appendChild(listaPessoas);
+    boxPessoas.appendChild(wrapPessoas);
+    folha.appendChild(boxPessoas);
+    var erro = h('div', 'nf-ev-erro');
+    erro.hidden = true;
+    folha.appendChild(erro);
+    var maisOp = null;
+    if (ev && ev.origem === 'pessoal' && typeof abrirEditarEventoHome === 'function') {
+      maisOp = h('button', 'nf-ev-mais', 'Mais opções (lembrete, repetição e convidados)');
+      maisOp.type = 'button';
+      maisOp.addEventListener('click', function () { fechar(); if (typeof homeEventos !== 'undefined' && !(typeof eventoHomePorId === 'function' && eventoHomePorId(ev.id))) homeEventos.push(ev.bruto); abrirEditarEventoHome(ev.id); });
+      folha.appendChild(maisOp);
+    }
+    var acoes = h('div', 'nf-v-acoes');
+    var bExcluir = h('button', 'nf-v-btn nf-v-perigo', 'Excluir');
+    bExcluir.type = 'button';
+    var bCancelar = h('button', 'nf-v-btn', 'Cancelar');
+    bCancelar.type = 'button';
+    var bSalvar = h('button', 'nf-v-btn nf-v-prim', 'Salvar');
+    bSalvar.type = 'button';
+    var somenteLeitura = !!(ev && ev.editavel === false);
+    if (ev && !somenteLeitura) acoes.appendChild(bExcluir);
+    acoes.appendChild(bCancelar);
+    if (!somenteLeitura) acoes.appendChild(bSalvar);
+    folha.appendChild(acoes);
+    fundo.appendChild(folha);
+    document.body.appendChild(fundo);
+    function fechar() { fundo.remove(); document.removeEventListener('keydown', tecla, true); }
+    function tecla(e) { if (e.key === 'Escape') { e.stopPropagation(); fechar(); } }
+    document.addEventListener('keydown', tecla, true);
+    fundo.addEventListener('click', function (e) { if (e.target === fundo) fechar(); });
+    bCancelar.addEventListener('click', fechar);
+    inTitulo.focus();
+
+    function destinoAtual() { return destinos.filter(function (d) { return d.id === selDest.value; })[0] || destinos[0]; }
+    var membros = [];
+    var escolhidos = ev ? ev.participantes.slice() : null;
+    async function atualizarPessoas() {
+      var d = destinoAtual();
+      boxPessoas.hidden = !(d && d.kind === 'espaco');
+      listaPessoas.textContent = '';
+      if (boxPessoas.hidden) { membros = []; return; }
+      membros = d.membros || (await NFV.ev.membrosDe(d.espacoId));
+      if (escolhidos === null) escolhidos = membros.map(function (m) { return m.id; });
+      membros.forEach(function (m) {
+        var l = h('label', escolhidos.indexOf(m.id) >= 0 ? 'nf-on' : '');
+        var ck = document.createElement('input');
+        ck.type = 'checkbox';
+        ck.checked = escolhidos.indexOf(m.id) >= 0;
+        ck.setAttribute('data-pessoa', m.id);
+        ck.disabled = somenteLeitura;
+        ck.addEventListener('change', function () {
+          var i = escolhidos.indexOf(m.id);
+          if (ck.checked && i < 0) escolhidos.push(m.id);
+          if (!ck.checked && i >= 0) escolhidos.splice(i, 1);
+          l.classList.toggle('nf-on', ck.checked);
+          verConflitos();
+        });
+        l.appendChild(ck);
+        l.appendChild(document.createTextNode(m.nome + (m.id === meuId() ? ' (eu)' : '')));
+        listaPessoas.appendChild(l);
+      });
+      verConflitos();
+    }
+    function lerDatas() {
+      var inteiro = ckInteiro.checked;
+      var di = U.data(inDataI.value), df = U.data(inDataF.value);
+      if (!di || !df) return null;
+      var hi = (inHoraI.value || '09:00').split(':'), hf = (inHoraF.value || '10:00').split(':');
+      var ini = new Date(di.getFullYear(), di.getMonth(), di.getDate(), inteiro ? 0 : +hi[0], inteiro ? 0 : +hi[1], 0, 0);
+      var fim = new Date(df.getFullYear(), df.getMonth(), df.getDate(), inteiro ? 23 : +hf[0], inteiro ? 59 : +hf[1], 0, 0);
+      return { ini: ini, fim: fim, inteiro: inteiro };
+    }
+    function verConflitos() {
+      aviso.textContent = '';
+      aviso.className = '';
+      var d = lerDatas();
+      if (!d || !op.conflitos || boxPessoas.hidden || d.fim <= d.ini) return;
+      var nomes = op.conflitos(d.ini, d.fim, escolhidos || [], ev ? ev.chave : null);
+      if (nomes && nomes.length) {
+        aviso.className = 'nf-ev-aviso';
+        aviso.textContent = 'Atenção: ' + nomes.join(', ') + (nomes.length === 1 ? ' já tem' : ' já têm') + ' compromisso neste horário.';
+      }
+    }
+    function atualizarHoras() { [inHoraI, inHoraF].forEach(function (i) { i.disabled = ckInteiro.checked || somenteLeitura; }); }
+    ckInteiro.addEventListener('change', function () { atualizarHoras(); verConflitos(); });
+    [inDataI, inHoraI, inDataF, inHoraF].forEach(function (i) { i.addEventListener('change', verConflitos); });
+    inDataI.addEventListener('change', function () { if (inDataF.value < inDataI.value) inDataF.value = inDataI.value; });
+    inHoraI.addEventListener('change', function () {
+      var d = lerDatas();
+      if (d && d.fim <= d.ini) { var n = new Date(d.ini.getTime() + 3600000); inDataF.value = ymd(n); inHoraF.value = hhmm(n); }
+    });
+    selDest.addEventListener('change', function () { escolhidos = null; atualizarPessoas(); });
+    if (somenteLeitura) { [inTitulo, selDest, ckInteiro, inLocal, inDesc].forEach(function (i) { i.disabled = true; }); [inDataI, inDataF].forEach(function (i) { i.disabled = true; }); }
+    atualizarHoras();
+    await atualizarPessoas();
+
+    bSalvar.addEventListener('click', async function () {
+      erro.hidden = true;
+      var titulo = inTitulo.value.trim();
+      var d = lerDatas();
+      if (!titulo) { erro.textContent = 'Digite o título do evento.'; erro.hidden = false; return; }
+      if (!d) { erro.textContent = 'Informe as datas de início e término.'; erro.hidden = false; return; }
+      if (d.fim <= d.ini) { erro.textContent = 'O término precisa ser posterior ao início.'; erro.hidden = false; return; }
+      bSalvar.disabled = true;
+      bSalvar.textContent = 'Salvando...';
+      try {
+        var dest = destinoAtual();
+        var salvo = await NFV.ev.salvar(dest, { titulo: titulo, ini: d.ini, fim: d.fim, inteiro: d.inteiro, local: inLocal.value.trim(), descricao: inDesc.value.trim(), participantes: dest.kind === 'espaco' ? (escolhidos || []) : [], tipo: dest.tipo }, ev);
+        if (ev && ev.origem !== (dest.kind === 'espaco' ? 'espaco' : 'pessoal')) { try { await NFV.ev.excluir(ev); } catch (e2) {} }
+        fechar();
+        if (typeof toast === 'function') toast(ev ? 'Evento atualizado.' : 'Evento criado.', false);
+        if (op.aoSalvar) op.aoSalvar(salvo);
+      } catch (e) {
+        erro.textContent = e.message || 'Não foi possível salvar.';
+        erro.hidden = false;
+        bSalvar.disabled = false;
+        bSalvar.textContent = 'Salvar';
+      }
+    });
+    bExcluir.addEventListener('click', async function () {
+      if (!confirm('Excluir o evento "' + ev.titulo + '"?')) return;
+      bExcluir.disabled = true;
+      try {
+        await NFV.ev.excluir(ev);
+        fechar();
+        if (typeof toast === 'function') toast('Evento excluído.', false);
+        if (op.aoSalvar) op.aoSalvar(null);
+      } catch (e) {
+        erro.textContent = e.message || 'Não foi possível excluir.';
+        erro.hidden = false;
+        bExcluir.disabled = false;
+      }
+    });
+  };
+
+  /* ======================================================================
+     CALENDÁRIO PRINCIPAL (tela cheia) com todos os projetos de que participo
+     ====================================================================== */
+  /* "Reunião amanhã 14h", "Dentista sexta 9:30", "Pagar boleto hoje" */
+  function interpretarRapido(texto, base) {
+    var t = ' ' + String(texto || '').trim() + ' ';
+    var dia = iniDia(base || new Date());
+    var minutos = null, m;
+    if (/\sdepois de amanh[ãa]\s/i.test(t)) { dia = somaDias(hoje(), 2); t = t.replace(/\sdepois de amanh[ãa]\s/i, ' '); }
+    else if (/\samanh[ãa]\s/i.test(t)) { dia = somaDias(hoje(), 1); t = t.replace(/\samanh[ãa]\s/i, ' '); }
+    else if (/\shoje\s/i.test(t)) { dia = hoje(); t = t.replace(/\shoje\s/i, ' '); }
+    else {
+      var nomes = [/segunda/i, /ter[çc]a/i, /quarta/i, /quinta/i, /sexta/i, /s[áa]bado/i, /domingo/i];
+      for (var i = 0; i < nomes.length; i++) {
+        var re = new RegExp('\\s(?:na |no |para |pra )?(' + nomes[i].source + ')(?:-feira)?\\s', 'i');
+        if (re.test(t)) { var alvo = hoje(); do { alvo = somaDias(alvo, 1); } while (diaSemana(alvo) !== i); dia = alvo; t = t.replace(re, ' '); break; }
+      }
+    }
+    m = /\s(?:às|as|a)?\s*(\d{1,2})\s*(?:h|:)\s*(\d{2})?(?=\s|$)/i.exec(t);
+    if (m) { var hh = +m[1], mm = m[2] ? +m[2] : 0; if (hh <= 23 && mm <= 59) { minutos = hh * 60 + mm; t = t.replace(m[0], ' '); } }
+    var titulo = t.replace(/\s+/g, ' ').replace(/^\s*(?:às|as|a|na|no|para|pra)\s+/i, '').trim();
+    if (!titulo) return null;
+    return { titulo: titulo.charAt(0).toUpperCase() + titulo.slice(1), dia: dia, minutos: minutos };
+  }
+  window.__nfCalInterpretar = interpretarRapido;
+
+  var tela = h('div', 'nf-cal');
+  tela.id = 'nfCal';
+  tela.setAttribute('role', 'dialog');
+  tela.setAttribute('aria-label', 'Calendário');
+  var topo = h('div', 'nf-cal-topo'); /* não usar <header>: o app esconde os botões de qualquer <header> */
+  topo.setAttribute('role', 'banner');
+  var btnVoltar = h('button', 'nf-cal-voltar');
+  btnVoltar.type = 'button';
+  btnVoltar.appendChild(svgIco('esq'));
+  btnVoltar.appendChild(h('span', null, 'Início'));
+  var titBloco = h('div', 'nf-cal-titulo');
+  titBloco.appendChild(h('small', null, 'CALENDÁRIO'));
+  var titH2 = h('h2', null, 'Todos os seus projetos e eventos');
+  titBloco.appendChild(titH2);
+  topo.appendChild(btnVoltar);
+  topo.appendChild(titBloco);
+  var rapido = h('form', 'nf-cal-rapido');
+  var inRapido = document.createElement('input');
+  inRapido.type = 'text'; inRapido.id = 'nfCalRapido'; inRapido.maxLength = 200; inRapido.autocomplete = 'off';
+  inRapido.placeholder = 'Escreva um evento: "Reunião amanhã 14h", "Dentista sexta 9:30"...';
+  inRapido.setAttribute('aria-label', 'Escrever um evento');
+  var btnRapido = h('button', null, 'Adicionar');
+  btnRapido.type = 'submit';
+  var msgRapido = h('span', 'nf-cal-msg');
+  rapido.appendChild(inRapido); rapido.appendChild(btnRapido); rapido.appendChild(msgRapido);
+  var corpoTela = h('div', 'nf-cal-corpo');
+  corpoTela.style.padding = '16px 18px 0';
+  tela.appendChild(topo); tela.appendChild(rapido); tela.appendChild(corpoTela);
+  document.body.appendChild(tela);
+
+  function mostrarMsg(txt, erro) {
+    msgRapido.textContent = txt || '';
+    msgRapido.className = 'nf-cal-msg' + (erro ? ' nf-erro' : '');
+    clearTimeout(mostrarMsg.t);
+    if (txt) mostrarMsg.t = setTimeout(function () { msgRapido.textContent = ''; }, 5000);
+  }
+  var espacosCache = null;
+  async function listaEspacos() {
+    if (espacosCache && Date.now() - espacosCache.t < 60000) return espacosCache.l;
+    var l = [];
+    try { var r = await apiBruta('', 'GET'); if (r.j && r.j.ok) l = r.j.espacos || []; } catch (e) {}
+    l.forEach(function (e) { papeis[e.id] = e.papel; });
+    espacosCache = { t: Date.now(), l: l };
+    return l;
+  }
+  /* destinos onde se pode criar um evento a partir do calendário principal */
+  async function destinosPrincipais() {
+    var d = [{ id: 'principal', rotulo: 'Calendário principal', kind: 'pessoal', tipo: 'pessoal', projetoId: '', ambiente: 'pessoal' }];
+    (dados.projetos || []).forEach(function (p) {
+      d.push({ id: 'proj:' + p.id, rotulo: rotuloProj('', p.nome, p.tipo), kind: 'pessoal', projetoId: p.id, projetoNome: p.nome, ambiente: p.tipo === 'profissional' ? 'profissional' : 'pessoal' });
+    });
+    var esp = await listaEspacos();
+    esp.forEach(function (e) {
+      d.push({ id: 'esp:' + e.id, rotulo: e.tipo === 'projeto' ? 'Projeto avulso: ' + e.nome : 'Espaço: ' + e.nome, kind: 'espaco', espacoId: e.id, projetoId: '', projetoNome: '', espaco: e });
+    });
+    return d;
+  }
+  NFV.destinosPrincipais = destinosPrincipais;
+
+  var principalCal = null;
+  var fontesVistas = {};
+  function legendaPrincipal() {
+    var itens = [{ id: 'principal', rotulo: 'Calendário principal', cor: COR_PRINCIPAL, grupo: 'Principal' }];
+    var ja = { principal: true };
+    (dados.projetos || []).forEach(function (p) {
+      var id = 'proj:' + p.id;
+      ja[id] = true;
+      itens.push({ id: id, rotulo: rotuloProj('', p.nome, p.tipo), cor: corProjeto(p.id), grupo: p.tipo === 'profissional' ? 'Projetos profissionais' : 'Projetos pessoais' });
+    });
+    Object.keys(fontesVistas).forEach(function (id) { if (!ja[id]) itens.push(Object.assign({ grupo: 'Espaços compartilhados' }, fontesVistas[id])); });
+    var ordem = { 'Principal': 0, 'Projetos pessoais': 1, 'Projetos profissionais': 2, 'Espaços compartilhados': 3 };
+    itens.sort(function (a, b) { return (ordem[a.grupo] - ordem[b.grupo]) || String(a.rotulo).localeCompare(String(b.rotulo), 'pt-BR'); });
+    return itens;
+  }
+  async function carregarPrincipal(ini, fim) {
+    var partes = await Promise.all([eventosPessoais(ini, fim), eventosDeTodosOsEspacos(ini, fim)]);
+    var eventos = partes[0].concat(partes[1]);
+    var locais = {};
+    (dados.projetos || []).forEach(function (p) { locais['proj:' + p.id] = true; });
+    eventos.forEach(function (e) {
+      if (e.fonteId === 'principal' || locais[e.fonteId]) return;
+      fontesVistas[e.fonteId] = { id: e.fonteId, rotulo: e.rotulo || 'Espaço', cor: e.cor };
+    });
+    return { eventos: eventos, tarefas: tarefasLocais(ini, fim), membros: [] };
+  }
+  /* para um evento de projeto compartilhado, o calendário dele aparece como opção (Espaço-projeto) */
+  function destinosDoEvento(destinos, E) {
+    if (E.origem === 'espaco' && E.projetoId) {
+      destinos = [{ id: E.fonteId, rotulo: E.rotulo, kind: 'espaco', espacoId: E.espacoId, projetoId: E.projetoId, projetoNome: E.projetoNome }].concat(destinos);
+    }
+    return destinos;
+  }
+  NFV.destinosDoEvento = destinosDoEvento;
+  function abrirEventoPrincipal(E) {
+    destinosPrincipais().then(function (destinos) {
+      NFV.abrirModalEvento({ evento: E, destinos: destinosDoEvento(destinos, E), destinoId: E.origem === 'espaco' ? E.fonteId : E.fonteId, aoSalvar: function () { principalCal.recarregar(); if (typeof carregarEventosHome === 'function') carregarEventosHome(); } });
+    });
+  }
+  async function criarNoPrincipal(info) {
+    if (info.titulo && !info.detalhar) {
+      var ini = iniDia(info.dia); ini.setHours(0, info.minutos || 0, 0, 0);
+      try {
+        await NFV.ev.salvar({ kind: 'pessoal', projetoId: '', tipo: 'pessoal' }, { titulo: info.titulo, ini: ini, fim: new Date(ini.getTime() + 3600000), inteiro: false }, null);
+        if (typeof toast === 'function') toast('Evento criado.', false);
+        principalCal.recarregar();
+        if (typeof carregarEventosHome === 'function') carregarEventosHome();
+      } catch (e) { mostrarMsg(e.message, true); }
+      return;
+    }
+    var destinos = await destinosPrincipais();
+    NFV.abrirModalEvento({ dia: info.dia, minutos: info.minutos, titulo: info.titulo || '', destinos: destinos, destinoId: 'principal', aoSalvar: function () { principalCal.recarregar(); if (typeof carregarEventosHome === 'function') carregarEventosHome(); } });
+  }
+  function abrirTarefaPrincipal(t) {
+    if (typeof abrirCaptura === 'function' && t.local) abrirCaptura(t.id);
+  }
+  principalCal = NFV.criarCalendario({
+    modos: [['dia', 'Dia'], ['semana', 'Semana'], ['mes', 'Mês']], modo: 'dia', lateral: true,
+    folhaDia: true, painelSemana: true, painelProjetos: true, tresMeses: true,
+    carregar: carregarPrincipal, legenda: legendaPrincipal,
+    aoCriar: criarNoPrincipal, aoAbrirEvento: abrirEventoPrincipal, aoAbrirTarefa: abrirTarefaPrincipal,
+    rolagem: function () { return principalCal.el.querySelector(window.matchMedia('(max-width:980px)').matches ? '.nf-ct-area' : '.nf-ct-principal'); }
+  });
+  corpoTela.appendChild(principalCal.el);
+  principalCal.el.style.flex = '1';
+
+  var aberto = false;
+  function aoTeclar(e) {
+    if (!aberto) return;
+    if (document.querySelector('.nf-v-modal') || document.querySelector('.modal:not(.oculto)')) return;
+    var emCampo = /^(INPUT|TEXTAREA|SELECT)$/.test((document.activeElement || {}).tagName || '');
+    if (e.key === 'Escape') { if (principalCal.estado.inline) { principalCal.fecharInline(); return; } fechar(); return; }
+    if (emCampo) return;
+    if (e.key === 'ArrowLeft') { principalCal.passo(-1); e.preventDefault(); }
+    else if (e.key === 'ArrowRight') { principalCal.passo(1); e.preventDefault(); }
+  }
+  function abrir(o) {
+    if (typeof tokenAtual !== 'function' || !tokenAtual()) return;
+    if (typeof o === 'string') o = { modo: o };
+    o = o || {};
+    aberto = true;
+    principalCal.definir({ modo: o.modo || 'dia', ref: o.ref || hoje() });
+    var sobre = document.documentElement.style.getPropertyValue('--on-acento');
+    if (sobre) tela.style.setProperty('--on-acento', sobre.trim());
+    tela.classList.add('nf-aberto');
+    document.body.classList.add('nf-cal-aberto');
+    document.addEventListener('keydown', aoTeclar);
+    principalCal.desenhar();
+    principalCal.rolarAgora();
+    principalCal.recarregar();
+    principalCal.iniciar();
+  }
+  function fechar() {
+    aberto = false;
+    principalCal.fecharInline();
+    principalCal.parar();
+    tela.classList.remove('nf-aberto');
+    document.body.classList.remove('nf-cal-aberto');
+    document.removeEventListener('keydown', aoTeclar);
+    if (typeof carregarEventosHome === 'function') carregarEventosHome();
+  }
+  btnVoltar.addEventListener('click', fechar);
+  rapido.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    var r = interpretarRapido(inRapido.value, principalCal.estado.ref);
+    if (!r) { mostrarMsg('Escreva o título do evento.', true); return; }
+    btnRapido.disabled = true;
+    try {
+      var ini = iniDia(r.dia); var inteiro = r.minutos == null;
+      if (!inteiro) ini.setHours(0, r.minutos, 0, 0);
+      var fim = inteiro ? new Date(ini.getFullYear(), ini.getMonth(), ini.getDate(), 23, 59) : new Date(ini.getTime() + 3600000);
+      await NFV.ev.salvar({ kind: 'pessoal', projetoId: '', tipo: 'pessoal' }, { titulo: r.titulo, ini: ini, fim: fim, inteiro: inteiro }, null);
+      inRapido.value = '';
+      mostrarMsg('Evento "' + r.titulo + '" criado para ' + r.dia.getDate() + ' de ' + MESES[r.dia.getMonth()] + (inteiro ? ' (dia todo).' : ' às ' + pad(Math.floor(r.minutos / 60)) + ':' + pad(r.minutos % 60) + '.'), false);
+      principalCal.definir({ ref: r.dia });
+      principalCal.desenhar();
+      principalCal.recarregar();
+      if (typeof carregarEventosHome === 'function') carregarEventosHome();
+    } catch (er) { mostrarMsg(er.message, true); }
+    finally { btnRapido.disabled = false; }
+  });
+  window.NowFindCalendario = { abrir: abrir, fechar: fechar, v2: true };
+
+  /* o app redesenha: mantém a tela em dia */
+  var renderizarBase = renderizar;
+  renderizar = function () { renderizarBase.apply(this, arguments); if (aberto) principalCal.desenhar(); };
+
+  /* ---------- menu: atalho para o calendário ---------- */
+  function botaoNoMenu() {
+    var nav = document.querySelector('nav');
+    if (!nav || document.getElementById('navCalendario')) return;
+    var ref = nav.querySelector('#btnMais') || nav.querySelector('button[data-view="projetos"]');
+    var b = document.createElement('button');
+    b.type = 'button'; b.id = 'navCalendario'; b.className = 'nf-nav-cal';
+    var ico = h('span', 'nav-ico nf-ico-svg'); ico.appendChild(svgIco('cal'));
+    var rot = h('span', 'nav-rot', 'Calendário');
+    b.appendChild(ico); b.appendChild(rot);
+    b.setAttribute('data-tip', 'Calendário');
+    b.addEventListener('click', function () { abrir('dia'); });
+    if (ref && ref.nextSibling) nav.insertBefore(b, ref.nextSibling); else nav.appendChild(b);
+  }
+  botaoNoMenu();
+  new MutationObserver(function () { botaoNoMenu(); }).observe(document.body, { childList: true, subtree: true });
+
+  /* ======================================================================
+     TELA INICIAL: o calendário da frente mostra os eventos dos projetos
+     ====================================================================== */
+  /* a entrada para o calendário completo é a linha do título do calendário da tela inicial */
+  (function () {
+    var cab = document.querySelector('.home-calendario-card .home-card-topo > div:first-child');
+    if (!cab || cab.getAttribute('data-nf-link')) return;
+    cab.setAttribute('data-nf-link', '1');
+    cab.classList.add('nf-cal-titulo-link');
+    cab.setAttribute('role', 'button');
+    cab.setAttribute('tabindex', '0');
+    cab.setAttribute('aria-label', 'Abrir o calendário completo');
+    function ir() {
+      /* abre no dia de hoje ("Seu dia, hora por hora"); se a tela inicial estiver em outro mês, abre no dia 1 dele */
+      var m = typeof homeMesExibido !== 'undefined' ? homeMesExibido : hoje();
+      var h0 = hoje();
+      abrir({ modo: 'dia', ref: (m.getFullYear() === h0.getFullYear() && m.getMonth() === h0.getMonth()) ? h0 : m });
+    }
+    cab.addEventListener('click', ir);
+    cab.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); ir(); } });
+    /* botão bem visível na faixa do cabeçalho, ao lado de ‹ Hoje › */
+    var acoesCab = document.querySelector('.home-calendario-card .home-card-topo .cal-acoes');
+    if (acoesCab && !acoesCab.querySelector('.nf-cal-abrir')) {
+      /* não pode ser <button>: o app esconde os botões de dentro de qualquer <header> */
+      var bAbrir = document.createElement('div');
+      bAbrir.setAttribute('role', 'button');
+      bAbrir.setAttribute('tabindex', '0');
+      bAbrir.className = 'nf-cal-abrir';
+      bAbrir.setAttribute('data-acao', 'abrir-calendario');
+      bAbrir.title = 'Abrir o calendário completo: dia a dia, semana, mês e todos os projetos';
+      bAbrir.appendChild(svgIco('cal'));
+      bAbrir.appendChild(h('span', null, 'Abrir calendário'));
+      bAbrir.addEventListener('click', ir);
+      bAbrir.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); ir(); } });
+      acoesCab.insertBefore(bAbrir, acoesCab.firstChild);
+    }
+  })();
+
+  function corHome(ev) { return ev._proj ? ev._proj.cor : COR_PRINCIPAL; }
+  function colorirHome() {
+    try {
+      document.querySelectorAll('#homeCalendario .cal-dia[data-data]').forEach(function (cel) {
+        var p = String(cel.getAttribute('data-data')).split('-');
+        var evs = eventosHomeDoDia(new Date(+p[0], +p[1] - 1, +p[2]));
+        var chips = cel.querySelectorAll('.cal-evento');
+        chips.forEach(function (c, i) {
+          var ev = evs[i];
+          if (!ev) return;
+          var cor = corHome(ev);
+          c.style.setProperty('background', 'color-mix(in srgb, ' + cor + ' 26%, transparent)', 'important');
+          c.style.setProperty('border-left-color', cor, 'important');
+          c.setAttribute('data-cor', cor);
+          c.title = ev._proj ? ev._proj.rotulo + ' · ' + ev.titulo : ev.titulo;
+        });
+      });
+    } catch (e) {}
+  }
+  var renderCalBase = renderizarCalendarioHome;
+  renderizarCalendarioHome = function () { renderCalBase.apply(this, arguments); colorirHome(); };
+
+  /* lista "Agenda do dia" da tela inicial */
+  var criarItemBase = criarItemAgendaHome;
+  criarItemAgendaHome = function (evento) {
+    var item = criarItemBase(evento);
+    var cor = corHome(evento);
+    var barra = item.querySelector('.agenda-evento-barra');
+    if (barra) { barra.style.setProperty('background', cor, 'important'); }
+    if (evento._proj) {
+      var forte = item.querySelector('.agenda-evento-info strong');
+      if (forte) forte.textContent = evento._proj.rotulo + ' · ' + evento.titulo;
+    }
+    if (evento._agenda) {
+      var lix = item.querySelector('.nf-ev-lixeira');
+      if (lix) lix.remove();
+      item.classList.remove('nf-com-lixeira');
+    }
+    return item;
+  };
+  /* eventos de espaço abrem a janela única, não a janela antiga do app */
+  var abrirEditarBase = abrirEditarEventoHome;
+  abrirEditarEventoHome = function (id) {
+    var ev = typeof eventoHomePorId === 'function' ? eventoHomePorId(id) : null;
+    if (ev && ev._agenda) {
+      var E = doEspaco(ev._agenda);
+      destinosPrincipais().then(function (destinos) {
+        NFV.abrirModalEvento({ evento: E, destinos: destinosDoEvento(destinos, E), destinoId: E.fonteId, aoSalvar: function () { if (typeof carregarEventosHome === 'function') carregarEventosHome(); } });
+      });
+      return;
+    }
+    return abrirEditarBase.apply(this, arguments);
+  };
+  /* a janela de eventos junta os de todos os projetos aos do calendário principal */
+  var carregarBase = carregarEventosHome;
+  carregarEventosHome = async function () {
+    await carregarBase.apply(this, arguments);
+    try {
+      var primeiro = iniSemana(iniMes(homeMesExibido));
+      var ultimo = somaDias(iniSemana(new Date(homeMesExibido.getFullYear(), homeMesExibido.getMonth() + 1, 0)), 7);
+      var qs = janelaQS(primeiro, ultimo) + '&tipo=todos';
+      var vinc = {};
+      try { var v = await apiEventosHome('/projetos' + qs, 'GET'); if (v.dados && v.dados.ok) vinc = v.dados.vinculos || {}; } catch (e) {}
+      homeEventos = homeEventos.filter(function (e) { return !e._agenda; });
+      homeEventos.forEach(function (ev) {
+        var v1 = vinc[ev.id];
+        ev._proj = v1 ? { cor: corProjeto(v1.projeto_id), rotulo: rotuloProj('', v1.projeto_nome, v1.ambiente), id: v1.projeto_id } : null;
+      });
+      var compart = await eventosDeTodosOsEspacos(primeiro, ultimo);
+      compart.forEach(function (E) {
+        homeEventos.push({
+          id: 'ag:' + E.id, titulo: E.titulo, tipo: 'profissional', inicio: E.ini.toISOString(), fim: E.fim.toISOString(), dia_inteiro: E.inteiro ? 1 : 0,
+          local: E.local, descricao: E.descricao, lembrete_minutos: null, repeticao: 'nenhuma', repeticao_config: null,
+          _agenda: E.bruto, _proj: { cor: E.cor, rotulo: E.rotulo, id: E.projetoId || E.espacoId }
+        });
+      });
+      renderizarCalendarioHome();
+      renderizarAgendaHome();
+    } catch (e) {}
+  };
+})();
+/* ===== AJUSTES 48 - FIM ===== */
+
 /* ===== AJUSTES 49 - CALENDÁRIO DE CADA PROJETO E AGENDA DE CADA ESPAÇO ===== */
 (function () {
   if (!window.NFV || !NFV.criarCalendario || NFV.agendaProjeto) return;
