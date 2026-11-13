@@ -24174,6 +24174,7 @@ function escreverTexto(alvo, texto){
     '.nf-cel-sec{margin:0 0 16px;padding:16px;border:1px solid var(--borda,#E2E5F0);border-radius:18px;background:var(--card,#fff)}',
     '.nf-cel-sec h4{margin:0 0 4px;font-size:15px}',
     '.nf-cel-sec p{margin:0 0 10px;font-size:13px;opacity:.8;line-height:1.5}',
+    '.nf-cel-folha small{color:inherit}',
     '.nf-cel-linha{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:8px 0}',
     '.nf-cel-linha>label{flex:1;min-width:180px;font-size:13px;font-weight:700;margin:0;width:auto}',
     '.nf-cel-linha select,.nf-cel-linha input[type=text]{padding:8px 10px;border-radius:10px;border:1px solid var(--borda,#DDDDE8);background:transparent;color:inherit;font:inherit;font-size:13px;min-width:150px}',
@@ -24199,6 +24200,19 @@ function escreverTexto(alvo, texto){
     try { j = await r.json(); } catch (e) {}
     return { status: r.status, j: j };
   }
+  /* no computador os textos falam de "computador" e "outros aplicativos"; só no celular aparece "celular" */
+  var MOVEL = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1) || !!(window.matchMedia && window.matchMedia('(max-width:760px)').matches);
+  var T = MOVEL
+    ? { secao: 'Celular', item: 'Lembretes e agenda no celular', itemSub: 'Avisos com a tela fechada e a agenda no aplicativo de calendário', titulo: 'Lembretes e agenda no celular',
+        avisosTit: 'Lembretes com a tela fechada', avisosDesc: 'O NowFind avisa no celular na hora dos seus eventos, mesmo com o aplicativo fechado e a tela apagada.',
+        onde: 'neste aparelho', statusAtivo: 'Avisos com a tela fechada: ativos neste aparelho', statusOff: 'Avisos com a tela fechada: desligados neste aparelho',
+        agendaTit: 'Agenda no celular', agendaDesc: 'Mostra os seus eventos, os dos espaços de que você participa e os prazos das tarefas direto no aplicativo de calendário do celular, com os alarmes. O celular passa a avisar sozinho, mesmo sem o NowFind.',
+        semNav: 'Este navegador não permite avisos com a tela fechada. Use o Chrome (Android) ou o Safari com o app instalado na tela de início (iPhone).', dicaTeste: 'Dica: bloqueie a tela e espere.', tipoLeitura: 'o celular' }
+    : { secao: 'Lembretes e agenda', item: 'Lembretes e agenda externa', itemSub: 'Avisos do NowFind neste computador e a agenda no Google Agenda, Apple ou Outlook', titulo: 'Lembretes e agenda externa',
+        avisosTit: 'Lembretes neste computador', avisosDesc: 'O NowFind avisa neste computador na hora dos seus eventos, mesmo com a aba fechada (o navegador precisa estar aberto).',
+        onde: 'neste computador', statusAtivo: 'Avisos neste computador: ativos', statusOff: 'Avisos neste computador: desligados',
+        agendaTit: 'Agenda em outros aplicativos', agendaDesc: 'Mostra os seus eventos, os dos espaços de que você participa e os prazos das tarefas no Google Agenda, no Calendário da Apple ou no Outlook, com os alarmes.',
+        semNav: 'Este navegador não permite avisos fora do aplicativo. Use o Chrome, o Edge ou o Firefox atualizados.', dicaTeste: 'Dica: troque de aba e espere.', tipoLeitura: 'o aplicativo de calendário' };
   function ehIOS() { return /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1); }
   function instalado() { return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true; }
   /* o aparelho consegue receber avisos com a tela fechada? */
@@ -24235,18 +24249,18 @@ function escreverTexto(alvo, texto){
   function abrir() {
     if (typeof tokenAtual !== 'function' || !tokenAtual()) return;
     var fundo = h('div', 'nf-v-modal'), folha = h('div', 'nf-v-folha nf-cel-folha');
-    folha.setAttribute('role', 'dialog'); folha.setAttribute('aria-label', 'Lembretes e agenda no celular');
+    folha.setAttribute('role', 'dialog'); folha.setAttribute('aria-label', T.titulo);
     fundo.appendChild(folha); document.body.appendChild(fundo);
     function fechar() { fundo.remove(); document.removeEventListener('keydown', tecla, true); }
     function tecla(e) { if (e.key === 'Escape') { e.stopPropagation(); fechar(); } }
     document.addEventListener('keydown', tecla, true);
     fundo.addEventListener('click', function (e) { if (e.target === fundo) fechar(); });
-    folha.appendChild(h('h3', null, 'Lembretes e agenda no celular'));
+    folha.appendChild(h('h3', null, T.titulo));
 
     /* ---------- 1. lembretes com a tela fechada ---------- */
     var s1 = h('div', 'nf-cel-sec'); s1.setAttribute('data-sec', 'avisos');
-    s1.appendChild(h('h4', null, 'Lembretes com a tela fechada'));
-    s1.appendChild(h('p', null, 'O NowFind avisa no celular na hora dos seus eventos, mesmo com o aplicativo fechado e a tela apagada.'));
+    s1.appendChild(h('h4', null, T.avisosTit));
+    s1.appendChild(h('p', null, T.avisosDesc));
     var status = h('div', 'nf-cel-linha'); s1.appendChild(status);
     var msg = h('div'); s1.appendChild(msg);
     var prefsBox = h('div'); s1.appendChild(prefsBox);
@@ -24260,7 +24274,7 @@ function escreverTexto(alvo, texto){
       if (!sup.ok) {
         var av = sup.motivo === 'ios'
           ? 'No iPhone e no iPad os avisos só funcionam com o NowFind instalado na tela de início. Abra o NowFind no Safari, toque em Compartilhar e depois em "Adicionar à Tela de Início". Abra o NowFind por esse ícone e volte aqui.'
-          : 'Este navegador não permite avisos com a tela fechada. Use o Chrome (Android) ou o Safari com o app instalado na tela de início (iPhone).';
+          : T.semNav;
         status.appendChild(h('span', 'nf-cel-chip nf-off', 'Indisponível neste aparelho'));
         mostrar('aviso', av); prefsBox.textContent = ''; return;
       }
@@ -24275,12 +24289,12 @@ function escreverTexto(alvo, texto){
       prefs = e.j && e.j.prefs;
       var ativo = !!(sub && e.j && e.j.este_aparelho && Notification.permission === 'granted');
       estado.ativo = ativo; if (window.NFHomeAtualizar) window.NFHomeAtualizar();
-      var chip = h('span', 'nf-cel-chip ' + (ativo ? 'nf-on' : 'nf-off'), ativo ? 'Ativo neste aparelho' : 'Desligado neste aparelho'); chip.setAttribute('data-estado', ativo ? 'ativo' : 'desligado'); status.appendChild(chip);
+      var chip = h('span', 'nf-cel-chip ' + (ativo ? 'nf-on' : 'nf-off'), ativo ? 'Ativo ' + T.onde : 'Desligado ' + T.onde); chip.setAttribute('data-estado', ativo ? 'ativo' : 'desligado'); status.appendChild(chip);
       if (e.j && e.j.aparelhos > 0) status.appendChild(h('span', null, e.j.aparelhos + (e.j.aparelhos === 1 ? ' aparelho com avisos' : ' aparelhos com avisos')));
       if (Notification.permission === 'denied') mostrar('erro', 'As notificações estão bloqueadas para este site. Libere nas configurações do navegador e tente de novo.');
       var acoes = h('div', 'nf-cel-linha');
-      if (!ativo) { var b1 = botao('Ativar neste aparelho', 'nf-prim', ativar); b1.setAttribute('data-acao', 'ativar-avisos'); acoes.appendChild(b1); }
-      else { var b2 = botao('Enviar um teste agora', '', testar); b2.setAttribute('data-acao', 'testar-avisos'); acoes.appendChild(b2); var b3 = botao('Desativar neste aparelho', 'nf-perigo', desativar); b3.setAttribute('data-acao', 'desativar-avisos'); acoes.appendChild(b3); }
+      if (!ativo) { var b1 = botao('Ativar ' + T.onde, 'nf-prim', ativar); b1.setAttribute('data-acao', 'ativar-avisos'); acoes.appendChild(b1); }
+      else { var b2 = botao('Enviar um teste agora', '', testar); b2.setAttribute('data-acao', 'testar-avisos'); acoes.appendChild(b2); var b3 = botao('Desativar ' + T.onde, 'nf-perigo', desativar); b3.setAttribute('data-acao', 'desativar-avisos'); acoes.appendChild(b3); }
       status.appendChild(acoes);
       desenharPrefs();
     }
@@ -24297,18 +24311,18 @@ function escreverTexto(alvo, texto){
         var js = s.toJSON();
         var r = await api(URL_PUSH, '/inscrever', 'POST', { endpoint: js.endpoint, keys: js.keys, agente: navigator.userAgent.slice(0, 150), tz: (Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/Sao_Paulo') });
         if (!r.j.ok) throw new Error(r.j.erro || 'Não foi possível ativar.');
-        mostrar('ok', 'Pronto! Os avisos estão ativos neste aparelho. Toque em "Enviar um teste agora" para conferir.');
+        mostrar('ok', 'Pronto! Os avisos estão ativos ' + T.onde + '. Toque em "Enviar um teste agora" para conferir.');
       } catch (e) { mostrar('erro', 'Não consegui ativar os avisos: ' + (e.message || 'erro desconhecido') + '. Confira se o NowFind está instalado/atualizado e tente de novo.'); }
       await atualizarEstado();
     }
     async function desativar() {
       try { var reg = await registro(); var s = await reg.pushManager.getSubscription(); if (s) { var ep = s.endpoint; await s.unsubscribe(); await api(URL_PUSH, '/cancelar', 'POST', { endpoint: ep }); } } catch (e) {}
-      mostrar('ok', 'Avisos desativados neste aparelho.'); await atualizarEstado();
+      mostrar('ok', 'Avisos desativados ' + T.onde + '.'); await atualizarEstado();
     }
     async function testar() {
       var r = await api(URL_PUSH, '/testar', 'POST');
       if (!r.j.ok) mostrar('erro', r.j.erro || 'Não foi possível enviar o teste.');
-      else mostrar('ok', r.j.enviados ? 'Teste enviado. Em alguns segundos deve aparecer uma notificação. Dica: bloqueie a tela e espere.' : 'O serviço de avisos do aparelho não aceitou o envio agora. Tente ativar de novo.');
+      else mostrar('ok', r.j.enviados ? 'Teste enviado. Em alguns segundos deve aparecer uma notificação. ' + T.dicaTeste : 'O serviço de avisos do aparelho não aceitou o envio agora. Tente ativar de novo.');
     }
     function linhaPref(rotulo, controle, dica) { var l = h('div', 'nf-cel-linha'); var lb = h('label', null, rotulo); if (dica) { var s = h('small', null, dica); s.style.cssText = 'display:block;font-weight:500;opacity:.7'; lb.appendChild(s); } l.appendChild(lb); l.appendChild(controle); return l; }
     function sel(opcoes, valor, aoMudar, rotulo) { var s = document.createElement('select'); s.setAttribute('aria-label', rotulo); opcoes.forEach(function (o) { var x = h('option', null, o[1]); x.value = o[0]; s.appendChild(x); }); s.value = valor == null ? '' : String(valor); s.addEventListener('change', function () { aoMudar(s.value); }); return s; }
@@ -24328,8 +24342,8 @@ function escreverTexto(alvo, texto){
 
     /* ---------- 2. agenda no celular ---------- */
     var s2 = h('div', 'nf-cel-sec'); s2.setAttribute('data-sec', 'agenda');
-    s2.appendChild(h('h4', null, 'Agenda no celular'));
-    s2.appendChild(h('p', null, 'Mostra os seus eventos, os dos espaços de que você participa e os prazos das tarefas direto no aplicativo de calendário do celular, com os alarmes. O celular passa a avisar sozinho, mesmo sem o NowFind.'));
+    s2.appendChild(h('h4', null, T.agendaTit));
+    s2.appendChild(h('p', null, T.agendaDesc));
     var feedBox = h('div'); s2.appendChild(feedBox); folha.appendChild(s2);
     async function pintarFeed(dados) {
       feedBox.textContent = '';
@@ -24340,34 +24354,38 @@ function escreverTexto(alvo, texto){
       var l = h('div', 'nf-cel-linha'); var inp = document.createElement('input'); inp.type = 'text'; inp.readOnly = true; inp.value = u; inp.className = 'nf-cel-url'; inp.setAttribute('aria-label', 'Link da agenda'); inp.id = 'nfCelUrl'; l.appendChild(inp);
       var cp = botao('Copiar link', '', function () { try { navigator.clipboard.writeText(u); cp.textContent = 'Copiado!'; setTimeout(function () { cp.textContent = 'Copiar link'; }, 1800); } catch (e) { inp.select(); } }); cp.setAttribute('data-acao', 'copiar-link'); l.appendChild(cp); feedBox.appendChild(l);
       var l2 = h('div', 'nf-cel-linha');
-      var a1 = h('a', 'nf-cel-botao nf-prim', 'Adicionar no iPhone (Calendário)'); a1.href = web; a1.setAttribute('data-acao', 'webcal'); l2.appendChild(a1);
+      var a1 = h('a', 'nf-cel-botao nf-prim', MOVEL ? 'Adicionar no iPhone (Calendário)' : 'Adicionar no Calendário da Apple'); a1.href = web; a1.setAttribute('data-acao', 'webcal'); l2.appendChild(a1);
       var a2 = h('a', 'nf-cel-botao', 'Adicionar no Google Agenda'); a2.href = 'https://calendar.google.com/calendar/u/0/r?cid=' + encodeURIComponent(web); a2.target = '_blank'; a2.rel = 'noopener'; a2.setAttribute('data-acao', 'google'); l2.appendChild(a2); feedBox.appendChild(l2);
       var det = document.createElement('details'); det.style.margin = '8px 0';
       var sm = h('summary', null, 'Como adicionar passo a passo'); sm.style.cssText = 'cursor:pointer;font-weight:700;font-size:13px'; det.appendChild(sm);
-      var ol = h('div'); ol.innerHTML = '<p><b>iPhone:</b> toque em "Adicionar no iPhone". O Calendário abre e pergunta se você quer assinar: confirme.</p><p><b>Android / Google Agenda:</b> toque em "Adicionar no Google Agenda" (abre no navegador, entre com a sua conta do Google e confirme). Depois o calendário "NowFind" aparece no aplicativo Google Agenda do celular. Se não aparecer, abra o Google Agenda no computador, vá em Outras agendas, "De um URL", e cole o link.</p>'; det.appendChild(ol); feedBox.appendChild(det);
-      feedBox.appendChild(h('div', 'nf-cel-info', 'Atenção: o link é secreto, quem tiver o link vê a sua agenda. A agenda do celular é só de leitura (eventos criados no celular não voltam para o NowFind) e pode demorar de alguns minutos até algumas horas para atualizar, conforme o aplicativo de calendário.'));
+      var ol = h('div');
+      ol.innerHTML = MOVEL
+        ? '<p><b>iPhone:</b> toque em "Adicionar no iPhone". O Calendário abre e pergunta se você quer assinar: confirme.</p><p><b>Android / Google Agenda:</b> toque em "Adicionar no Google Agenda" (abre no navegador, entre com a sua conta do Google e confirme). Depois o calendário "NowFind" aparece no aplicativo Google Agenda. Se não aparecer, abra o Google Agenda no computador, vá em Outras agendas, "De um URL", e cole o link.</p>'
+        : '<p><b>Google Agenda:</b> clique em "Adicionar no Google Agenda" e confirme com a sua conta. O calendário "NowFind" aparece em Outras agendas.</p><p><b>Calendário da Apple (Mac):</b> clique em "Adicionar no Calendário da Apple" e confirme a assinatura.</p><p><b>Outlook e outros:</b> copie o link e use a opção "Assinar calendário da Internet" ou "Adicionar por URL".</p>';
+      det.appendChild(ol); feedBox.appendChild(det);
+      feedBox.appendChild(h('div', 'nf-cel-info', 'Atenção: o link é secreto, quem tiver o link vê a sua agenda. A agenda no outro aplicativo é só de leitura (eventos criados lá não voltam para o NowFind) e pode demorar de alguns minutos até algumas horas para atualizar, conforme o aplicativo de calendário.'));
       var l3 = h('div', 'nf-cel-linha');
       l3.appendChild(botao('Gerar um novo link', '', async function () { if (!confirm('O link atual para de funcionar. Quem assinou precisa adicionar o novo. Continuar?')) return; var r = await api(URL_FEED, '', 'POST', { acao: 'gerar' }); if (r.j.ok) pintarFeed(r.j); }));
-      var bd = botao('Desativar o link', 'nf-perigo', async function () { if (!confirm('Desativar o link da agenda? O celular deixa de receber os eventos.')) return; var r = await api(URL_FEED, '', 'POST', { acao: 'revogar' }); if (r.j.ok) pintarFeed(r.j); }); bd.setAttribute('data-acao', 'desativar-link'); l3.appendChild(bd);
+      var bd = botao('Desativar o link', 'nf-perigo', async function () { if (!confirm('Desativar o link da agenda? A agenda deixa de receber os eventos.')) return; var r = await api(URL_FEED, '', 'POST', { acao: 'revogar' }); if (r.j.ok) pintarFeed(r.j); }); bd.setAttribute('data-acao', 'desativar-link'); l3.appendChild(bd);
       feedBox.appendChild(l3);
     }
     api(URL_FEED, '', 'GET').then(function (r) { pintarFeed(r.j && r.j.ok ? r.j : { existe: false }); });
 
     var ac = h('div', 'nf-v-acoes'); var bf = h('button', 'nf-v-btn nf-v-prim', 'Fechar'); bf.type = 'button'; bf.addEventListener('click', fechar); ac.appendChild(bf); folha.appendChild(ac);
   }
-  window.NowFindCelular = { abrir: abrir, estado: function () { return estado; }, atualizarEstado: NowFindEstado, suporte: suporte };
+  window.NowFindCelular = { movel: MOVEL, abrir: abrir, estado: function () { return estado; }, atualizarEstado: NowFindEstado, suporte: suporte };
 
   /* seção "Celular" dentro das Configurações */
   (function () {
     var f = document.querySelector('#modalConfig .folha');
     if (!f || document.getElementById('cfgCelularSec')) return;
     var sec = document.createElement('div'); sec.id = 'cfgCelularSec';
-    var rot = document.createElement('label'); rot.textContent = 'Celular'; sec.appendChild(rot);
+    var rot = document.createElement('label'); rot.textContent = T.secao; sec.appendChild(rot);
     var b = document.createElement('button'); b.type = 'button'; b.id = 'btnCelularCfg';
     b.style.cssText = 'display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:12px 14px;border-radius:14px;border:1px solid var(--borda,#DDDDE8);background:transparent;color:inherit;font:inherit;cursor:pointer';
     var t = document.createElement('span'); t.style.cssText = 'flex:1;min-width:0';
-    var t1 = document.createElement('b'); t1.style.display = 'block'; t1.textContent = 'Lembretes e agenda no celular';
-    var t2 = document.createElement('small'); t2.id = 'cfgCelularStatus'; t2.style.cssText = 'display:block;opacity:.75;margin-top:2px'; t2.textContent = 'Avisos com a tela fechada e a agenda no aplicativo de calendário';
+    var t1 = document.createElement('b'); t1.style.display = 'block'; t1.textContent = T.item;
+    var t2 = document.createElement('small'); t2.id = 'cfgCelularStatus'; t2.style.cssText = 'display:block;color:inherit;opacity:.75;margin-top:2px;font-size:12.5px'; t2.textContent = T.itemSub;
     t.appendChild(t1); t.appendChild(t2); b.appendChild(t);
     var seta = document.createElement('span'); seta.textContent = '›'; seta.style.cssText = 'font-size:22px;opacity:.5'; b.appendChild(seta);
     b.addEventListener('click', function () { var x = document.getElementById('modalConfig'); if (x) x.classList.add('oculto'); abrir(); });
@@ -24376,13 +24394,14 @@ function escreverTexto(alvo, texto){
     if (ref) f.insertBefore(sec, ref); else f.appendChild(sec);
     function status() {
       var el = document.getElementById('cfgCelularStatus'); if (!el) return;
-      NowFindEstado().then(function (e) { el.textContent = suporte().ok ? (e.ativo ? 'Avisos com a tela fechada: ativos neste aparelho' : 'Avisos com a tela fechada: desligados neste aparelho') : 'Avisos com a tela fechada e agenda no calendário do celular'; });
+      NowFindEstado().then(function (e) { el.textContent = suporte().ok ? (e.ativo ? T.statusAtivo : T.statusOff) : T.itemSub; });
     }
     ['btnConfigHome', 'btnConfigLateral', 'btnConfig'].forEach(function (id) { var x = document.getElementById(id); if (x) x.addEventListener('click', function () { setTimeout(status, 50); }); });
     status();
   })();
 })();
 /* ===== AJUSTES 53 - FIM ===== */
+
 /* ===== AJUSTES 54 - TELA INICIAL MODERNA (sem o clima) ===== */
 (function () {
   if (window.NFHome || !document.getElementById('view-home')) return;
