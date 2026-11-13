@@ -24163,7 +24163,7 @@ function escreverTexto(alvo, texto){
   };
 })();
 /* ===== AJUSTES 52 - FIM ===== */
-    /* ===== AJUSTES 53 - CELULAR: LEMBRETES COM A TELA FECHADA E AGENDA NO CELULAR ===== */
+/* ===== AJUSTES 53 - CELULAR: LEMBRETES COM A TELA FECHADA E AGENDA NO CELULAR ===== */
 (function () {
   if (window.NowFindCelular || typeof URL_CONTA === 'undefined' || !window.NFV) return;
   var U = NFV.u, h = U.h;
@@ -24357,14 +24357,29 @@ function escreverTexto(alvo, texto){
   }
   window.NowFindCelular = { abrir: abrir, estado: function () { return estado; }, atualizarEstado: NowFindEstado, suporte: suporte };
 
-  /* atalho dentro das Configurações */
+  /* seção "Celular" dentro das Configurações */
   (function () {
     var f = document.querySelector('#modalConfig .folha');
-    if (!f || document.getElementById('btnCelularCfg')) return;
-    var b = document.createElement('button'); b.type = 'button'; b.id = 'btnCelularCfg'; b.className = 'chip-filtro'; b.textContent = 'Lembretes e agenda no celular';
-    b.style.cssText = 'margin:14px 0 4px;width:100%'; b.addEventListener('click', function () { var x = document.getElementById('modalConfig'); if (x) x.classList.add('oculto'); abrir(); });
-    var rodape = f.querySelector('.folha-acoes, .acoes') || null;
-    if (rodape) f.insertBefore(b, rodape); else f.appendChild(b);
+    if (!f || document.getElementById('cfgCelularSec')) return;
+    var sec = document.createElement('div'); sec.id = 'cfgCelularSec';
+    var rot = document.createElement('label'); rot.textContent = 'Celular'; sec.appendChild(rot);
+    var b = document.createElement('button'); b.type = 'button'; b.id = 'btnCelularCfg';
+    b.style.cssText = 'display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:12px 14px;border-radius:14px;border:1px solid var(--borda,#DDDDE8);background:transparent;color:inherit;font:inherit;cursor:pointer';
+    var t = document.createElement('span'); t.style.cssText = 'flex:1;min-width:0';
+    var t1 = document.createElement('b'); t1.style.display = 'block'; t1.textContent = 'Lembretes e agenda no celular';
+    var t2 = document.createElement('small'); t2.id = 'cfgCelularStatus'; t2.style.cssText = 'display:block;opacity:.75;margin-top:2px'; t2.textContent = 'Avisos com a tela fechada e a agenda no aplicativo de calendário';
+    t.appendChild(t1); t.appendChild(t2); b.appendChild(t);
+    var seta = document.createElement('span'); seta.textContent = '›'; seta.style.cssText = 'font-size:22px;opacity:.5'; b.appendChild(seta);
+    b.addEventListener('click', function () { var x = document.getElementById('modalConfig'); if (x) x.classList.add('oculto'); abrir(); });
+    sec.appendChild(b);
+    var ref = f.querySelector('p.dica');
+    if (ref) f.insertBefore(sec, ref); else f.appendChild(sec);
+    function status() {
+      var el = document.getElementById('cfgCelularStatus'); if (!el) return;
+      NowFindEstado().then(function (e) { el.textContent = suporte().ok ? (e.ativo ? 'Avisos com a tela fechada: ativos neste aparelho' : 'Avisos com a tela fechada: desligados neste aparelho') : 'Avisos com a tela fechada e agenda no calendário do celular'; });
+    }
+    ['btnConfigHome', 'btnConfigLateral', 'btnConfig'].forEach(function (id) { var x = document.getElementById(id); if (x) x.addEventListener('click', function () { setTimeout(status, 50); }); });
+    status();
   })();
 })();
 /* ===== AJUSTES 53 - FIM ===== */
@@ -24408,19 +24423,22 @@ function escreverTexto(alvo, texto){
     '.nf-prox h3{margin:6px 0 4px;font-size:20px;line-height:1.25}',
     '.nf-prox .nf-prox-qdo{font-size:14px;opacity:.85}',
     '.nf-prox .nf-prox-cont{display:inline-block;margin-top:10px;padding:5px 13px;border-radius:999px;font-weight:800;font-size:13px;background:var(--grad-acento,var(--azul,#2F5BFF));color:var(--on-acento,#fff)}',
-    '.nf-prox .nf-prox-sino{display:flex;align-items:center;gap:8px;margin-top:14px;padding-top:12px;border-top:1px solid var(--borda,rgba(127,127,127,.25));font-size:12.5px}',
-    '.nf-prox .nf-prox-sino button{margin-left:auto;padding:6px 12px;border-radius:10px;border:1px solid var(--borda,#DDDDE8);background:transparent;color:inherit;font:inherit;font-weight:700;font-size:12px;cursor:pointer}',
-    '.nf-prox .nf-bolinha{width:9px;height:9px;border-radius:50%;background:#E0A800;flex:none}',
-    '.nf-prox .nf-bolinha.nf-on{background:#22B573}',
-    '@media (max-width:760px){#view-home .home-cabecalho{grid-template-columns:1fr;padding:20px}#view-home .home-cab-acoes{justify-content:flex-start}}'
+    /* iPhone: o app já põe uma engrenagem no botão; aqui ficam só um ícone, sem duplicar e sem texto */
+    '@media (max-width:760px){',
+    '#view-home .home-cabecalho{grid-template-columns:1fr;padding:20px}',
+    '#view-home .home-cab-acoes{justify-content:flex-start;flex-wrap:nowrap}',
+    'body.home-aberta #view-home #btnConfigHome{width:44px!important;height:44px!important;padding:0!important;justify-content:center!important;border-radius:14px!important;font-size:0!important}',
+    'body.home-aberta #view-home #btnConfigHome::before{content:none!important;display:none!important}',
+    'body.home-aberta #view-home #btnConfigHome span{display:none!important}',
+    'body.home-aberta #view-home #btnConfigHome svg{width:20px;height:20px}',
+    '}'
   ].join('\n');
   document.head.appendChild(estilo);
 
   function svg(c) { return '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">' + c + '</svg>'; }
   var ICO = {
     engrenagem: svg('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.9l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.9-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.9.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.9 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.9l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.9.3h0a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.9-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.9v0a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/>'),
-    mais: svg('<path d="M12 5v14M5 12h14"/>'),
-    sino: svg('<path d="M6 8a6 6 0 1112 0c0 7 3 8 3 8H3s3-1 3-8"/><path d="M10.3 20a1.9 1.9 0 003.4 0"/>')
+    mais: svg('<path d="M12 5v14M5 12h14"/>')
   };
   var cab = document.querySelector('#view-home .home-cabecalho');
   var acoes = cab && cab.querySelector('.home-cab-acoes');
@@ -24430,13 +24448,6 @@ function escreverTexto(alvo, texto){
   if (bCfg) bCfg.innerHTML = ICO.engrenagem + '<span>Configurações</span>';
   var bNovo = document.getElementById('btnNovoEventoHome');
   if (bNovo) bNovo.innerHTML = ICO.mais + '<span>Evento</span>';
-  var bCel = document.createElement('button');
-  bCel.type = 'button'; bCel.id = 'btnCelularHome'; bCel.className = 'chip-filtro';
-  bCel.innerHTML = ICO.sino + '<span>Celular</span>';
-  bCel.title = 'Lembretes com a tela fechada e agenda no celular';
-  bCel.addEventListener('click', function () { if (window.NowFindCelular) window.NowFindCelular.abrir(); });
-  acoes.insertBefore(bCel, acoes.firstChild);
-
   var linha = document.createElement('div'); linha.className = 'nf-hero-linha'; linha.id = 'nfHeroResumo';
   cab.appendChild(linha);
   var aside = document.querySelector('.home-coluna-lateral');
@@ -24504,22 +24515,16 @@ function escreverTexto(alvo, texto){
       q.textContent = dia + ', ' + fmtHora(ini) + ' às ' + fmtHora(fim) + (ev.local ? ' · ' + ev.local : ''); prox.appendChild(q);
       var c = document.createElement('span'); c.className = 'nf-prox-cont'; c.textContent = rolando ? 'Acontecendo agora' : cont(ini - agora); prox.appendChild(c);
     }
-    var sino = document.createElement('div'); sino.className = 'nf-prox-sino';
-    var ativo = !!(window.NowFindCelular && window.NowFindCelular.estado().ativo);
-    var bol = document.createElement('span'); bol.className = 'nf-bolinha' + (ativo ? ' nf-on' : ''); sino.appendChild(bol);
-    var tx = document.createElement('span'); tx.textContent = ativo ? 'Lembretes com a tela fechada: ativos' : 'Lembretes com a tela fechada: desligados'; sino.appendChild(tx);
-    var b = document.createElement('button'); b.type = 'button'; b.setAttribute('data-acao', 'abrir-celular'); b.textContent = ativo ? 'Ajustar' : 'Ativar'; b.addEventListener('click', function () { if (window.NowFindCelular) window.NowFindCelular.abrir(); }); sino.appendChild(b);
-    prox.appendChild(sino);
   }
   function pintar() { try { pintarHero(); pintarProximo(); } catch (e) {} }
   /* atualiza quando os eventos mudam e a cada minuto */
   if (typeof renderizarAgendaHome === 'function') { var rBase = renderizarAgendaHome; renderizarAgendaHome = function () { var r = rBase.apply(this, arguments); pintar(); return r; }; }
   window.NFHomeAtualizar = pintar;
   setInterval(pintar, 60000);
-  setTimeout(function () { if (window.NowFindCelular && window.NowFindCelular.atualizarEstado) window.NowFindCelular.atualizarEstado().then(pintar); }, 1800);
   pintar();
 })();
 /* ===== AJUSTES 54 - FIM ===== */
+
 
 carregarSortable();
 restaurarSessao();
