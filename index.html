@@ -14726,244 +14726,6 @@ function escreverTexto(alvo, texto){
   }
 })();
 /* ===== AJUSTES 29 - FIM ===== */
-/* ===== AJUSTES 30 - CLIMA DA HOME ===== */
-(function () {
-  const temp = document.getElementById('homeClimaTemperatura');
-  const desc = document.getElementById('homeClimaDescricao');
-
-  if (!temp || !desc) return;
-
-  const cartao = temp.closest('.home-card');
-
-  const titulo = cartao
-    ? cartao.querySelector('h2')
-    : null;
-
-  const codigos = {
-    0: ['Céu limpo', '☀️'],
-    1: ['Poucas nuvens', '🌤️'],
-    2: ['Parcialmente nublado', '⛅'],
-    3: ['Nublado', '☁️'],
-    45: ['Neblina', '🌫️'],
-    48: ['Neblina', '🌫️'],
-    51: ['Garoa fraca', '🌦️'],
-    53: ['Garoa', '🌦️'],
-    55: ['Garoa forte', '🌧️'],
-    61: ['Chuva fraca', '🌧️'],
-    63: ['Chuva', '🌧️'],
-    65: ['Chuva forte', '🌧️'],
-    80: ['Pancadas de chuva', '🌦️'],
-    81: ['Pancadas de chuva', '🌧️'],
-    82: ['Pancadas fortes', '⛈️'],
-    95: ['Trovoadas', '⛈️'],
-    96: ['Trovoadas com granizo', '⛈️'],
-    99: ['Trovoadas com granizo', '⛈️']
-  };
-
-  function preencher(rotulo, valor) {
-    if (!cartao) return;
-
-    const todos = cartao.querySelectorAll('*');
-
-    for (const el of todos) {
-      if (
-        el.children.length === 0 &&
-        el.textContent.trim() === rotulo
-      ) {
-        const caixa = el.parentNode;
-        const filhos = [...caixa.children].filter(
-          f => f !== el
-        );
-
-        if (filhos.length) {
-          filhos[filhos.length - 1].textContent = valor;
-        }
-
-        return;
-      }
-    }
-  }
-
-  function trocarIcone(icone) {
-    if (!cartao) return;
-
-    const todos = cartao.querySelectorAll('*');
-
-    for (const el of todos) {
-      if (
-        el.children.length === 0 &&
-        /^[☀️🌤️⛅☁️🌫️🌦️🌧️⛈️]+$/u.test(
-          el.textContent.trim()
-        )
-      ) {
-        el.textContent = icone;
-        return;
-      }
-    }
-  }
-
-  async function atualizarNome(latitude, longitude) {
-    if (!titulo) return;
-
-    try {
-      const url =
-        'https://api.bigdatacloud.net/data/reverse-geocode-client' +
-        '?latitude=' + encodeURIComponent(latitude) +
-        '&longitude=' + encodeURIComponent(longitude) +
-        '&localityLanguage=pt';
-
-      const resposta = await fetch(url);
-
-      if (!resposta.ok) {
-        throw new Error('Falha ao identificar cidade');
-      }
-
-      const dados = await resposta.json();
-
-   const cidade =
-  dados.locality ||
-  dados.city ||
-  dados.principalSubdivision ||
-  'Minha localização';
-      if (cidade) {
-        titulo.textContent = cidade;
-      } else {
-        titulo.textContent = 'Minha localização';
-      }
-
-    } catch (erro) {
-      titulo.textContent = 'Minha localização';
-      console.warn('Localidade não identificada:', erro);
-    }
-  }
-
-  async function carregarClima(latitude, longitude) {
-    try {
-      const url =
-        'https://api.open-meteo.com/v1/forecast' +
-        '?latitude=' + encodeURIComponent(latitude) +
-        '&longitude=' + encodeURIComponent(longitude) +
-        '&current=temperature_2m,relative_humidity_2m,weather_code' +
-        '&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max' +
-        '&timezone=auto&forecast_days=1';
-
-      const resposta = await fetch(url);
-
-      if (!resposta.ok) {
-        throw new Error('Erro HTTP ' + resposta.status);
-      }
-
-      const dados = await resposta.json();
-
-      const atual = dados.current || {};
-      const dia = dados.daily || {};
-
-      if (!Number.isFinite(atual.temperature_2m)) {
-        throw new Error('Temperatura não disponível');
-      }
-
-      const info = codigos[atual.weather_code] ||
-        ['Tempo variável', '🌤️'];
-
-      temp.textContent =
-        Math.round(atual.temperature_2m) + '°';
-
-      desc.textContent = info[0];
-
-      trocarIcone(info[1]);
-
-      if (Number.isFinite(dia.temperature_2m_max?.[0])) {
-        preencher(
-          'Máxima',
-          Math.round(dia.temperature_2m_max[0]) + '°'
-        );
-      }
-
-      if (Number.isFinite(dia.temperature_2m_min?.[0])) {
-        preencher(
-          'Mínima',
-          Math.round(dia.temperature_2m_min[0]) + '°'
-        );
-      }
-
-      if (Number.isFinite(dia.precipitation_probability_max?.[0])) {
-        preencher(
-          'Chuva',
-          Math.round(dia.precipitation_probability_max[0]) + '%'
-        );
-      }
-
-      if (Number.isFinite(atual.relative_humidity_2m)) {
-        preencher(
-          'Umidade',
-          Math.round(atual.relative_humidity_2m) + '%'
-        );
-      }
-
-    } catch (erro) {
-      desc.textContent = 'Clima indisponível';
-      console.error('Erro ao carregar clima:', erro);
-    }
-  }
-
-  let ultimaLocalizacao = null;
-
-  function atualizarLocalizacao() {
-    if (!navigator.geolocation) {
-      desc.textContent = 'Localização não disponível';
-      return;
-    }
-
-    navigator.geolocation.getCurrentPosition(
-      function (posicao) {
-        const latitude = posicao.coords.latitude;
-        const longitude = posicao.coords.longitude;
-
-        ultimaLocalizacao = {
-          latitude: latitude,
-          longitude: longitude
-        };
-
-        atualizarNome(latitude, longitude);
-        carregarClima(latitude, longitude);
-      },
-
-      function (erro) {
-        console.warn('Erro de geolocalização:', erro);
-
-        if (ultimaLocalizacao) {
-          carregarClima(
-            ultimaLocalizacao.latitude,
-            ultimaLocalizacao.longitude
-          );
-        } else {
-          temp.textContent = '--°';
-          desc.textContent =
-            'Autorize a localização para consultar o clima';
-
-          if (titulo) {
-            titulo.textContent = 'Minha localização';
-          }
-        }
-      },
-
-      {
-        enableHighAccuracy: true,
-        timeout: 15000,
-        maximumAge: 300000
-      }
-    );
-  }
-
-  atualizarLocalizacao();
-
-  setInterval(
-    atualizarLocalizacao,
-    30 * 60 * 1000
-  );
-
-})();
-/* ===== AJUSTES 30 - FIM ===== */
 /* ===== AJUSTES 31 - CHAT DO ESPAÇO / PROJETO AVULSO ===== */
 (function () {
   var barraDireita = document.querySelector('#espPainel .esp-direita');
@@ -24401,6 +24163,364 @@ function escreverTexto(alvo, texto){
   };
 })();
 /* ===== AJUSTES 52 - FIM ===== */
+    /* ===== AJUSTES 53 - CELULAR: LEMBRETES COM A TELA FECHADA E AGENDA NO CELULAR ===== */
+(function () {
+  if (window.NowFindCelular || typeof URL_CONTA === 'undefined' || !window.NFV) return;
+  var U = NFV.u, h = U.h;
+  var estilo = document.createElement('style');
+  estilo.id = 'nfEstiloCelular';
+  estilo.textContent = [
+    '.nf-cel-folha{width:min(720px,96vw);max-width:96vw;max-height:92vh;overflow:auto}',
+    '.nf-cel-sec{margin:0 0 16px;padding:16px;border:1px solid var(--borda,#E2E5F0);border-radius:18px;background:var(--card,#fff)}',
+    '.nf-cel-sec h4{margin:0 0 4px;font-size:15px}',
+    '.nf-cel-sec p{margin:0 0 10px;font-size:13px;opacity:.8;line-height:1.5}',
+    '.nf-cel-linha{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:8px 0}',
+    '.nf-cel-linha>label{flex:1;min-width:180px;font-size:13px;font-weight:700;margin:0;width:auto}',
+    '.nf-cel-linha select,.nf-cel-linha input[type=text]{padding:8px 10px;border-radius:10px;border:1px solid var(--borda,#DDDDE8);background:transparent;color:inherit;font:inherit;font-size:13px;min-width:150px}',
+    '.nf-cel-linha select option{color:#14172B;background:#fff}',
+    '.nf-cel-url{flex:1;min-width:220px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11.5px}',
+    '.nf-cel-botao{display:inline-flex;align-items:center;gap:6px;padding:9px 15px;border-radius:12px;border:1px solid var(--borda,#DDDDE8);background:transparent;color:inherit;font:inherit;font-weight:700;font-size:13px;cursor:pointer;text-decoration:none}',
+    '.nf-cel-botao.nf-prim{border:none;background:var(--grad-acento,var(--azul,#2F5BFF));color:var(--on-acento,#fff)}',
+    '.nf-cel-botao.nf-perigo{color:#E5202E;border-color:rgba(229,32,46,.5)}',
+    '.nf-cel-botao:disabled{opacity:.5;cursor:default}',
+    '.nf-cel-chip{display:inline-flex;align-items:center;gap:6px;padding:4px 11px;border-radius:999px;font-size:12px;font-weight:800;background:rgba(127,127,127,.18)}',
+    '.nf-cel-chip.nf-on{background:#1B8F5A;color:#fff}.nf-cel-chip.nf-off{background:#E0A800;color:#1B1F3A}',
+    '.nf-cel-aviso{margin:8px 0;padding:10px 12px;border-radius:12px;border-left:4px solid #FFB300;background:rgba(255,179,0,.14);font-size:13px;line-height:1.5}',
+    '.nf-cel-erro{margin:8px 0;padding:10px 12px;border-radius:12px;border-left:4px solid #E5202E;background:rgba(229,32,46,.12);font-size:13px}',
+    '.nf-cel-info{margin:8px 0;padding:10px 12px;border-radius:12px;border-left:4px solid var(--azul,#2F5BFF);background:rgba(47,91,255,.1);font-size:13px;line-height:1.5}',
+    '.nf-cel-folha ol,.nf-cel-folha ul{margin:6px 0 0;padding-left:20px;font-size:13px;line-height:1.55}'
+  ].join('\n');
+  document.head.appendChild(estilo);
+
+  var URL_PUSH = URL_CONTA + '/push', URL_FEED = URL_CONTA + '/agenda/feed';
+  async function api(base, caminho, metodo, corpo) {
+    var r = await fetch(base + caminho, { method: metodo || 'GET', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tokenAtual() }, body: corpo ? JSON.stringify(corpo) : undefined });
+    var j = {};
+    try { j = await r.json(); } catch (e) {}
+    return { status: r.status, j: j };
+  }
+  function ehIOS() { return /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1); }
+  function instalado() { return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true; }
+  /* o aparelho consegue receber avisos com a tela fechada? */
+  function suporte() {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
+      return { ok: false, motivo: ehIOS() && !instalado() ? 'ios' : 'navegador' };
+    }
+    if (ehIOS() && !instalado()) return { ok: false, motivo: 'ios' };
+    return { ok: true };
+  }
+  function chaveParaBytes(b64) {
+    var pad = '='.repeat((4 - b64.length % 4) % 4), base = (b64 + pad).replace(/-/g, '+').replace(/_/g, '/'), raw = atob(base), out = new Uint8Array(raw.length);
+    for (var i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+    return out;
+  }
+  async function registro() {
+    var r = await navigator.serviceWorker.getRegistration();
+    if (!r) r = await navigator.serviceWorker.register('/sw.js');
+    return await navigator.serviceWorker.ready;
+  }
+  var estado = { ativo: false, permissao: 'default' };
+  NowFindEstado();
+  async function NowFindEstado() {
+    try {
+      if (!suporte().ok) return estado;
+      var reg = await navigator.serviceWorker.getRegistration();
+      var sub = reg ? await reg.pushManager.getSubscription() : null;
+      estado.ativo = !!sub && Notification.permission === 'granted';
+      estado.permissao = Notification.permission;
+    } catch (e) {}
+    return estado;
+  }
+
+  function abrir() {
+    if (typeof tokenAtual !== 'function' || !tokenAtual()) return;
+    var fundo = h('div', 'nf-v-modal'), folha = h('div', 'nf-v-folha nf-cel-folha');
+    folha.setAttribute('role', 'dialog'); folha.setAttribute('aria-label', 'Lembretes e agenda no celular');
+    fundo.appendChild(folha); document.body.appendChild(fundo);
+    function fechar() { fundo.remove(); document.removeEventListener('keydown', tecla, true); }
+    function tecla(e) { if (e.key === 'Escape') { e.stopPropagation(); fechar(); } }
+    document.addEventListener('keydown', tecla, true);
+    fundo.addEventListener('click', function (e) { if (e.target === fundo) fechar(); });
+    folha.appendChild(h('h3', null, 'Lembretes e agenda no celular'));
+
+    /* ---------- 1. lembretes com a tela fechada ---------- */
+    var s1 = h('div', 'nf-cel-sec'); s1.setAttribute('data-sec', 'avisos');
+    s1.appendChild(h('h4', null, 'Lembretes com a tela fechada'));
+    s1.appendChild(h('p', null, 'O NowFind avisa no celular na hora dos seus eventos, mesmo com o aplicativo fechado e a tela apagada.'));
+    var status = h('div', 'nf-cel-linha'); s1.appendChild(status);
+    var msg = h('div'); s1.appendChild(msg);
+    var prefsBox = h('div'); s1.appendChild(prefsBox);
+    folha.appendChild(s1);
+    function mostrar(tipo, texto) { msg.textContent = ''; if (texto) { var d = h('div', tipo === 'erro' ? 'nf-cel-erro' : (tipo === 'ok' ? 'nf-cel-info' : 'nf-cel-aviso'), texto); msg.appendChild(d); } }
+    function botao(txt, cls, fn) { var b = h('button', 'nf-cel-botao ' + (cls || ''), txt); b.type = 'button'; b.addEventListener('click', fn); return b; }
+    var sup = suporte();
+    var sub = null, prefs = null;
+    async function atualizarEstado() {
+      status.textContent = '';
+      if (!sup.ok) {
+        var av = sup.motivo === 'ios'
+          ? 'No iPhone e no iPad os avisos só funcionam com o NowFind instalado na tela de início. Abra o NowFind no Safari, toque em Compartilhar e depois em "Adicionar à Tela de Início". Abra o NowFind por esse ícone e volte aqui.'
+          : 'Este navegador não permite avisos com a tela fechada. Use o Chrome (Android) ou o Safari com o app instalado na tela de início (iPhone).';
+        status.appendChild(h('span', 'nf-cel-chip nf-off', 'Indisponível neste aparelho'));
+        mostrar('aviso', av); prefsBox.textContent = ''; return;
+      }
+      var reg = null;
+      try { reg = await registro(); sub = await reg.pushManager.getSubscription(); }
+      catch (er) {
+        status.appendChild(h('span', 'nf-cel-chip nf-off', 'Não foi possível preparar os avisos'));
+        mostrar('erro', 'Não consegui preparar o serviço de avisos neste aparelho. Atualize a página e tente de novo. Se continuar, confira se o arquivo sw.js do NowFind está no ar.');
+        prefsBox.textContent = ''; return;
+      }
+      var e = await api(URL_PUSH, '/estado' + (sub ? '?endpoint=' + encodeURIComponent(sub.endpoint) : ''), 'GET');
+      prefs = e.j && e.j.prefs;
+      var ativo = !!(sub && e.j && e.j.este_aparelho && Notification.permission === 'granted');
+      estado.ativo = ativo; if (window.NFHomeAtualizar) window.NFHomeAtualizar();
+      var chip = h('span', 'nf-cel-chip ' + (ativo ? 'nf-on' : 'nf-off'), ativo ? 'Ativo neste aparelho' : 'Desligado neste aparelho'); chip.setAttribute('data-estado', ativo ? 'ativo' : 'desligado'); status.appendChild(chip);
+      if (e.j && e.j.aparelhos > 0) status.appendChild(h('span', null, e.j.aparelhos + (e.j.aparelhos === 1 ? ' aparelho com avisos' : ' aparelhos com avisos')));
+      if (Notification.permission === 'denied') mostrar('erro', 'As notificações estão bloqueadas para este site. Libere nas configurações do navegador e tente de novo.');
+      var acoes = h('div', 'nf-cel-linha');
+      if (!ativo) { var b1 = botao('Ativar neste aparelho', 'nf-prim', ativar); b1.setAttribute('data-acao', 'ativar-avisos'); acoes.appendChild(b1); }
+      else { var b2 = botao('Enviar um teste agora', '', testar); b2.setAttribute('data-acao', 'testar-avisos'); acoes.appendChild(b2); var b3 = botao('Desativar neste aparelho', 'nf-perigo', desativar); b3.setAttribute('data-acao', 'desativar-avisos'); acoes.appendChild(b3); }
+      status.appendChild(acoes);
+      desenharPrefs();
+    }
+    async function ativar() {
+      mostrar('', '');
+      try {
+        var perm = await Notification.requestPermission();
+        if (perm !== 'granted') { mostrar('erro', 'Sem a permissão do navegador não dá para avisar. Toque em "Permitir" quando o navegador perguntar.'); return atualizarEstado(); }
+        var k = await api(URL_PUSH, '/chave', 'GET');
+        if (!k.j.ok) throw new Error(k.j.erro || 'Não consegui a chave de segurança.');
+        var reg = await registro();
+        var s = await reg.pushManager.getSubscription();
+        if (!s) s = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: chaveParaBytes(k.j.chave) });
+        var js = s.toJSON();
+        var r = await api(URL_PUSH, '/inscrever', 'POST', { endpoint: js.endpoint, keys: js.keys, agente: navigator.userAgent.slice(0, 150), tz: (Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/Sao_Paulo') });
+        if (!r.j.ok) throw new Error(r.j.erro || 'Não foi possível ativar.');
+        mostrar('ok', 'Pronto! Os avisos estão ativos neste aparelho. Toque em "Enviar um teste agora" para conferir.');
+      } catch (e) { mostrar('erro', 'Não consegui ativar os avisos: ' + (e.message || 'erro desconhecido') + '. Confira se o NowFind está instalado/atualizado e tente de novo.'); }
+      await atualizarEstado();
+    }
+    async function desativar() {
+      try { var reg = await registro(); var s = await reg.pushManager.getSubscription(); if (s) { var ep = s.endpoint; await s.unsubscribe(); await api(URL_PUSH, '/cancelar', 'POST', { endpoint: ep }); } } catch (e) {}
+      mostrar('ok', 'Avisos desativados neste aparelho.'); await atualizarEstado();
+    }
+    async function testar() {
+      var r = await api(URL_PUSH, '/testar', 'POST');
+      if (!r.j.ok) mostrar('erro', r.j.erro || 'Não foi possível enviar o teste.');
+      else mostrar('ok', r.j.enviados ? 'Teste enviado. Em alguns segundos deve aparecer uma notificação. Dica: bloqueie a tela e espere.' : 'O serviço de avisos do aparelho não aceitou o envio agora. Tente ativar de novo.');
+    }
+    function linhaPref(rotulo, controle, dica) { var l = h('div', 'nf-cel-linha'); var lb = h('label', null, rotulo); if (dica) { var s = h('small', null, dica); s.style.cssText = 'display:block;font-weight:500;opacity:.7'; lb.appendChild(s); } l.appendChild(lb); l.appendChild(controle); return l; }
+    function sel(opcoes, valor, aoMudar, rotulo) { var s = document.createElement('select'); s.setAttribute('aria-label', rotulo); opcoes.forEach(function (o) { var x = h('option', null, o[1]); x.value = o[0]; s.appendChild(x); }); s.value = valor == null ? '' : String(valor); s.addEventListener('change', function () { aoMudar(s.value); }); return s; }
+    function salvarPref(corpo) { return api(URL_PUSH, '/prefs', 'POST', corpo).then(function (r) { if (!r.j.ok) mostrar('erro', r.j.erro || 'Não foi possível salvar.'); else { prefs = r.j.prefs; mostrar('', ''); } }); }
+    function desenharPrefs() {
+      prefsBox.textContent = ''; if (!prefs) return;
+      var tit = h('h4', null, 'Quando avisar'); tit.style.marginTop = '14px'; prefsBox.appendChild(tit);
+      var ant = [['', 'Não avisar'], ['0', 'Na hora'], ['5', '5 minutos antes'], ['10', '10 minutos antes'], ['15', '15 minutos antes'], ['30', '30 minutos antes'], ['60', '1 hora antes']];
+      var ck = document.createElement('input'); ck.type = 'checkbox'; ck.checked = !!prefs.eventos; ck.setAttribute('aria-label', 'Avisar dos meus eventos'); ck.addEventListener('change', function () { salvarPref({ eventos: ck.checked }); });
+      prefsBox.appendChild(linhaPref('Meus eventos (usa o lembrete de cada evento)', ck));
+      prefsBox.appendChild(linhaPref('Evento sem lembrete próprio', sel(ant, prefs.padrao_min, function (v) { salvarPref({ padrao_min: v }); }, 'Evento sem lembrete'), 'Avisar mesmo assim, com esta antecedência'));
+      prefsBox.appendChild(linhaPref('Eventos dos espaços compartilhados', sel(ant.map(function (a) { return a[0] === '' ? ['0', 'Não avisar'] : a; }).filter(function (a, i) { return !(a[0] === '0' && a[1] === 'Na hora'); }), prefs.espaco_min, function (v) { salvarPref({ espaco_min: v }); }, 'Eventos dos espaços'), 'Só os que você participa'));
+      var horas = [['', 'Desligado']]; for (var i = 6; i <= 11; i++) horas.push([('0' + i).slice(-2) + ':00', ('0' + i).slice(-2) + ':00']);
+      prefsBox.appendChild(linhaPref('Resumo do dia', sel(horas, prefs.resumo_hora, function (v) { salvarPref({ resumo_hora: v || null, tz: (Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/Sao_Paulo') }); }, 'Resumo do dia'), 'Compromissos, prazos de hoje e atrasadas'));
+    }
+    atualizarEstado();
+
+    /* ---------- 2. agenda no celular ---------- */
+    var s2 = h('div', 'nf-cel-sec'); s2.setAttribute('data-sec', 'agenda');
+    s2.appendChild(h('h4', null, 'Agenda no celular'));
+    s2.appendChild(h('p', null, 'Mostra os seus eventos, os dos espaços de que você participa e os prazos das tarefas direto no aplicativo de calendário do celular, com os alarmes. O celular passa a avisar sozinho, mesmo sem o NowFind.'));
+    var feedBox = h('div'); s2.appendChild(feedBox); folha.appendChild(s2);
+    async function pintarFeed(dados) {
+      feedBox.textContent = '';
+      if (!dados.existe) {
+        var g = botao('Criar o link da minha agenda', 'nf-prim', async function () { var r = await api(URL_FEED, '', 'POST', { acao: 'gerar' }); if (r.j.ok) pintarFeed(r.j); }); g.setAttribute('data-acao', 'gerar-link'); feedBox.appendChild(g); return;
+      }
+      var u = dados.url, web = u.replace(/^https:/, 'webcal:');
+      var l = h('div', 'nf-cel-linha'); var inp = document.createElement('input'); inp.type = 'text'; inp.readOnly = true; inp.value = u; inp.className = 'nf-cel-url'; inp.setAttribute('aria-label', 'Link da agenda'); inp.id = 'nfCelUrl'; l.appendChild(inp);
+      var cp = botao('Copiar link', '', function () { try { navigator.clipboard.writeText(u); cp.textContent = 'Copiado!'; setTimeout(function () { cp.textContent = 'Copiar link'; }, 1800); } catch (e) { inp.select(); } }); cp.setAttribute('data-acao', 'copiar-link'); l.appendChild(cp); feedBox.appendChild(l);
+      var l2 = h('div', 'nf-cel-linha');
+      var a1 = h('a', 'nf-cel-botao nf-prim', 'Adicionar no iPhone (Calendário)'); a1.href = web; a1.setAttribute('data-acao', 'webcal'); l2.appendChild(a1);
+      var a2 = h('a', 'nf-cel-botao', 'Adicionar no Google Agenda'); a2.href = 'https://calendar.google.com/calendar/u/0/r?cid=' + encodeURIComponent(web); a2.target = '_blank'; a2.rel = 'noopener'; a2.setAttribute('data-acao', 'google'); l2.appendChild(a2); feedBox.appendChild(l2);
+      var det = document.createElement('details'); det.style.margin = '8px 0';
+      var sm = h('summary', null, 'Como adicionar passo a passo'); sm.style.cssText = 'cursor:pointer;font-weight:700;font-size:13px'; det.appendChild(sm);
+      var ol = h('div'); ol.innerHTML = '<p><b>iPhone:</b> toque em "Adicionar no iPhone". O Calendário abre e pergunta se você quer assinar: confirme.</p><p><b>Android / Google Agenda:</b> toque em "Adicionar no Google Agenda" (abre no navegador, entre com a sua conta do Google e confirme). Depois o calendário "NowFind" aparece no aplicativo Google Agenda do celular. Se não aparecer, abra o Google Agenda no computador, vá em Outras agendas, "De um URL", e cole o link.</p>'; det.appendChild(ol); feedBox.appendChild(det);
+      feedBox.appendChild(h('div', 'nf-cel-info', 'Atenção: o link é secreto, quem tiver o link vê a sua agenda. A agenda do celular é só de leitura (eventos criados no celular não voltam para o NowFind) e pode demorar de alguns minutos até algumas horas para atualizar, conforme o aplicativo de calendário.'));
+      var l3 = h('div', 'nf-cel-linha');
+      l3.appendChild(botao('Gerar um novo link', '', async function () { if (!confirm('O link atual para de funcionar. Quem assinou precisa adicionar o novo. Continuar?')) return; var r = await api(URL_FEED, '', 'POST', { acao: 'gerar' }); if (r.j.ok) pintarFeed(r.j); }));
+      var bd = botao('Desativar o link', 'nf-perigo', async function () { if (!confirm('Desativar o link da agenda? O celular deixa de receber os eventos.')) return; var r = await api(URL_FEED, '', 'POST', { acao: 'revogar' }); if (r.j.ok) pintarFeed(r.j); }); bd.setAttribute('data-acao', 'desativar-link'); l3.appendChild(bd);
+      feedBox.appendChild(l3);
+    }
+    api(URL_FEED, '', 'GET').then(function (r) { pintarFeed(r.j && r.j.ok ? r.j : { existe: false }); });
+
+    var ac = h('div', 'nf-v-acoes'); var bf = h('button', 'nf-v-btn nf-v-prim', 'Fechar'); bf.type = 'button'; bf.addEventListener('click', fechar); ac.appendChild(bf); folha.appendChild(ac);
+  }
+  window.NowFindCelular = { abrir: abrir, estado: function () { return estado; }, atualizarEstado: NowFindEstado, suporte: suporte };
+
+  /* atalho dentro das Configurações */
+  (function () {
+    var f = document.querySelector('#modalConfig .folha');
+    if (!f || document.getElementById('btnCelularCfg')) return;
+    var b = document.createElement('button'); b.type = 'button'; b.id = 'btnCelularCfg'; b.className = 'chip-filtro'; b.textContent = 'Lembretes e agenda no celular';
+    b.style.cssText = 'margin:14px 0 4px;width:100%'; b.addEventListener('click', function () { var x = document.getElementById('modalConfig'); if (x) x.classList.add('oculto'); abrir(); });
+    var rodape = f.querySelector('.folha-acoes, .acoes') || null;
+    if (rodape) f.insertBefore(b, rodape); else f.appendChild(b);
+  })();
+})();
+/* ===== AJUSTES 53 - FIM ===== */
+/* ===== AJUSTES 54 - TELA INICIAL MODERNA (sem o clima) ===== */
+(function () {
+  if (window.NFHome || !document.getElementById('view-home')) return;
+  window.NFHome = true;
+  var estilo = document.createElement('style');
+  estilo.id = 'nfEstiloHome';
+  estilo.textContent = [
+    '.home-clima{display:none!important}',
+    '.home-coluna-lateral{display:flex;flex-direction:column;gap:16px}',
+    /* faixa principal */
+    '#view-home .home-cabecalho{position:relative;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px 22px;align-items:center;padding:26px 28px;margin:0 0 16px;border-radius:28px;color:var(--on-acento,#fff);background:var(--grad-acento,linear-gradient(135deg,#4F46E5,#2F5BFF));box-shadow:0 20px 48px rgba(0,0,0,.28);overflow:hidden}',
+    '#view-home .home-cabecalho::before{content:"";position:absolute;right:-70px;top:-90px;width:300px;height:300px;border-radius:50%;background:rgba(255,255,255,.12);pointer-events:none}',
+    '#view-home .home-cabecalho::after{content:"";position:absolute;right:120px;bottom:-120px;width:240px;height:240px;border-radius:50%;background:rgba(255,255,255,.08);pointer-events:none}',
+    '#view-home .home-saudacao,#view-home .home-cab-acoes,#view-home .nf-hero-linha{position:relative;z-index:1}',
+    '#view-home .home-saudacao small,#view-home .home-saudacao h1,#view-home .home-saudacao p{color:inherit}',
+    '#view-home .home-saudacao small{opacity:.8;letter-spacing:1.5px}',
+    '#view-home .home-saudacao p{opacity:.92}',
+    '#view-home .home-cab-acoes{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end}',
+    '#view-home .home-cab-acoes button{display:inline-flex;align-items:center;gap:7px;padding:10px 16px;border-radius:14px;color:inherit;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.38);font-weight:700;box-shadow:none;backdrop-filter:blur(6px)}',
+    '#view-home .home-cab-acoes button.btn-prim{background:#fff;color:#14172B;border-color:#fff}',
+    '#view-home .home-cab-acoes button svg{width:17px;height:17px;flex:none}',
+    '.nf-hero-linha{grid-column:1/-1;display:flex;gap:10px;flex-wrap:wrap;align-items:stretch}',
+    '.nf-hero-chip{display:inline-flex;align-items:center;gap:8px;padding:9px 15px;border-radius:999px;background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);font-weight:700;font-size:13px}',
+    '.nf-hero-chip b{font-size:17px}',
+    '.nf-hero-chip.nf-alerta{background:rgba(229,32,46,.9);border-color:transparent}',
+    /* atalhos para os ambientes */
+    '#view-home .home-ambientes{grid-template-columns:repeat(auto-fit,minmax(190px,1fr))!important}',
+    '#view-home .home-ambiente{padding:12px 14px;border-radius:20px;box-shadow:0 6px 18px rgba(0,0,0,.1)}',
+    '#view-home .home-ambiente:hover{transform:translateY(-2px)}',
+    '#view-home .home-amb-texto>span{display:none}',
+    '#view-home .home-amb-seta{opacity:.45}',
+    /* cartões */
+    '#view-home .home-card{border-radius:26px;box-shadow:0 12px 34px rgba(0,0,0,.14)}',
+    '#view-home .home-card-topo{background:transparent!important;border-bottom:1px solid var(--borda,rgba(127,127,127,.25))}',
+    /* próximo compromisso */
+    '.nf-prox{padding:20px 22px;position:relative;overflow:hidden}',
+    '.nf-prox small{display:block;font-size:10.5px;font-weight:800;letter-spacing:1.4px;opacity:.65}',
+    '.nf-prox h3{margin:6px 0 4px;font-size:20px;line-height:1.25}',
+    '.nf-prox .nf-prox-qdo{font-size:14px;opacity:.85}',
+    '.nf-prox .nf-prox-cont{display:inline-block;margin-top:10px;padding:5px 13px;border-radius:999px;font-weight:800;font-size:13px;background:var(--grad-acento,var(--azul,#2F5BFF));color:var(--on-acento,#fff)}',
+    '.nf-prox .nf-prox-sino{display:flex;align-items:center;gap:8px;margin-top:14px;padding-top:12px;border-top:1px solid var(--borda,rgba(127,127,127,.25));font-size:12.5px}',
+    '.nf-prox .nf-prox-sino button{margin-left:auto;padding:6px 12px;border-radius:10px;border:1px solid var(--borda,#DDDDE8);background:transparent;color:inherit;font:inherit;font-weight:700;font-size:12px;cursor:pointer}',
+    '.nf-prox .nf-bolinha{width:9px;height:9px;border-radius:50%;background:#E0A800;flex:none}',
+    '.nf-prox .nf-bolinha.nf-on{background:#22B573}',
+    '@media (max-width:760px){#view-home .home-cabecalho{grid-template-columns:1fr;padding:20px}#view-home .home-cab-acoes{justify-content:flex-start}}'
+  ].join('\n');
+  document.head.appendChild(estilo);
+
+  function svg(c) { return '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">' + c + '</svg>'; }
+  var ICO = {
+    engrenagem: svg('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.9l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.9-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.9.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.9 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.9l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.9.3h0a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.9-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.9v0a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/>'),
+    mais: svg('<path d="M12 5v14M5 12h14"/>'),
+    sino: svg('<path d="M6 8a6 6 0 1112 0c0 7 3 8 3 8H3s3-1 3-8"/><path d="M10.3 20a1.9 1.9 0 003.4 0"/>')
+  };
+  var cab = document.querySelector('#view-home .home-cabecalho');
+  var acoes = cab && cab.querySelector('.home-cab-acoes');
+  if (!cab || !acoes) return;
+  /* ícones no lugar dos emojis */
+  var bCfg = document.getElementById('btnConfigHome');
+  if (bCfg) bCfg.innerHTML = ICO.engrenagem + '<span>Configurações</span>';
+  var bNovo = document.getElementById('btnNovoEventoHome');
+  if (bNovo) bNovo.innerHTML = ICO.mais + '<span>Evento</span>';
+  var bCel = document.createElement('button');
+  bCel.type = 'button'; bCel.id = 'btnCelularHome'; bCel.className = 'chip-filtro';
+  bCel.innerHTML = ICO.sino + '<span>Celular</span>';
+  bCel.title = 'Lembretes com a tela fechada e agenda no celular';
+  bCel.addEventListener('click', function () { if (window.NowFindCelular) window.NowFindCelular.abrir(); });
+  acoes.insertBefore(bCel, acoes.firstChild);
+
+  var linha = document.createElement('div'); linha.className = 'nf-hero-linha'; linha.id = 'nfHeroResumo';
+  cab.appendChild(linha);
+  var aside = document.querySelector('.home-coluna-lateral');
+  var prox = null;
+  if (aside) {
+    prox = document.createElement('section'); prox.className = 'home-card nf-prox'; prox.id = 'nfProximo';
+    aside.insertBefore(prox, aside.firstChild);
+  }
+
+  function fmtHora(d) { return ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2); }
+  function mesmoDia(a, b) { return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate(); }
+  function cont(ms) {
+    var m = Math.round(ms / 60000);
+    if (m <= 0) return 'agora';
+    if (m < 60) return 'em ' + m + ' min';
+    var hh = Math.floor(m / 60), mm = m % 60;
+    if (hh < 24) return 'em ' + hh + ' h' + (mm ? ' ' + mm + ' min' : '');
+    return 'em ' + Math.round(hh / 24) + (Math.round(hh / 24) === 1 ? ' dia' : ' dias');
+  }
+  function tituloDe(ev) { return ev._proj && ev._proj.rotulo ? ev._proj.rotulo + ' · ' + ev.titulo : ev.titulo; }
+  function contagens() {
+    var hoje = new Date(), n = { eventos: 0, prazos: 0, atrasadas: 0 };
+    (typeof homeEventos !== 'undefined' ? homeEventos : []).forEach(function (ev) {
+      var i = new Date(ev.inicio), f = new Date(ev.fim);
+      if (isNaN(i.getTime()) || isNaN(f.getTime())) return;
+      var iniDia = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate()), fimDia = new Date(iniDia.getTime() + 86400000 - 1);
+      if (i <= fimDia && f >= iniDia) n.eventos++;
+    });
+    var ymd = hoje.getFullYear() + '-' + ('0' + (hoje.getMonth() + 1)).slice(-2) + '-' + ('0' + hoje.getDate()).slice(-2);
+    try {
+      (dados.itens || []).forEach(function (i) {
+        var p = String(i.prazo || '').slice(0, 10);
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(p) || i.status === 'validado' || i.status === 'realizado') return;
+        if (p === ymd) n.prazos++; else if (p < ymd) n.atrasadas++;
+      });
+    } catch (e) {}
+    return n;
+  }
+  function chip(html, cls) { var c = document.createElement('span'); c.className = 'nf-hero-chip' + (cls ? ' ' + cls : ''); c.innerHTML = html; return c; }
+  function pintarHero() {
+    var n = contagens();
+    linha.textContent = '';
+    linha.appendChild(chip('<b>' + n.eventos + '</b> ' + (n.eventos === 1 ? 'compromisso hoje' : 'compromissos hoje')));
+    linha.appendChild(chip('<b>' + n.prazos + '</b> ' + (n.prazos === 1 ? 'prazo hoje' : 'prazos hoje')));
+    if (n.atrasadas) linha.appendChild(chip('<b>' + n.atrasadas + '</b> ' + (n.atrasadas === 1 ? 'tarefa atrasada' : 'tarefas atrasadas'), 'nf-alerta'));
+  }
+  function pintarProximo() {
+    if (!prox) return;
+    var agora = new Date();
+    var lista = (typeof homeEventos !== 'undefined' ? homeEventos : []).filter(function (ev) {
+      return !Number(ev.dia_inteiro) && new Date(ev.fim) > agora && !isNaN(new Date(ev.inicio).getTime());
+    }).sort(function (a, b) { return new Date(a.inicio) - new Date(b.inicio); });
+    var ev = lista[0];
+    prox.textContent = '';
+    var peq = document.createElement('small'); peq.textContent = 'PRÓXIMO COMPROMISSO'; prox.appendChild(peq);
+    var t = document.createElement('h3');
+    if (!ev) {
+      t.textContent = 'Nada marcado por enquanto'; prox.appendChild(t);
+      var q0 = document.createElement('div'); q0.className = 'nf-prox-qdo'; q0.textContent = 'Use "+ Evento" para marcar o próximo compromisso.'; prox.appendChild(q0);
+    } else {
+      var ini = new Date(ev.inicio), fim = new Date(ev.fim), rolando = ini <= agora;
+      t.textContent = tituloDe(ev); prox.appendChild(t);
+      var q = document.createElement('div'); q.className = 'nf-prox-qdo';
+      var dia = mesmoDia(ini, agora) ? 'hoje' : (mesmoDia(ini, new Date(agora.getTime() + 86400000)) ? 'amanhã' : ini.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' }));
+      q.textContent = dia + ', ' + fmtHora(ini) + ' às ' + fmtHora(fim) + (ev.local ? ' · ' + ev.local : ''); prox.appendChild(q);
+      var c = document.createElement('span'); c.className = 'nf-prox-cont'; c.textContent = rolando ? 'Acontecendo agora' : cont(ini - agora); prox.appendChild(c);
+    }
+    var sino = document.createElement('div'); sino.className = 'nf-prox-sino';
+    var ativo = !!(window.NowFindCelular && window.NowFindCelular.estado().ativo);
+    var bol = document.createElement('span'); bol.className = 'nf-bolinha' + (ativo ? ' nf-on' : ''); sino.appendChild(bol);
+    var tx = document.createElement('span'); tx.textContent = ativo ? 'Lembretes com a tela fechada: ativos' : 'Lembretes com a tela fechada: desligados'; sino.appendChild(tx);
+    var b = document.createElement('button'); b.type = 'button'; b.setAttribute('data-acao', 'abrir-celular'); b.textContent = ativo ? 'Ajustar' : 'Ativar'; b.addEventListener('click', function () { if (window.NowFindCelular) window.NowFindCelular.abrir(); }); sino.appendChild(b);
+    prox.appendChild(sino);
+  }
+  function pintar() { try { pintarHero(); pintarProximo(); } catch (e) {} }
+  /* atualiza quando os eventos mudam e a cada minuto */
+  if (typeof renderizarAgendaHome === 'function') { var rBase = renderizarAgendaHome; renderizarAgendaHome = function () { var r = rBase.apply(this, arguments); pintar(); return r; }; }
+  window.NFHomeAtualizar = pintar;
+  setInterval(pintar, 60000);
+  setTimeout(function () { if (window.NowFindCelular && window.NowFindCelular.atualizarEstado) window.NowFindCelular.atualizarEstado().then(pintar); }, 1800);
+  pintar();
+})();
+/* ===== AJUSTES 54 - FIM ===== */
+
 carregarSortable();
 restaurarSessao();
 
