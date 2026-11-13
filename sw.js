@@ -103,4 +103,26 @@ self.addEventListener('notificationclick', function(event){
       })
   );
 });
+/* ===== AVISOS COM A TELA FECHADA (cole no FINAL do arquivo sw.js) ===== */
+self.addEventListener('push', function (event) {
+  var d = {};
+  try { d = event.data ? event.data.json() : {}; } catch (e) { d = { titulo: 'NowFind', corpo: event.data ? event.data.text() : '' }; }
+  event.waitUntil(self.registration.showNotification(d.titulo || 'NowFind', {
+    body: d.corpo || '',
+    tag: d.tag || 'nowfind',
+    renotify: true,
+    data: { url: d.url || '/app' }
+  }));
+});
+self.addEventListener('notificationclick', function (event) {
+  event.notification.close();
+  var alvo = (event.notification.data && event.notification.data.url) || '/app';
+  event.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (lista) {
+    for (var i = 0; i < lista.length; i++) {
+      if ('focus' in lista[i]) return lista[i].focus();
+    }
+    return self.clients.openWindow(alvo);
+  }));
+});
+/* ===== FIM DOS AVISOS ===== */
  
