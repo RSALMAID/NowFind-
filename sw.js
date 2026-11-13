@@ -103,7 +103,10 @@ self.addEventListener('notificationclick', function(event){
       })
   );
 });
+
 /* ===== AVISOS COM A TELA FECHADA (cole no FINAL do arquivo sw.js) ===== */
+self.addEventListener('install', function () { self.skipWaiting(); });
+self.addEventListener('activate', function (event) { event.waitUntil(self.clients.claim()); });
 self.addEventListener('push', function (event) {
   var d = {};
   try { d = event.data ? event.data.json() : {}; } catch (e) { d = { titulo: 'NowFind', corpo: event.data ? event.data.text() : '' }; }
