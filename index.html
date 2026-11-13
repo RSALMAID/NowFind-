@@ -24163,6 +24163,7 @@ function escreverTexto(alvo, texto){
   };
 })();
 /* ===== AJUSTES 52 - FIM ===== */
+
 /* ===== AJUSTES 53 - CELULAR: LEMBRETES COM A TELA FECHADA E AGENDA NO CELULAR ===== */
 (function () {
   if (window.NowFindCelular || typeof URL_CONTA === 'undefined' || !window.NFV) return;
@@ -24231,6 +24232,7 @@ function escreverTexto(alvo, texto){
   async function registro() {
     var r = await navigator.serviceWorker.getRegistration();
     if (!r) r = await navigator.serviceWorker.register('/sw.js');
+    try { await r.update(); } catch (e) {}
     return await navigator.serviceWorker.ready;
   }
   var estado = { ativo: false, permissao: 'default' };
@@ -24263,6 +24265,7 @@ function escreverTexto(alvo, texto){
     s1.appendChild(h('p', null, T.avisosDesc));
     var status = h('div', 'nf-cel-linha'); s1.appendChild(status);
     var msg = h('div'); s1.appendChild(msg);
+    var diagBox = h('div'); diagBox.setAttribute('data-sec', 'diagnostico'); s1.appendChild(diagBox);
     var prefsBox = h('div'); s1.appendChild(prefsBox);
     folha.appendChild(s1);
     function mostrar(tipo, texto) { msg.textContent = ''; if (texto) { var d = h('div', tipo === 'erro' ? 'nf-cel-erro' : (tipo === 'ok' ? 'nf-cel-info' : 'nf-cel-aviso'), texto); msg.appendChild(d); } }
@@ -24294,8 +24297,22 @@ function escreverTexto(alvo, texto){
       if (Notification.permission === 'denied') mostrar('erro', 'As notificações estão bloqueadas para este site. Libere nas configurações do navegador e tente de novo.');
       var acoes = h('div', 'nf-cel-linha');
       if (!ativo) { var b1 = botao('Ativar ' + T.onde, 'nf-prim', ativar); b1.setAttribute('data-acao', 'ativar-avisos'); acoes.appendChild(b1); }
-      else { var b2 = botao('Enviar um teste agora', '', testar); b2.setAttribute('data-acao', 'testar-avisos'); acoes.appendChild(b2); var b3 = botao('Desativar ' + T.onde, 'nf-perigo', desativar); b3.setAttribute('data-acao', 'desativar-avisos'); acoes.appendChild(b3); }
+      else {
+        var b2 = botao('Enviar um teste agora', '', testar); b2.setAttribute('data-acao', 'testar-avisos'); acoes.appendChild(b2);
+        var b4 = botao(MOVEL ? 'Testar com a tela bloqueada (em 1 minuto)' : 'Enviar teste em 1 minuto', 'nf-prim', testarDepois); b4.setAttribute('data-acao', 'testar-bloqueado'); acoes.appendChild(b4);
+        var b3 = botao('Desativar ' + T.onde, 'nf-perigo', desativar); b3.setAttribute('data-acao', 'desativar-avisos'); acoes.appendChild(b3);
+      }
+      var bvf = botao('Verificar avisos', '', diagnosticar); bvf.setAttribute('data-acao', 'verificar-avisos'); acoes.appendChild(bvf);
       status.appendChild(acoes);
+      if (ativo) {
+        var det = document.createElement('details'); det.setAttribute('data-sec', 'ajuda-bloqueio'); det.style.margin = '6px 0 0';
+        var sm = h('summary', null, MOVEL ? 'Não apareceu com a tela bloqueada?' : 'Não apareceu o aviso?'); sm.style.cssText = 'cursor:pointer;font-weight:700;font-size:13px'; det.appendChild(sm);
+        var ajuda = h('div');
+        ajuda.innerHTML = MOVEL
+          ? '<ul><li><b>iPhone:</b> em Ajustes &gt; Notificações &gt; NowFind (o ícone da tela de início), ative "Tela Bloqueada" e "Alertas". Desligue o modo Foco ou Não Perturbe. O NowFind precisa estar instalado na tela de início e o iPhone com iOS 16.4 ou mais novo.</li><li><b>Android:</b> em Configurações &gt; Apps &gt; Chrome (ou NowFind) &gt; Notificações, permita e ative "Mostrar na tela de bloqueio". Em Bateria, deixe o app "Sem restrições" e desligue a economia de bateria agressiva.</li><li>Com o celular no silencioso, o aviso aparece, mas sem som.</li></ul>'
+          : '<ul><li>O navegador precisa estar aberto (pode estar em segundo plano).</li><li>Confira se este site tem permissão de notificações no navegador e se o modo Não Perturbe do sistema está desligado.</li></ul>';
+        det.appendChild(ajuda); status.appendChild(det);
+      }
       desenharPrefs();
     }
     async function ativar() {
@@ -24321,8 +24338,69 @@ function escreverTexto(alvo, texto){
     }
     async function testar() {
       var r = await api(URL_PUSH, '/testar', 'POST');
-      if (!r.j.ok) mostrar('erro', r.j.erro || 'Não foi possível enviar o teste.');
-      else mostrar('ok', r.j.enviados ? 'Teste enviado. Em alguns segundos deve aparecer uma notificação. ' + T.dicaTeste : 'O serviço de avisos do aparelho não aceitou o envio agora. Tente ativar de novo.');
+      if (!r.j.ok) { mostrar('erro', r.j.erro || 'Não foi possível enviar o teste.'); return; }
+      var det = r.j.detalhes || [];
+      if (!det.length) { mostrar('ok', r.j.enviados ? 'Teste enviado. Em alguns segundos deve aparecer uma notificação. ' + T.dicaTeste : 'O serviço de avisos do aparelho não aceitou o envio agora. Tente ativar de novo.'); return; }
+      msg.textContent = '';
+      det.forEach(function (d) { var e = explicar(d); msg.appendChild(h('div', e.ok ? 'nf-cel-info' : 'nf-cel-erro', e.texto + (e.ok ? ' ' + T.dicaTeste : ''))); });
+      diagnosticar();
+    }
+    function hora(iso) { var d = new Date(iso); return isNaN(d.getTime()) ? '' : ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2); }
+    function nomeServico(host) { host = String(host || ''); if (/apple/.test(host)) return 'A Apple'; if (/google|fcm/.test(host)) return 'O Google'; if (/mozilla/.test(host)) return 'O Firefox'; if (/windows|microsoft|notify/.test(host)) return 'A Microsoft'; return host ? 'O serviço ' + host : 'O serviço de avisos'; }
+    /* traduz a resposta do serviço de avisos (Apple, Google...) para uma frase clara */
+    function explicar(d) {
+      var nome = nomeServico(d.host), st = Number(d.status), mot = d.motivo ? ' (' + String(d.motivo).replace(/[{}"]/g, '').slice(0, 120) + ')' : '';
+      if (st >= 200 && st < 300) return { ok: true, texto: nome + ' aceitou o aviso (código ' + st + '). Se não apareceu no aparelho, o problema está nele: confira as permissões e se o sw.js novo está ativo (veja a verificação abaixo).' };
+      if (st === 404 || st === 410) return { ok: false, texto: nome + ' diz que esta inscrição não existe mais (código ' + st + '). Desative e ative os avisos de novo neste aparelho.' };
+      if (st === 401 || st === 403) return { ok: false, texto: nome + ' recusou a assinatura de segurança do NowFind (código ' + st + mot + '). Desative e ative os avisos de novo; se continuar, me mande este texto.' };
+      if (st === 413) return { ok: false, texto: 'O aviso ficou grande demais para o serviço (código 413).' };
+      if (st === 429) return { ok: false, texto: nome + ' limitou os envios por enquanto (código 429). Espere alguns minutos.' };
+      if (st === 0) return { ok: false, texto: 'O servidor do NowFind não conseguiu falar com ' + nome.toLowerCase() + mot + '.' };
+      return { ok: false, texto: nome + ' respondeu com o código ' + st + mot + '.' };
+    }
+    /* passo a passo: onde a cadeia dos avisos quebra */
+    async function diagnosticar() {
+      diagBox.textContent = '';
+      var lista = h('div', 'nf-cel-sec'); lista.style.margin = '10px 0'; lista.appendChild(h('h4', null, 'Verificação dos avisos'));
+      function item(ok, titulo, detalhe) {
+        var d = h('div', 'nf-cel-linha'); d.style.alignItems = 'flex-start'; d.setAttribute('data-diag', ok === true ? 'ok' : (ok === false ? 'atencao' : 'info'));
+        var m = h('span', 'nf-cel-chip ' + (ok === true ? 'nf-on' : (ok === false ? 'nf-off' : '')), ok === true ? 'OK' : (ok === false ? 'Atenção' : 'Info')); m.style.flex = 'none'; d.appendChild(m);
+        var t = h('div'); t.style.flex = '1'; t.appendChild(h('b', null, titulo));
+        if (detalhe) { var x = h('div', null, detalhe); x.style.cssText = 'font-size:12.5px;opacity:.85;line-height:1.45'; t.appendChild(x); }
+        d.appendChild(t); lista.appendChild(d);
+      }
+      diagBox.appendChild(lista);
+      var inst = instalado();
+      if (ehIOS()) item(inst, 'NowFind aberto pelo ícone da tela de início', inst ? 'Sim.' : 'Não. No iPhone os avisos só funcionam com o NowFind aberto pelo ícone da tela de início (Safari > Compartilhar > Adicionar à Tela de Início).');
+      var perm = Notification.permission;
+      item(perm === 'granted', 'Permissão de notificações', perm === 'granted' ? 'Concedida.' : (perm === 'denied' ? 'Negada. No iPhone: Ajustes > Notificações > NowFind. No computador: configurações do site no navegador.' : 'Ainda não concedida. Toque em "Ativar".'));
+      var reg = null; try { reg = await navigator.serviceWorker.getRegistration(); } catch (e) {}
+      if (!reg) item(false, 'Serviço de avisos (sw.js)', 'Não está registrado neste aparelho. Recarregue o NowFind.');
+      else {
+        item(!!reg.active, 'Serviço de avisos (sw.js) ativo', reg.active ? 'Ativo.' : 'Ainda instalando. Espere um pouco e verifique de novo.');
+        if (reg.waiting) item(false, 'Existe uma atualização do sw.js esperando', 'Feche o NowFind por completo (no iPhone, deslize para cima e solte) e abra de novo pelo ícone. Depois verifique outra vez.');
+      }
+      try {
+        var rr = await fetch('/sw.js?v=' + Date.now(), { cache: 'no-store' });
+        var tx = rr.ok ? await rr.text() : '';
+        var tem = /showNotification/.test(tx) && /addEventListener\(\s*['"]push['"]/.test(tx);
+        item(rr.ok ? tem : false, 'O arquivo sw.js publicado tem o bloco de avisos', !rr.ok ? 'Não consegui ler o arquivo /sw.js.' : (tem ? 'Sim.' : 'Não. Cole o bloco de avisos no final do sw.js (passo 3 do pacote) e salve (commit).'));
+      } catch (e) { item(null, 'O arquivo sw.js publicado tem o bloco de avisos', 'Não consegui conferir agora.'); }
+      var sub = null; try { sub = reg ? await reg.pushManager.getSubscription() : null; } catch (e) {}
+      var hostSub = ''; try { hostSub = sub ? new URL(sub.endpoint).host : ''; } catch (e) {}
+      item(!!sub, 'Inscrição de avisos neste aparelho', sub ? 'Sim, pelo serviço ' + nomeServico(hostSub).toLowerCase().replace(/^(a|o) /, '') + '.' : 'Não. Toque em "Ativar".');
+      var e = await api(URL_PUSH, '/estado' + (sub ? '?endpoint=' + encodeURIComponent(sub.endpoint) : ''), 'GET'); var ej = e.j || {};
+      item(!!ej.este_aparelho, 'Este aparelho está registrado no servidor', ej.este_aparelho ? 'Sim.' : 'Não. Desative e ative os avisos de novo.');
+      var idade = ej.cron_ultima ? (Date.now() - new Date(ej.cron_ultima).getTime()) / 60000 : null;
+      item(idade !== null && idade < 3, 'Verificador de cada minuto (gatilho da Cloudflare)', idade === null ? 'Nunca rodou. Falta criar o gatilho: Cloudflare > nowfind-ia > Settings > Triggers > Cron Triggers > Add > * * * * *' : (idade < 3 ? 'Rodando (última vez há ' + Math.max(0, Math.round(idade)) + ' min).' : 'Parou há ' + Math.round(idade) + ' min. Confira o gatilho * * * * * na Cloudflare.'));
+      var ult = ej.ultimos || [];
+      if (!ult.length) item(null, 'Últimos envios do servidor', 'Ainda nenhum. Toque em "Enviar um teste agora".');
+      else ult.slice(0, 3).forEach(function (x) { var ex = explicar({ host: x.host, status: x.status, motivo: x.motivo }); item(ex.ok, 'Envio (' + (x.origem || 'aviso') + ') às ' + hora(x.quando), ex.texto); });
+    }
+    async function testarDepois() {
+      var r = await api(URL_PUSH, '/testar', 'POST', { em_minutos: 1 });
+      if (!r.j.ok) mostrar('erro', r.j.erro || 'Não foi possível agendar o teste.');
+      else mostrar('ok', MOVEL ? 'Agendado! Agora bloqueie o celular e espere até 2 minutos. O aviso deve aparecer na tela de bloqueio.' : 'Agendado! Troque de aba ou minimize o navegador e espere até 2 minutos.');
     }
     function linhaPref(rotulo, controle, dica) { var l = h('div', 'nf-cel-linha'); var lb = h('label', null, rotulo); if (dica) { var s = h('small', null, dica); s.style.cssText = 'display:block;font-weight:500;opacity:.7'; lb.appendChild(s); } l.appendChild(lb); l.appendChild(controle); return l; }
     function sel(opcoes, valor, aoMudar, rotulo) { var s = document.createElement('select'); s.setAttribute('aria-label', rotulo); opcoes.forEach(function (o) { var x = h('option', null, o[1]); x.value = o[0]; s.appendChild(x); }); s.value = valor == null ? '' : String(valor); s.addEventListener('change', function () { aoMudar(s.value); }); return s; }
