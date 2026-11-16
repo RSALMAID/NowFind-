@@ -24621,6 +24621,332 @@ function escreverTexto(alvo, texto){
   pintar();
 })();
 /* ===== AJUSTES 54 - FIM ===== */
+/* ===== AJUSTES 55 - LISTAS DO DIA A DIA (compras etc.) COM VOZ ===== */
+(function () {
+  if (window.NFListas) return;
+  var aside = document.querySelector('#view-home .home-coluna-lateral');
+  if (!aside) return;
+  window.NFListas = true;
+  if (typeof LISTAS_SYNC !== 'undefined' && LISTAS_SYNC.indexOf('listas') < 0) LISTAS_SYNC.push('listas');
+
+  var MAX_GRAVACAO = 60;
+  var st = { ativa: null, modo: '', gravando: false, fluxo: null, grav: null, timer: null, seg: 0, cancelar: false, ocupado: false, desfazer: null, tdesf: null };
+
+  var estilo = document.createElement('style');
+  estilo.textContent = [
+    '.nf-ls{padding:18px 18px 16px}',
+    '.nf-ls-topo{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}',
+    '.nf-ls-topo small{font-size:10.5px;font-weight:800;letter-spacing:1.4px;opacity:.65}',
+    '.nf-ls-topo h3{margin:2px 0 0;font-size:18px}',
+    '.nf-ls-prog{font-size:12px;font-weight:800;opacity:.75;white-space:nowrap}',
+    '.nf-ls-abas{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 10px}',
+    '.nf-ls-aba{padding:6px 12px;border-radius:999px;border:1px solid var(--borda,rgba(127,127,127,.3));background:transparent;color:inherit;font:inherit;font-size:13px;font-weight:700;cursor:pointer}',
+    '.nf-ls-aba.on{background:var(--azul,#2F5BFF);border-color:transparent;color:#fff}',
+    '.nf-ls-entrada{display:flex;gap:8px;align-items:center;margin-bottom:8px}',
+    '.nf-ls-entrada input{flex:1;min-width:0;padding:11px 13px;border-radius:14px;border:1px solid var(--borda,rgba(127,127,127,.3));background:transparent;color:inherit;font:inherit;font-size:15px}',
+    '.nf-ls-bt{flex:none;width:42px;height:42px;border-radius:14px;border:1px solid var(--borda,rgba(127,127,127,.3));background:transparent;color:inherit;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;padding:0}',
+    '.nf-ls-bt svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}',
+    '.nf-ls-bt.prim{background:var(--azul,#2F5BFF);border-color:transparent;color:#fff}',
+    '.nf-ls-bt.gravando{background:#E5202E;border-color:transparent;color:#fff;animation:nfLsPulso 1.1s infinite}',
+    '@keyframes nfLsPulso{0%,100%{box-shadow:0 0 0 0 rgba(229,32,46,.5)}50%{box-shadow:0 0 0 8px rgba(229,32,46,0)}}',
+    '.nf-ls-voz{display:none;align-items:center;justify-content:space-between;gap:8px;padding:8px 12px;margin-bottom:8px;border-radius:12px;background:color-mix(in srgb,var(--azul,#2F5BFF) 14%,transparent);font-size:13px;font-weight:700}',
+    '.nf-ls-voz.on{display:flex}',
+    '.nf-ls-voz button{background:none;border:0;color:inherit;font:inherit;font-weight:800;text-decoration:underline;cursor:pointer}',
+    '.nf-ls-itens{list-style:none;margin:0;padding:0}',
+    '.nf-ls-item{display:flex;align-items:center;gap:10px;padding:9px 2px;border-top:1px solid var(--borda,rgba(127,127,127,.18))}',
+    '.nf-ls-item:first-child{border-top:0}',
+    '.nf-ls-chk{flex:none;width:26px;height:26px;border-radius:9px;border:2px solid var(--borda,rgba(127,127,127,.55));background:transparent;color:#fff;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;padding:0}',
+    '.nf-ls-chk svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;opacity:0}',
+    '.nf-ls-item.feito .nf-ls-chk{background:#22B573;border-color:#22B573}',
+    '.nf-ls-item.feito .nf-ls-chk svg{opacity:1}',
+    '.nf-ls-txt{flex:1;min-width:0;font-size:15px;line-height:1.3;word-break:break-word;cursor:text}',
+    '.nf-ls-item.feito .nf-ls-txt{text-decoration:line-through;opacity:.5}',
+    '.nf-ls-edit{flex:1;min-width:0;padding:6px 8px;border-radius:10px;border:1px solid var(--azul,#2F5BFF);background:transparent;color:inherit;font:inherit;font-size:15px}',
+    '.nf-ls-x{flex:none;width:30px;height:30px;border:0;background:transparent;color:inherit;opacity:.45;font-size:18px;cursor:pointer;border-radius:8px}',
+    '.nf-ls-x:hover{opacity:.9}',
+    '.nf-ls-vazio{padding:12px 4px;font-size:14px;opacity:.7}',
+    '.nf-ls-rodape{display:flex;gap:14px;flex-wrap:wrap;margin-top:10px}',
+    '.nf-ls-rodape button,.nf-ls-vazio button{background:none;border:0;padding:4px 0;color:var(--azul,#2F5BFF);font:inherit;font-size:13px;font-weight:700;cursor:pointer}',
+    '.nf-ls-aviso{margin-top:10px;padding:9px 12px;border-radius:12px;background:rgba(34,181,115,.16);font-size:13px;font-weight:700;display:flex;justify-content:space-between;gap:10px}',
+    '.nf-ls-aviso.erro{background:rgba(229,32,46,.16)}',
+    '.nf-ls-aviso button{background:none;border:0;color:inherit;font:inherit;font-weight:800;text-decoration:underline;cursor:pointer}'
+  ].join('\n');
+  document.head.appendChild(estilo);
+
+  function svg(c) { return '<svg viewBox="0 0 24 24" aria-hidden="true">' + c + '</svg>'; }
+  var ICO = {
+    mic: svg('<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0014 0M12 18v3"/>'),
+    parar: svg('<rect x="6" y="6" width="12" height="12" rx="2"/>'),
+    mais: svg('<path d="M12 5v14M5 12h14"/>'),
+    ok: svg('<path d="M5 12.5l4.5 4.5L19 7.5"/>')
+  };
+
+  function novoId(p) { return p + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+  function listas() { if (!Array.isArray(dados.listas)) dados.listas = []; return dados.listas; }
+  function acharLista(id) { return listas().filter(function (l) { return l.id === id; })[0] || null; }
+  function atual() { var l = acharLista(st.ativa); if (!l && listas().length) { l = listas()[0]; st.ativa = l.id; } return l; }
+  function limpo(t) { return String(t || '').replace(/\s+/g, ' ').trim(); }
+  function chave(t) { return limpo(t).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''); }
+  function capital(t) { t = limpo(t); return t ? t.charAt(0).toUpperCase() + t.slice(1) : t; }
+  function gravar() { try { salvarDados(); } catch (e) {} }
+
+  /* separa uma fala ou texto em itens: "leite, pão e ovos" -> 3 itens */
+  function separar(txt, falado) {
+    var t = String(txt || '').replace(/\r/g, '\n');
+    t = t.replace(/\s+e\s+/gi, ',');
+    if (falado) {
+      t = t.replace(/^\s*(por favor[, ]*)?(adicion(a|ar|e)|coloc(a|ar|e)|anota(r)?|p(õ|o)e|preciso (de )?comprar|preciso de|vou comprar|comprar|inclui(r)?)\s+/i, '');
+      t = t.replace(/\s+(na|à|a|em minha|na minha)\s+lista( de [a-zçãé ]+)?\s*\.?\s*$/i, '');
+      t = t.replace(/[.!?]+\s+/g, ',').replace(/[.!?]+$/g, '');
+      t = t.replace(/\s+(e|mais|também|tamb[eé]m|al[eé]m disso|depois)\s+/gi, ',');
+    }
+    return t.split(/[,;\n]+/).map(function (x) {
+      return capital(x.replace(/^[\s\-–•*]+/, '').replace(/^(e|mais|tamb[eé]m|depois)\s+/i, ''));
+    }).filter(function (x) { return x && x.length <= 120; });
+  }
+
+  function adicionar(partes, origem) {
+    var l = atual(); if (!l) return 0;
+    var ja = {}; l.itens.forEach(function (i) { ja[chave(i.t)] = true; });
+    var novos = [];
+    partes.forEach(function (p) {
+      var k = chave(p); if (!k || ja[k]) return; ja[k] = true;
+      novos.push({ id: novoId('li'), t: p, f: false });
+    });
+    if (!novos.length) return 0;
+    l.itens = novos.concat(l.itens);
+    l.atualizadoEm = new Date().toISOString();
+    gravar();
+    st.desfazer = { lista: l.id, ids: novos.map(function (n) { return n.id; }) };
+    return novos.length;
+  }
+
+  var secao = document.createElement('section');
+  secao.className = 'home-card nf-ls'; secao.id = 'nfListas';
+  var prox = document.getElementById('nfProximo');
+  if (prox && prox.nextSibling) aside.insertBefore(secao, prox.nextSibling); else aside.appendChild(secao);
+
+  function el(tag, cls, txt) { var e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; }
+  function aviso(msg, erro, comDesfazer) {
+    var a = secao.querySelector('.nf-ls-aviso'); if (a) a.remove();
+    a = el('div', 'nf-ls-aviso' + (erro ? ' erro' : ''));
+    a.appendChild(el('span', '', msg));
+    if (comDesfazer) {
+      var b = el('button', '', 'Desfazer'); b.type = 'button';
+      b.onclick = function () {
+        var d = st.desfazer, l = d && acharLista(d.lista);
+        if (l) { l.itens = l.itens.filter(function (i) { return d.ids.indexOf(i.id) < 0; }); gravar(); }
+        st.desfazer = null; pintar();
+      };
+      a.appendChild(b);
+    }
+    secao.appendChild(a);
+    clearTimeout(st.tdesf);
+    st.tdesf = setTimeout(function () { if (a.parentNode) a.remove(); }, 9000);
+  }
+
+  function pintar() {
+    if (st.gravando || st.ocupado) return;
+    secao.textContent = '';
+    var l = atual();
+    var topo = el('div', 'nf-ls-topo');
+    var tt = el('div'); tt.appendChild(el('small', '', 'DIA A DIA')); tt.appendChild(el('h3', '', l ? l.nome : 'Listas'));
+    topo.appendChild(tt);
+    if (l && l.itens.length) {
+      var f = l.itens.filter(function (i) { return i.f; }).length;
+      topo.appendChild(el('span', 'nf-ls-prog', f + ' de ' + l.itens.length));
+    }
+    secao.appendChild(topo);
+
+    /* abas */
+    var abas = el('div', 'nf-ls-abas');
+    listas().forEach(function (x) {
+      var b = el('button', 'nf-ls-aba' + (l && x.id === l.id ? ' on' : ''), x.nome); b.type = 'button';
+      b.onclick = function () { st.ativa = x.id; st.modo = ''; pintar(); };
+      abas.appendChild(b);
+    });
+    var nova = el('button', 'nf-ls-aba', '+ Lista'); nova.type = 'button';
+    nova.onclick = function () { st.modo = 'nova'; pintar(); };
+    abas.appendChild(nova);
+    if (listas().length) secao.appendChild(abas);
+
+    /* nome da lista (nova ou renomear) */
+    if (st.modo === 'nova' || st.modo === 'renomear') {
+      var linhaN = el('div', 'nf-ls-entrada');
+      var inN = el('input'); inN.type = 'text'; inN.maxLength = 40;
+      inN.placeholder = st.modo === 'nova' ? 'Nome da lista (ex.: Compras)' : 'Novo nome';
+      if (st.modo === 'renomear' && l) inN.value = l.nome;
+      var ok = el('button', 'nf-ls-bt prim'); ok.type = 'button'; ok.innerHTML = ICO.ok; ok.setAttribute('aria-label', 'Salvar nome');
+      var salvarNome = function () {
+        var nome = limpo(inN.value); if (!nome) return;
+        if (st.modo === 'nova') {
+          var n = { id: novoId('ls'), nome: nome, itens: [], criadoEm: new Date().toISOString() };
+          listas().push(n); st.ativa = n.id;
+        } else if (l) { l.nome = nome; }
+        st.modo = ''; gravar(); pintar();
+      };
+      ok.onclick = salvarNome;
+      inN.addEventListener('keydown', function (e) { if (e.key === 'Enter') salvarNome(); if (e.key === 'Escape') { st.modo = ''; pintar(); } });
+      linhaN.appendChild(inN); linhaN.appendChild(ok); secao.appendChild(linhaN);
+      setTimeout(function () { try { inN.focus(); } catch (e) {} }, 30);
+    }
+
+    if (!l) {
+      var vz = el('div', 'nf-ls-vazio', 'Crie uma lista para o dia a dia, como compras, e marque os itens conforme for resolvendo.');
+      vz.appendChild(document.createElement('br'));
+      var bc = el('button', '', 'Criar lista de Compras'); bc.type = 'button';
+      bc.onclick = function () { var n = { id: novoId('ls'), nome: 'Compras', itens: [], criadoEm: new Date().toISOString() }; listas().push(n); st.ativa = n.id; gravar(); pintar(); };
+      vz.appendChild(bc);
+      secao.appendChild(vz);
+      return;
+    }
+
+    /* entrada de itens: texto + voz */
+    var entrada = el('div', 'nf-ls-entrada');
+    var inp = el('input'); inp.type = 'text'; inp.placeholder = 'Adicionar item (ou fale vários de uma vez)';
+    inp.setAttribute('enterkeyhint', 'done'); inp.setAttribute('autocomplete', 'off');
+    var add = el('button', 'nf-ls-bt prim'); add.type = 'button'; add.innerHTML = ICO.mais; add.setAttribute('aria-label', 'Adicionar');
+    var mic = el('button', 'nf-ls-bt'); mic.type = 'button'; mic.innerHTML = ICO.mic; mic.id = 'nfListaMic'; mic.setAttribute('aria-label', 'Falar os itens');
+    var enviar = function () {
+      var partes = separar(inp.value, false);
+      if (!partes.length) return;
+      inp.value = '';
+      adicionar(partes); pintar();
+      var i2 = secao.querySelector('.nf-ls-entrada input'); if (i2) i2.focus();
+    };
+    add.onclick = enviar;
+    inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') enviar(); });
+    mic.onclick = function () { comecarVoz(); };
+    entrada.appendChild(inp); entrada.appendChild(mic); entrada.appendChild(add);
+    secao.appendChild(entrada);
+    var faixa = el('div', 'nf-ls-voz'); faixa.id = 'nfListaVoz'; secao.appendChild(faixa);
+
+    /* itens: pendentes primeiro, marcados no fim */
+    var ord = l.itens.filter(function (i) { return !i.f; }).concat(l.itens.filter(function (i) { return i.f; }));
+    if (!ord.length) {
+      secao.appendChild(el('div', 'nf-ls-vazio', 'Lista vazia. Digite, ou toque no microfone e fale: "leite, pão, ovos e café".'));
+    } else {
+      var ul = el('ul', 'nf-ls-itens');
+      ord.forEach(function (i) {
+        var li = el('li', 'nf-ls-item' + (i.f ? ' feito' : ''));
+        var c = el('button', 'nf-ls-chk'); c.type = 'button'; c.innerHTML = ICO.ok;
+        c.setAttribute('role', 'checkbox'); c.setAttribute('aria-checked', i.f ? 'true' : 'false'); c.setAttribute('aria-label', 'Marcar ' + i.t);
+        c.onclick = function () { i.f = !i.f; l.atualizadoEm = new Date().toISOString(); gravar(); pintar(); };
+        var tx = el('span', 'nf-ls-txt', i.t);
+        tx.onclick = function () {
+          var ed = el('input', 'nf-ls-edit'); ed.type = 'text'; ed.value = i.t; ed.maxLength = 120;
+          li.replaceChild(ed, tx); ed.focus(); ed.select();
+          var fim = false;
+          var sair = function (salva) {
+            if (fim) return; fim = true;
+            var v = capital(ed.value);
+            if (salva && v && v !== i.t) { i.t = v; l.atualizadoEm = new Date().toISOString(); gravar(); }
+            pintar();
+          };
+          ed.addEventListener('keydown', function (e) { if (e.key === 'Enter') sair(true); if (e.key === 'Escape') sair(false); });
+          ed.addEventListener('blur', function () { sair(true); });
+        };
+        var x = el('button', 'nf-ls-x', '×'); x.type = 'button'; x.setAttribute('aria-label', 'Remover ' + i.t);
+        x.onclick = function () { l.itens = l.itens.filter(function (y) { return y.id !== i.id; }); l.atualizadoEm = new Date().toISOString(); gravar(); pintar(); };
+        li.appendChild(c); li.appendChild(tx); li.appendChild(x); ul.appendChild(li);
+      });
+      secao.appendChild(ul);
+    }
+
+    var rod = el('div', 'nf-ls-rodape');
+    function rb(txt, fn) { var b = el('button', '', txt); b.type = 'button'; b.onclick = fn; rod.appendChild(b); }
+    if (l.itens.some(function (i) { return i.f; })) {
+      rb('Limpar marcados', function () { l.itens = l.itens.filter(function (i) { return !i.f; }); l.atualizadoEm = new Date().toISOString(); gravar(); pintar(); });
+      rb('Desmarcar todos', function () { l.itens.forEach(function (i) { i.f = false; }); l.atualizadoEm = new Date().toISOString(); gravar(); pintar(); });
+    }
+    rb('Renomear', function () { st.modo = 'renomear'; pintar(); });
+    rb('Excluir lista', function () {
+      if (l.itens.length && !confirm('Excluir a lista "' + l.nome + '" com ' + l.itens.length + ' item(ns)?')) return;
+      dados.listas = listas().filter(function (x) { return x.id !== l.id; });
+      st.ativa = null; gravar(); pintar();
+    });
+    secao.appendChild(rod);
+  }
+
+  /* ---------- voz ---------- */
+  function faixaTxt(t, cancelavel) {
+    var f = document.getElementById('nfListaVoz'); if (!f) return;
+    f.textContent = ''; f.classList.add('on');
+    f.appendChild(el('span', '', t));
+    if (cancelavel) { var b = el('button', '', 'Cancelar'); b.type = 'button'; b.onclick = function () { pararVoz(true); }; f.appendChild(b); }
+  }
+  function fimVoz() {
+    st.gravando = false;
+    if (st.fluxo) { st.fluxo.getTracks().forEach(function (t) { t.stop(); }); st.fluxo = null; }
+    clearInterval(st.timer); st.timer = null;
+  }
+  function pararVoz(cancelar) {
+    st.cancelar = !!cancelar;
+    if (st.grav && st.grav.state !== 'inactive') st.grav.stop(); else { fimVoz(); pintar(); }
+  }
+  async function transcrever(blob) {
+    st.ocupado = true;
+    var mic = document.getElementById('nfListaMic'); if (mic) { mic.classList.remove('gravando'); mic.innerHTML = ICO.mic; }
+    faixaTxt('Entendendo o que você disse...', false);
+    var msg = '', erro = false, n = 0;
+    try {
+      var amb = (typeof ambienteAtual === 'function' && ambienteAtual() === 'profissional') ? 'profissional' : 'pessoal';
+      var r = await fetch(NOWFIND_IA_URL + '/api/audio', {
+        method: 'POST',
+        headers: { 'Content-Type': blob.type || 'application/octet-stream', 'X-NowFind-Tipo': amb, 'Authorization': 'Bearer ' + tokenAtual() },
+        body: blob
+      });
+      var j = {}; try { j = await r.json(); } catch (e) {}
+      if (!r.ok || !j.ok) throw new Error(j.erro || 'Não consegui entender o áudio.');
+      var t = limpo(j.transcricao);
+      if (!t) throw new Error('Não ouvi nada. Tente de novo, mais perto do microfone.');
+      var partes = separar(t, true);
+      n = adicionar(partes, 'voz');
+      msg = n ? (n + (n === 1 ? ' item adicionado' : ' itens adicionados') + ' por voz.') : 'Esses itens já estavam na lista.';
+    } catch (e) { msg = e.message || 'Não consegui entender o áudio.'; erro = true; }
+    st.ocupado = false;
+    pintar();
+    aviso(msg, erro, !erro && n > 0);
+  }
+  async function comecarVoz() {
+    if (st.gravando || st.ocupado) { if (st.gravando) pararVoz(false); return; }
+    if (typeof tokenAtual !== 'function' || !tokenAtual()) { aviso('Entre na sua conta para usar a voz.', true); return; }
+    if (!navigator.mediaDevices || !window.MediaRecorder) { aviso('Este navegador não grava áudio. Digite os itens.', true); return; }
+    try { st.fluxo = await navigator.mediaDevices.getUserMedia({ audio: true }); }
+    catch (e) { aviso('Não consegui usar o microfone. Libere a permissão no navegador.', true); return; }
+    var partes = [], g;
+    try { g = new MediaRecorder(st.fluxo); } catch (e) { fimVoz(); aviso('Não consegui iniciar a gravação neste aparelho.', true); return; }
+    st.grav = g; st.cancelar = false;
+    g.ondataavailable = function (e) { if (e.data && e.data.size) partes.push(e.data); };
+    g.onstop = function () {
+      var canc = st.cancelar, tipo = g.mimeType || 'audio/webm';
+      fimVoz();
+      if (canc) { pintar(); return; }
+      var blob = new Blob(partes, { type: tipo });
+      if (!blob.size) { pintar(); aviso('Não captei áudio. Tente de novo.', true); return; }
+      transcrever(blob);
+    };
+    g.start();
+    st.gravando = true; st.seg = 0;
+    var mic = document.getElementById('nfListaMic');
+    if (mic) { mic.classList.add('gravando'); mic.innerHTML = ICO.parar; mic.setAttribute('aria-label', 'Parar e adicionar'); mic.onclick = function () { pararVoz(false); }; }
+    faixaTxt('Ouvindo... 0:00 · fale os itens e toque no quadrado', true);
+    st.timer = setInterval(function () {
+      st.seg++;
+      faixaTxt('Ouvindo... ' + Math.floor(st.seg / 60) + ':' + ('0' + (st.seg % 60)).slice(-2) + ' · fale os itens e toque no quadrado', true);
+      if (st.seg >= MAX_GRAVACAO) pararVoz(false);
+    }, 1000);
+  }
+
+  /* atualiza quando os dados chegam de outro aparelho */
+  if (typeof renderizar === 'function') {
+    var rBase = renderizar;
+    renderizar = function () { var r = rBase.apply(this, arguments); try { var foco = document.activeElement; if (!(foco && secao.contains(foco))) pintar(); } catch (e) {} return r; };
+  }
+  window.NFListasAtualizar = pintar;
+  pintar();
+})();
+/* ===== AJUSTES 55 - FIM ===== */
 
 
 carregarSortable();
