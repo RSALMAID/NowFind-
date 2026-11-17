@@ -25000,6 +25000,386 @@ function escreverTexto(alvo, texto){
   ajustar();
 })();
 /* ===== AJUSTES 56 - FIM ===== */
+/* ===== AJUSTES 57 - PAINEL DO PROJETO COMPLETO (Burnup/Burndown, Controle, Fluxo, Marcos, Pareto) ===== */
+(function () {
+  if (window.NFPainel || typeof renderPainelProj !== 'function' || !document.getElementById('aba-painel') || typeof STATUS_ESP === 'undefined') return;
+  window.NFPainel = true;
+  var DIA = 86400000;
+  var FEITO = { realizado: 1, validado: 1 };
+  var EMCURSO = { andamento: 1, aguardando: 1 };
+  var est = { modo: 'burnup' };
+
+  /* ---------- histórico de status (começa a ser guardado a partir de agora) ---------- */
+  function ms(iso) { var t = Date.parse(iso || ''); return isNaN(t) ? null : t; }
+  function brutoInicial(x) {
+    var c = x.criadoEm || x.atualizadoEm || new Date().toISOString();
+    var h = [['afazer', c, 1]];
+    if (x.status && x.status !== 'afazer') h.push([x.status, x.atualizadoEm || c, 1]);
+    return h;
+  }
+  function registrar(lista) {
+    (lista || []).forEach(function (x) {
+      if (!x || !x.id || !x.status) return;
+      if (!Array.isArray(x.hist) || !x.hist.length) { x.hist = brutoInicial(x); return; }
+      if (x.hist[x.hist.length - 1][0] !== x.status) {
+        x.hist.push([x.status, new Date().toISOString()]);
+        if (x.hist.length > 60) x.hist = x.hist.slice(-60);
+      }
+    });
+  }
+  if (typeof salvarDados === 'function') {
+    var sdBase = salvarDados;
+    salvarDados = function () { try { registrar(dados.itens); } catch (e) {} return sdBase.apply(this, arguments); };
+  }
+  if (typeof gravarProjEsp === 'function') {
+    var gpBase = gravarProjEsp;
+    gravarProjEsp = function (id) { try { if (projEsp[id]) registrar(projEsp[id].dados.tarefas); } catch (e) {} return gpBase.apply(this, arguments); };
+  }
+  if (typeof paraTarefaLocal === 'function') {
+    var ptBase = paraTarefaLocal;
+    paraTarefaLocal = function (i) { var t = ptBase(i); if (Array.isArray(i.hist)) t.hist = i.hist; return t; };
+  }
+
+  /* ---------- métricas por tarefa ---------- */
+  function metricas(t) {
+    var raw = (Array.isArray(t.hist) && t.hist.length) ? t.hist : brutoInicial(t);
+    var h = raw.map(function (e) { return { s: e[0], m: ms(e[1]), est: !!e[2] }; }).filter(function (e) { return e.m != null; });
+    if (!h.length) return null;
+    var r = { h: h, criada: h[0].m, inicio: null, concl: null, reab: 0, semInicio: false };
+    for (var i = 0; i < h.length; i++) {
+      if (r.inicio == null && EMCURSO[h[i].s]) r.inicio = h[i].m;
+      if (i && FEITO[h[i - 1].s] && !FEITO[h[i].s]) r.reab++;
+    }
+    if (FEITO[t.status]) {
+      var k = h.length - 1;
+      if (!FEITO[h[k].s]) r.concl = ms(t.atualizadoEm) || h[k].m;
+      else { while (k > 0 && FEITO[h[k - 1].s]) k--; r.concl = h[k].m; }
+    }
+    return r;
+  }
+  function estadoEm(m, limite) {
+    var s = null;
+    for (var i = 0; i < m.h.length; i++) { if (m.h[i].m <= limite) s = m.h[i].s; else break; }
+    return s;
+  }
+  function inicioDia(x) { var d = new Date(x); return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime(); }
+  function fimDia(x) { return inicioDia(x) + DIA - 1; }
+  function pad(n) { return n < 10 ? '0' + n : '' + n; }
+  function fmtD(x) { var d = new Date(x); return pad(d.getDate()) + '/' + pad(d.getMonth() + 1); }
+  function paraMs(p) { var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(p || ''); return m ? new Date(+m[1], +m[2] - 1, +m[3]).getTime() : null; }
+  function fmtN(n) { return (Math.round(n * 10) / 10).toString().replace('.', ','); }
+
+  /* ---------- estilo ---------- */
+  var estilo = document.createElement('style');
+  estilo.textContent = [
+    '.nf-pn-topo{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;margin:22px 0 10px}',
+    '.nf-pn-topo h3{margin:0;font-size:18px}',
+    '.nf-pn-seg{display:inline-flex;padding:3px;border-radius:12px;background:rgba(127,127,127,.18)}',
+    '.nf-pn-seg button{border:0;background:transparent;color:inherit;font:inherit;font-size:13px;font-weight:700;padding:7px 14px;border-radius:9px;cursor:pointer;opacity:.7}',
+    '.nf-pn-seg button.on{background:var(--card,#fff);opacity:1;box-shadow:0 1px 4px rgba(0,0,0,.2)}',
+    '.nf-pn-grade{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:14px}',
+    '.nf-pn-cart{padding:16px;border-radius:20px;border:1px solid var(--borda,rgba(127,127,127,.25));background:var(--card,#fff);min-width:0}',
+    '.nf-pn-cart.larga{grid-column:1/-1}',
+    '.nf-pn-cart.larga svg.nf-gr{max-width:860px;margin:0 auto}',
+    '.nf-pn-cart h4{margin:0 0 2px;font-size:15px}',
+    '.nf-pn-sub{margin:0 0 10px;font-size:12.5px;opacity:.72;line-height:1.4}',
+    '.nf-pn-cart svg.nf-gr{display:block;width:100%;height:auto;overflow:visible}',
+    '.nf-gr text{fill:currentColor;font-size:10.5px;opacity:.7}',
+    '.nf-gr .eixo{stroke:currentColor;opacity:.2}',
+    '.nf-pn-leg{display:flex;flex-wrap:wrap;gap:6px 14px;margin:8px 0 0;font-size:12px}',
+    '.nf-pn-leg i{display:inline-block;width:14px;height:0;border-top:3px solid;vertical-align:middle;margin-right:5px}',
+    '.nf-pn-leg i.trac{border-top-style:dashed}',
+    '.nf-pn-leg i.pt{width:9px;height:9px;border:0;border-radius:50%}',
+    '.nf-pn-leitura{margin:10px 0 0;padding:9px 12px;border-radius:12px;border-left:4px solid var(--azul,#2F5BFF);background:rgba(47,91,255,.1);font-size:13px;line-height:1.45}',
+    '.nf-pn-leitura.ruim{border-left-color:#E5202E;background:rgba(229,32,46,.1)}',
+    '.nf-pn-leitura.bom{border-left-color:#22B573;background:rgba(34,181,115,.12)}',
+    '.nf-pn-vazio{padding:14px 4px;font-size:13px;opacity:.7}',
+    '.nf-pn-nota{margin:14px 0 0;font-size:12px;opacity:.65;line-height:1.4}',
+    '.nf-pn-marco{display:flex;align-items:center;gap:10px;padding:8px 2px;border-top:1px solid var(--borda,rgba(127,127,127,.2));font-size:14px;cursor:pointer}',
+    '.nf-pn-marco:first-of-type{border-top:0}',
+    '.nf-pn-marco svg{width:18px;height:18px;flex:none}',
+    '.nf-pn-marco b{flex:1;min-width:0;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+    '.nf-pn-marco span{font-size:12.5px;opacity:.8;white-space:nowrap}',
+    '.nf-pn-marco.atraso span{color:#E5202E;font-weight:800;opacity:1}',
+    '.nf-pn-par{display:grid;grid-template-columns:110px 1fr 34px;gap:8px;align-items:center;margin:6px 0;font-size:13px}',
+    '.nf-pn-par .tr{height:14px;border-radius:8px;background:rgba(127,127,127,.18);overflow:hidden}',
+    '.nf-pn-par .tr div{height:100%;border-radius:8px}',
+    '.nf-pn-par .acum{grid-column:2/4;font-size:11.5px;opacity:.6;margin-top:-4px}'
+  ].join('\n');
+  document.head.appendChild(estilo);
+
+  function el(tag, cls, txt) { var e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; }
+  function cartao(titulo, sub, larga) {
+    var c = el('section', 'nf-pn-cart' + (larga ? ' larga' : ''));
+    c.appendChild(el('h4', '', titulo));
+    if (sub) c.appendChild(el('p', 'nf-pn-sub', sub));
+    return c;
+  }
+  function leitura(txt, tipo) { return el('div', 'nf-pn-leitura' + (tipo ? ' ' + tipo : ''), txt); }
+  function legenda(itens) {
+    var l = el('div', 'nf-pn-leg');
+    itens.forEach(function (i) {
+      var s = el('span');
+      var m = el('i', i[2] === 'trac' ? 'trac' : (i[2] === 'pt' ? 'pt' : ''));
+      m.style.borderColor = i[1]; if (i[2] === 'pt') m.style.background = i[1];
+      s.appendChild(m); s.appendChild(document.createTextNode(i[0])); l.appendChild(s);
+    });
+    return l;
+  }
+
+  /* ---------- desenho SVG ---------- */
+  var NS = 'http://www.w3.org/2000/svg';
+  var L = 620, A = 250, ME = 38, MD = 14, MT = 12, MB = 26;
+  function nova() { var s = document.createElementNS(NS, 'svg'); s.setAttribute('viewBox', '0 0 ' + L + ' ' + A); s.setAttribute('class', 'nf-gr'); s.setAttribute('role', 'img'); return s; }
+  function no(s, tag, at, txt) { var e = document.createElementNS(NS, tag); Object.keys(at || {}).forEach(function (k) { e.setAttribute(k, at[k]); }); if (txt != null) e.textContent = txt; s.appendChild(e); return e; }
+  function escalas(x0, x1, ymax) {
+    if (x1 <= x0) x1 = x0 + DIA;
+    ymax = Math.max(1, ymax);
+    return {
+      X: function (v) { return ME + (v - x0) / (x1 - x0) * (L - ME - MD); },
+      Y: function (v) { return A - MB - v / ymax * (A - MB - MT); },
+      x0: x0, x1: x1, ymax: ymax
+    };
+  }
+  function eixos(s, E, ytitulo) {
+    var passo = E.ymax <= 6 ? 1 : E.ymax <= 12 ? 2 : E.ymax <= 30 ? 5 : E.ymax <= 60 ? 10 : Math.ceil(E.ymax / 5 / 10) * 10;
+    for (var v = 0; v <= E.ymax; v += passo) {
+      no(s, 'line', { x1: ME, x2: L - MD, y1: E.Y(v), y2: E.Y(v), class: 'eixo' });
+      no(s, 'text', { x: ME - 6, y: E.Y(v) + 3.5, 'text-anchor': 'end' }, String(v));
+    }
+    var n = 5;
+    for (var i = 0; i <= n; i++) {
+      var t = E.x0 + (E.x1 - E.x0) * i / n;
+      no(s, 'text', { x: E.X(t), y: A - 8, 'text-anchor': i === 0 ? 'start' : (i === n ? 'end' : 'middle') }, fmtD(t));
+    }
+  }
+  function linha(s, E, pts, cor, tracejada, larg) {
+    if (pts.length < 2) return;
+    no(s, 'polyline', { points: pts.map(function (p) { return E.X(p[0]).toFixed(1) + ',' + E.Y(p[1]).toFixed(1); }).join(' '), fill: 'none', stroke: cor, 'stroke-width': larg || 2.4, 'stroke-linejoin': 'round', 'stroke-linecap': 'round', 'stroke-dasharray': tracejada ? '6 5' : 'none' });
+  }
+  function vertical(s, E, x, cor, rotulo) {
+    if (x < E.x0 || x > E.x1) return;
+    no(s, 'line', { x1: E.X(x), x2: E.X(x), y1: MT, y2: A - MB, stroke: cor, 'stroke-width': 1.4, 'stroke-dasharray': '3 4' });
+    if (rotulo) var fimD = E.X(x) > L - 70; no(s, 'text', { x: E.X(x) + (fimD ? -4 : 4), y: MT + 9, 'text-anchor': fimD ? 'end' : 'start', style: 'fill:' + cor + ';opacity:1;font-weight:700' }, rotulo);
+  }
+
+  /* ---------- dados do projeto ---------- */
+  function preparar(tarefas) {
+    var itens = [];
+    tarefas.forEach(function (t) { var m = metricas(t); if (m) itens.push({ t: t, m: m }); });
+    return itens;
+  }
+
+  /* ---------- Burnup / Burndown ---------- */
+  function graficoBurn(itens, tarefas) {
+    var c = cartao(est.modo === 'burnup' ? 'Burnup: entregue × escopo' : 'Burndown: o que falta',
+      est.modo === 'burnup' ? 'Mostra o que já foi concluído e, separado, o quanto o escopo cresceu. Se o prazo estourar, dá para ver se foi ritmo ou pedido extra.' : 'Mostra quantas tarefas ainda faltam até o prazo. A linha tracejada é o ritmo ideal.', true);
+    if (!itens.length) { c.appendChild(el('div', 'nf-pn-vazio', 'Crie tarefas para ver este gráfico.')); return c; }
+    var hoje = inicioDia(Date.now());
+    var prazoMax = null;
+    tarefas.forEach(function (t) { var p = paraMs(t.prazo); if (p != null && (prazoMax == null || p > prazoMax)) prazoMax = p; });
+    var ini = Math.min.apply(null, itens.map(function (i) { return inicioDia(i.m.criada); }));
+    var fim = Math.max(hoje, prazoMax || hoje);
+    if ((fim - ini) / DIA > 220) ini = fim - 220 * DIA;
+    function escopo(d) { return itens.filter(function (i) { return i.m.criada <= fimDia(d); }).length; }
+    function feito(d) { return itens.filter(function (i) { return i.m.concl != null && i.m.concl <= fimDia(d); }).length; }
+    var esc0 = Math.max(1, escopo(ini)), escH = escopo(hoje), feH = feito(hoje), falta = escH - feH;
+    var ritmo = (feH - feito(hoje - 14 * DIA)) / 14;
+    var fimPrev = null;
+    if (falta > 0 && ritmo > 0) fimPrev = hoje + Math.ceil(falta / ritmo) * DIA;
+    var xmax = Math.max(fim, fimPrev || 0);
+    var ymax = Math.max(escH, esc0) + (est.modo === 'burnup' ? 1 : 0);
+    var E = escalas(ini, xmax, ymax), s = nova();
+    eixos(s, E, 'tarefas');
+    var serieEsc = [], serieFe = [], serieRest = [];
+    for (var d = ini; d <= hoje; d += DIA) { serieEsc.push([d, escopo(d)]); serieFe.push([d, feito(d)]); serieRest.push([d, escopo(d) - feito(d)]); }
+    var azul = '#2F5BFF', verde = '#22B573', ambar = '#E69A00', cinza = '#8E96B5';
+    if (est.modo === 'burnup') {
+      if (prazoMax != null) linha(s, E, [[ini, 0], [prazoMax, escH]], cinza, true, 1.8);
+      linha(s, E, serieEsc, azul, false, 2.2);
+      linha(s, E, serieFe, verde, false, 2.8);
+      if (fimPrev) linha(s, E, [[hoje, feH], [fimPrev, escH]], ambar, true, 2);
+    } else {
+      if (prazoMax != null) linha(s, E, [[ini, esc0], [prazoMax, 0]], cinza, true, 1.8);
+      linha(s, E, serieRest, azul, false, 2.8);
+      if (fimPrev) linha(s, E, [[hoje, falta], [fimPrev, 0]], ambar, true, 2);
+    }
+    vertical(s, E, hoje, cinza, 'hoje');
+    if (prazoMax != null) vertical(s, E, prazoMax, '#E5202E', 'prazo');
+    c.appendChild(s);
+    c.appendChild(legenda(est.modo === 'burnup'
+      ? [['Escopo total', azul], ['Concluído', verde], ['Ritmo ideal até o prazo', cinza, 'trac'], ['Previsão no ritmo atual', ambar, 'trac']]
+      : [['Tarefas restantes', azul], ['Ritmo ideal até o prazo', cinza, 'trac'], ['Previsão no ritmo atual', ambar, 'trac']]));
+    /* leitura em linguagem simples */
+    var cresc = escH - esc0, txt = [], tipo = '';
+    if (!falta) { txt.push('Todas as ' + escH + ' tarefas estão concluídas.'); tipo = 'bom'; }
+    else {
+      txt.push('Faltam ' + falta + ' de ' + escH + ' tarefas.');
+      if (ritmo > 0) txt.push('Nos últimos 14 dias o ritmo foi de ' + fmtN(ritmo * 7) + ' tarefa(s) por semana, o que leva ao fim por volta de ' + fmtD(fimPrev) + '.');
+      else txt.push('Nenhuma tarefa foi concluída nos últimos 14 dias, então não há previsão.');
+      if (prazoMax != null) {
+        var diasPrazo = Math.round((prazoMax - hoje) / DIA);
+        if (diasPrazo < 0) { txt.push('O prazo mais distante (' + fmtD(prazoMax) + ') já passou há ' + (-diasPrazo) + ' dia(s).'); tipo = 'ruim'; }
+        else {
+          var preciso = falta / Math.max(1, diasPrazo) * 7;
+          txt.push('Para fechar em ' + fmtD(prazoMax) + ' é preciso concluir cerca de ' + fmtN(preciso) + ' por semana.');
+          if (fimPrev && fimPrev > prazoMax) tipo = 'ruim'; else if (fimPrev) tipo = 'bom';
+        }
+      } else txt.push('Defina prazos nas tarefas para aparecer a linha do prazo e o ritmo ideal.');
+    }
+    if (cresc > 0) txt.push('Desde o começo foram adicionadas ' + cresc + ' tarefa(s)' + (esc0 >= 5 ? ' (' + Math.round(cresc / esc0 * 100) + '% a mais de escopo)' : '') + '.');
+    c.appendChild(leitura(txt.join(' '), tipo));
+    return c;
+  }
+
+  /* ---------- Fluxo cumulativo ---------- */
+  function graficoFluxo(itens) {
+    var c = cartao('Fluxo cumulativo', 'Quantas tarefas estão em cada fase, dia a dia. Faixa do meio crescendo = trabalho acumulando em andamento.');
+    if (itens.length < 2) { c.appendChild(el('div', 'nf-pn-vazio', 'Precisa de pelo menos 2 tarefas.')); return c; }
+    var hoje = inicioDia(Date.now());
+    var ini = Math.min.apply(null, itens.map(function (i) { return inicioDia(i.m.criada); }));
+    if ((hoje - ini) / DIA > 120) ini = hoje - 120 * DIA;
+    if (hoje === ini) ini = hoje - DIA;
+    var pts = [];
+    for (var d = ini; d <= hoje; d += DIA) {
+      var f = 0, m = 0, a = 0;
+      itens.forEach(function (i) {
+        var s = estadoEm(i.m, fimDia(d));
+        if (s == null) return;
+        if (FEITO[s]) f++; else if (EMCURSO[s]) m++; else a++;
+      });
+      pts.push([d, f, m, a]);
+    }
+    var ymax = Math.max.apply(null, pts.map(function (p) { return p[1] + p[2] + p[3]; }));
+    var E = escalas(ini, hoje, ymax), s = nova();
+    eixos(s, E, 'tarefas');
+    function faixa(base, topo, cor) {
+      var sup = pts.map(function (p) { return E.X(p[0]).toFixed(1) + ',' + E.Y(topo(p)).toFixed(1); });
+      var inf = pts.slice().reverse().map(function (p) { return E.X(p[0]).toFixed(1) + ',' + E.Y(base(p)).toFixed(1); });
+      no(s, 'polygon', { points: sup.concat(inf).join(' '), fill: cor, 'fill-opacity': .85 });
+    }
+    faixa(function () { return 0; }, function (p) { return p[1]; }, '#22B573');
+    faixa(function (p) { return p[1]; }, function (p) { return p[1] + p[2]; }, '#E6B800');
+    faixa(function (p) { return p[1] + p[2]; }, function (p) { return p[1] + p[2] + p[3]; }, '#8E96B5');
+    c.appendChild(s);
+    c.appendChild(legenda([['Concluído', '#22B573'], ['Em andamento / aguardando', '#E6B800'], ['A fazer', '#8E96B5']]));
+    c.appendChild(el('p', 'nf-pn-nota', 'Antes de hoje, a fase de cada tarefa é estimada pela criação e pela última edição. A partir de agora o app guarda cada mudança de status e o gráfico fica exato.'));
+    return c;
+  }
+
+  /* ---------- Gráfico de controle (tempo de ciclo) ---------- */
+  function percentil(v, p) { var a = v.slice().sort(function (x, y) { return x - y; }); var k = (a.length - 1) * p, f = Math.floor(k), r = k - f; return a[f] + (a[Math.min(f + 1, a.length - 1)] - a[f]) * r; }
+  function graficoControle(itens) {
+    var c = cartao('Gráfico de controle: tempo de ciclo', 'Quantos dias cada tarefa levou do início até concluir. Serve para prever prazos com dados reais, e não com palpite.');
+    var pts = itens.filter(function (i) { return i.m.concl != null; }).map(function (i) {
+      var de = i.m.inicio != null ? i.m.inicio : i.m.criada;
+      return { x: i.m.concl, y: Math.max(0, (i.m.concl - de) / DIA), sem: i.m.inicio == null, nome: i.t.texto };
+    }).sort(function (a, b) { return a.x - b.x; });
+    if (pts.length < 5) { c.appendChild(el('div', 'nf-pn-vazio', 'Precisa de pelo menos 5 tarefas concluídas (hoje: ' + pts.length + ').')); return c; }
+    var ys = pts.map(function (p) { return p.y; });
+    var med = percentil(ys, .5), p85 = percentil(ys, .85);
+    var media = ys.reduce(function (a, b) { return a + b; }, 0) / ys.length;
+    var dp = Math.sqrt(ys.reduce(function (a, b) { return a + (b - media) * (b - media); }, 0) / ys.length);
+    var lim = media + 2 * dp;
+    var E = escalas(pts[0].x - DIA, pts[pts.length - 1].x + DIA, Math.ceil(Math.max(lim, Math.max.apply(null, ys)) + 1)), s = nova();
+    eixos(s, E, 'dias');
+    no(s, 'line', { x1: ME, x2: L - MD, y1: E.Y(med), y2: E.Y(med), stroke: '#22B573', 'stroke-width': 1.8 });
+    no(s, 'line', { x1: ME, x2: L - MD, y1: E.Y(p85), y2: E.Y(p85), stroke: '#E69A00', 'stroke-width': 1.6, 'stroke-dasharray': '6 5' });
+    var fora = 0;
+    pts.forEach(function (p) {
+      var out = p.y > lim; if (out) fora++;
+      var cc = no(s, 'circle', { cx: E.X(p.x), cy: E.Y(p.y), r: 4.6, fill: out ? '#E5202E' : '#2F5BFF', 'fill-opacity': .85 });
+      no(cc, 'title', {}, p.nome + ': ' + fmtN(p.y) + ' dia(s)');
+    });
+    c.appendChild(s);
+    c.appendChild(legenda([['Tarefa concluída', '#2F5BFF', 'pt'], ['Fora do esperado', '#E5202E', 'pt'], ['Mediana', '#22B573'], ['85% terminam até aqui', '#E69A00', 'trac']]));
+    var sem = pts.filter(function (p) { return p.sem; }).length;
+    c.appendChild(leitura('Metade das tarefas termina em até ' + fmtN(med) + ' dia(s) e 85% em até ' + fmtN(p85) + ' dia(s). ' + (fora ? fora + ' tarefa(s) levaram bem mais que o normal; vale olhar o que as travou.' : 'Nenhuma tarefa fugiu muito do padrão.')));
+    if (sem) c.appendChild(el('p', 'nf-pn-nota', sem + ' de ' + pts.length + ' tarefas não tinham o início registrado e foram contadas desde a criação. Daqui para frente o início é guardado quando a tarefa entra em andamento.'));
+    return c;
+  }
+
+  /* ---------- Marcos ---------- */
+  function graficoMarcos(tarefas) {
+    var c = cartao('Marcos e entregas-chave', 'Só as grandes datas, sem as dezenas de tarefas. Marque uma tarefa como marco na Linha do tempo.');
+    var lista = tarefas.filter(function (t) { return t.marco; }).sort(function (a, b) { return String(a.prazo || '9').localeCompare(String(b.prazo || '9')); });
+    if (!lista.length) { c.appendChild(el('div', 'nf-pn-vazio', 'Nenhum marco ainda.')); return c; }
+    var hoje = inicioDia(Date.now());
+    lista.forEach(function (t) {
+      var feito = !!FEITO[t.status], p = paraMs(t.prazo), dias = p != null ? Math.round((p - hoje) / DIA) : null;
+      var atraso = !feito && dias != null && dias < 0;
+      var l = el('div', 'nf-pn-marco' + (atraso ? ' atraso' : ''));
+      l.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l9.5 9.5-9.5 9.5L2.5 12z" fill="' + (feito ? '#22B573' : (atraso ? '#E5202E' : '#2F5BFF')) + '"/></svg>';
+      l.appendChild(el('b', '', t.texto));
+      l.appendChild(el('span', '', feito ? 'concluído' : (dias == null ? 'sem prazo' : (dias < 0 ? 'atrasado ' + (-dias) + ' d' : (dias === 0 ? 'hoje' : fmtD(p) + ' · em ' + dias + ' d')))));
+      l.addEventListener('click', function () { if (typeof abrirTarefaEsp === 'function') abrirTarefaEsp(t.id, projEspAberto); });
+      c.appendChild(l);
+    });
+    return c;
+  }
+
+  /* ---------- Pareto dos atrasos (por fase, nunca por pessoa) ---------- */
+  function graficoPareto(tarefas) {
+    var c = cartao('Onde os atrasos estão parados', 'As fases que concentram mais tarefas atrasadas. Ataque primeiro a maior barra.');
+    var at = tarefas.filter(function (t) { return typeof atrasadaEsp === 'function' && atrasadaEsp(t); });
+    if (!at.length) { c.appendChild(el('div', 'nf-pn-vazio', 'Nenhuma tarefa atrasada.')); return c; }
+    var cont = {};
+    at.forEach(function (t) { cont[t.status] = (cont[t.status] || 0) + 1; });
+    var ordem = Object.keys(cont).sort(function (a, b) { return cont[b] - cont[a]; });
+    var acum = 0;
+    ordem.forEach(function (k) {
+      var info = STATUS_ESP.filter(function (s) { return s[0] === k; })[0] || [k, k, '#8E96B5'];
+      acum += cont[k];
+      var l = el('div', 'nf-pn-par');
+      l.appendChild(el('span', '', info[1]));
+      var tr = el('div', 'tr'), b = el('div'); b.style.width = Math.round(cont[k] / cont[ordem[0]] * 100) + '%'; b.style.background = info[2]; tr.appendChild(b); l.appendChild(tr);
+      l.appendChild(el('b', '', String(cont[k])));
+      l.appendChild(el('div', 'acum', 'acumulado: ' + Math.round(acum / at.length * 100) + '%'));
+      c.appendChild(l);
+    });
+    c.appendChild(leitura(at.length + ' tarefa(s) atrasada(s); ' + (cont[ordem[0]] === at.length ? 'todas estão em "' + ((STATUS_ESP.filter(function (s) { return s[0] === ordem[0]; })[0] || [0, ordem[0]])[1]) + '".' : 'a maior parte está em "' + ((STATUS_ESP.filter(function (s) { return s[0] === ordem[0]; })[0] || [0, ordem[0]])[1]) + '".')));
+    return c;
+  }
+
+  /* ---------- montagem ---------- */
+  function montar() {
+    var box = document.getElementById('aba-painel');
+    var reg = (typeof projEsp !== 'undefined') ? projEsp[projEspAberto] : null;
+    if (!box || !reg) return;
+    var velho = box.querySelector('.nf-pn-raiz'); if (velho) velho.remove();
+    var raiz = el('div', 'nf-pn-raiz');
+    var topo = el('div', 'nf-pn-topo');
+    topo.appendChild(el('h3', '', 'Acompanhamento do projeto'));
+    var seg = el('div', 'nf-pn-seg');
+    [['burnup', 'Burnup'], ['burndown', 'Burndown']].forEach(function (m) {
+      var b = el('button', est.modo === m[0] ? 'on' : '', m[1]); b.type = 'button';
+      b.onclick = function () { est.modo = m[0]; montar(); };
+      seg.appendChild(b);
+    });
+    topo.appendChild(seg);
+    raiz.appendChild(topo);
+    var tarefas = reg.dados.tarefas || [];
+    var itens = preparar(tarefas);
+    var grade = el('div', 'nf-pn-grade');
+    grade.appendChild(graficoBurn(itens, tarefas));
+    grade.appendChild(graficoFluxo(itens));
+    grade.appendChild(graficoControle(itens));
+    grade.appendChild(graficoMarcos(tarefas));
+    grade.appendChild(graficoPareto(tarefas));
+    raiz.appendChild(grade);
+    var gantt = el('p', 'nf-pn-nota', 'O Gantt (quem depende de quem e o caminho crítico) está na aba Linha do tempo.');
+    raiz.appendChild(gantt);
+    box.appendChild(raiz);
+  }
+  var rpBase = renderPainelProj;
+  renderPainelProj = function () {
+    var r = rpBase.apply(this, arguments);
+    try { montar(); } catch (e) { if (window.console) console.error('Painel', e); }
+    return r;
+  };
+  window.NFPainelRegistrar = registrar;
+})();
+/* ===== AJUSTES 57 - FIM ===== */
 
 
 carregarSortable();
