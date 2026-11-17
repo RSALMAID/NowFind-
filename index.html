@@ -24947,6 +24947,58 @@ function escreverTexto(alvo, texto){
   pintar();
 })();
 /* ===== AJUSTES 55 - FIM ===== */
+/* ===== AJUSTES 56 - TELA INICIAL MAIS ORGANIZADA ===== */
+(function () {
+  if (window.NFHomeOrg || !document.getElementById('view-home')) return;
+  window.NFHomeOrg = true;
+  var estilo = document.createElement('style');
+  estilo.textContent = [
+    /* atalhos dos ambientes: faixa baixa, só nome e seta */
+    '#view-home .home-ambientes{gap:10px!important;margin-bottom:14px!important}',
+    '#view-home .home-ambiente{padding:8px 12px!important;border-radius:16px!important;min-height:0!important}',
+    '#view-home .home-amb-icone{width:32px!important;height:32px!important;border-radius:10px!important;font-size:14px!important}',
+    /* próximo compromisso: quando não há nada, vira uma linha */
+    '.nf-prox.nf-vazio{padding:12px 18px}',
+    '.nf-prox.nf-vazio h3{font-size:15px;margin:2px 0 0}',
+    '.nf-prox.nf-vazio .nf-prox-qdo{display:none}',
+    /* coluna lateral: ordem fixa */
+    '#nfProximo{order:1}#nfListas{order:2}.home-coluna-lateral .home-agenda{order:3}',
+    /* anotações vazias não ocupam um paredão */
+    '.home-notas.nf-sem-paginas{min-height:0}',
+    '.home-notas.nf-sem-paginas .nota-editor,.home-notas.nf-sem-paginas .nota-pagina-area{min-height:150px!important}',
+    /* celular: o que se usa todo dia vem primeiro, o calendário depois */
+    '@media (max-width:760px){',
+    '#view-home .home-grade-principal{display:flex!important;flex-direction:column;gap:0}',
+    '#view-home .home-grade-principal>.home-coluna-lateral{display:contents}',
+    '#view-home .home-grade-principal>.home-calendario-card{order:3}',
+    '#view-home .home-ambientes{grid-template-columns:1fr 1fr!important}',
+    '}'
+  ].join('\n');
+  document.head.appendChild(estilo);
+
+  function ajustar() {
+    try {
+      /* "Limpar" repetido solto no cabeçalho da IA */
+      var topo = document.querySelector('.home-ia .home-card-topo');
+      if (topo) {
+        Array.prototype.slice.call(topo.childNodes).forEach(function (n) {
+          if (n.nodeType === 3 && /^\s*Limpar\s*$/.test(n.nodeValue)) n.parentNode.removeChild(n);
+        });
+      }
+      var prox = document.getElementById('nfProximo');
+      if (prox) prox.classList.toggle('nf-vazio', /Nada marcado/.test(prox.textContent));
+      var notas = document.querySelector('.home-notas');
+      if (notas) notas.classList.toggle('nf-sem-paginas', /Nenhuma página criada/.test(notas.textContent));
+    } catch (e) {}
+  }
+  if (typeof renderizarAgendaHome === 'function') {
+    var base = renderizarAgendaHome;
+    renderizarAgendaHome = function () { var r = base.apply(this, arguments); ajustar(); return r; };
+  }
+  setInterval(ajustar, 5000);
+  ajustar();
+})();
+/* ===== AJUSTES 56 - FIM ===== */
 
 
 carregarSortable();
