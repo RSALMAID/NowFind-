@@ -24750,7 +24750,7 @@ function escreverTexto(alvo, texto){
     secao.textContent = '';
     var l = atual();
     var topo = el('div', 'nf-ls-topo');
-    var tt = el('div'); tt.appendChild(el('small', '', 'DIA A DIA')); tt.appendChild(el('h3', '', l ? l.nome : 'Listas'));
+    var tt = el('div'); tt.appendChild(el('small', '', 'LEMBRETES E TAREFAS')); tt.appendChild(el('h3', '', l ? l.nome : 'Listas'));
     topo.appendChild(tt);
     if (l && l.itens.length) {
       var f = l.itens.filter(function (i) { return i.f; }).length;
@@ -24774,7 +24774,7 @@ function escreverTexto(alvo, texto){
     if (st.modo === 'nova' || st.modo === 'renomear') {
       var linhaN = el('div', 'nf-ls-entrada');
       var inN = el('input'); inN.type = 'text'; inN.maxLength = 40;
-      inN.placeholder = st.modo === 'nova' ? 'Nome da lista (ex.: Compras)' : 'Novo nome';
+      inN.placeholder = st.modo === 'nova' ? 'Nome da lista (ex.: Compras, Casa)' : 'Novo nome';
       if (st.modo === 'renomear' && l) inN.value = l.nome;
       var ok = el('button', 'nf-ls-bt prim'); ok.type = 'button'; ok.innerHTML = ICO.ok; ok.setAttribute('aria-label', 'Salvar nome');
       var salvarNome = function () {
@@ -24792,10 +24792,10 @@ function escreverTexto(alvo, texto){
     }
 
     if (!l) {
-      var vz = el('div', 'nf-ls-vazio', 'Crie uma lista para o dia a dia, como compras, e marque os itens conforme for resolvendo.');
+      var vz = el('div', 'nf-ls-vazio', 'Anote seus lembretes e tarefas do dia e marque conforme for resolvendo.');
       vz.appendChild(document.createElement('br'));
-      var bc = el('button', '', 'Criar lista de Compras'); bc.type = 'button';
-      bc.onclick = function () { var n = { id: novoId('ls'), nome: 'Compras', itens: [], criadoEm: new Date().toISOString() }; listas().push(n); st.ativa = n.id; gravar(); pintar(); };
+      var bc = el('button', '', 'Criar minha lista de tarefas'); bc.type = 'button';
+      bc.onclick = function () { var n = { id: novoId('ls'), nome: 'Tarefas do dia', itens: [], criadoEm: new Date().toISOString() }; listas().push(n); st.ativa = n.id; gravar(); pintar(); };
       vz.appendChild(bc);
       secao.appendChild(vz);
       return;
@@ -24803,10 +24803,10 @@ function escreverTexto(alvo, texto){
 
     /* entrada de itens: texto + voz */
     var entrada = el('div', 'nf-ls-entrada');
-    var inp = el('input'); inp.type = 'text'; inp.placeholder = 'Adicionar item (ou fale vários de uma vez)';
+    var inp = el('input'); inp.type = 'text'; inp.placeholder = 'Novo lembrete ou tarefa (ou fale vários)';
     inp.setAttribute('enterkeyhint', 'done'); inp.setAttribute('autocomplete', 'off');
     var add = el('button', 'nf-ls-bt prim'); add.type = 'button'; add.innerHTML = ICO.mais; add.setAttribute('aria-label', 'Adicionar');
-    var mic = el('button', 'nf-ls-bt'); mic.type = 'button'; mic.innerHTML = ICO.mic; mic.id = 'nfListaMic'; mic.setAttribute('aria-label', 'Falar os itens');
+    var mic = el('button', 'nf-ls-bt'); mic.type = 'button'; mic.innerHTML = ICO.mic; mic.id = 'nfListaMic'; mic.setAttribute('aria-label', 'Falar os lembretes');
     var enviar = function () {
       var partes = separar(inp.value, false);
       if (!partes.length) return;
@@ -24824,7 +24824,7 @@ function escreverTexto(alvo, texto){
     /* itens: pendentes primeiro, marcados no fim */
     var ord = l.itens.filter(function (i) { return !i.f; }).concat(l.itens.filter(function (i) { return i.f; }));
     if (!ord.length) {
-      secao.appendChild(el('div', 'nf-ls-vazio', 'Lista vazia. Digite, ou toque no microfone e fale: "leite, pão, ovos e café".'));
+      secao.appendChild(el('div', 'nf-ls-vazio', 'Nada por aqui. Digite, ou toque no microfone e fale: "ligar para o banco, pagar a conta de luz e buscar encomenda".'));
     } else {
       var ul = el('ul', 'nf-ls-itens');
       ord.forEach(function (i) {
@@ -24856,7 +24856,7 @@ function escreverTexto(alvo, texto){
     var rod = el('div', 'nf-ls-rodape');
     function rb(txt, fn) { var b = el('button', '', txt); b.type = 'button'; b.onclick = fn; rod.appendChild(b); }
     if (l.itens.some(function (i) { return i.f; })) {
-      rb('Limpar marcados', function () { l.itens = l.itens.filter(function (i) { return !i.f; }); l.atualizadoEm = new Date().toISOString(); gravar(); pintar(); });
+      rb('Limpar concluídos', function () { l.itens = l.itens.filter(function (i) { return !i.f; }); l.atualizadoEm = new Date().toISOString(); gravar(); pintar(); });
       rb('Desmarcar todos', function () { l.itens.forEach(function (i) { i.f = false; }); l.atualizadoEm = new Date().toISOString(); gravar(); pintar(); });
     }
     rb('Renomear', function () { st.modo = 'renomear'; pintar(); });
@@ -24902,7 +24902,7 @@ function escreverTexto(alvo, texto){
       if (!t) throw new Error('Não ouvi nada. Tente de novo, mais perto do microfone.');
       var partes = separar(t, true);
       n = adicionar(partes, 'voz');
-      msg = n ? (n + (n === 1 ? ' item adicionado' : ' itens adicionados') + ' por voz.') : 'Esses itens já estavam na lista.';
+      msg = n ? (n + (n === 1 ? ' lembrete adicionado' : ' lembretes adicionados') + ' por voz.') : 'Isso já estava na lista.';
     } catch (e) { msg = e.message || 'Não consegui entender o áudio.'; erro = true; }
     st.ocupado = false;
     pintar();
@@ -24911,7 +24911,7 @@ function escreverTexto(alvo, texto){
   async function comecarVoz() {
     if (st.gravando || st.ocupado) { if (st.gravando) pararVoz(false); return; }
     if (typeof tokenAtual !== 'function' || !tokenAtual()) { aviso('Entre na sua conta para usar a voz.', true); return; }
-    if (!navigator.mediaDevices || !window.MediaRecorder) { aviso('Este navegador não grava áudio. Digite os itens.', true); return; }
+    if (!navigator.mediaDevices || !window.MediaRecorder) { aviso('Este navegador não grava áudio. Digite os lembretes.', true); return; }
     try { st.fluxo = await navigator.mediaDevices.getUserMedia({ audio: true }); }
     catch (e) { aviso('Não consegui usar o microfone. Libere a permissão no navegador.', true); return; }
     var partes = [], g;
@@ -24947,6 +24947,7 @@ function escreverTexto(alvo, texto){
   pintar();
 })();
 /* ===== AJUSTES 55 - FIM ===== */
+
 /* ===== AJUSTES 56 - TELA INICIAL MAIS ORGANIZADA ===== */
 (function () {
   if (window.NFHomeOrg || !document.getElementById('view-home')) return;
