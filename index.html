@@ -25380,6 +25380,397 @@ function escreverTexto(alvo, texto){
   window.NFPainelRegistrar = registrar;
 })();
 /* ===== AJUSTES 57 - FIM ===== */
+/* ===== AJUSTES 58 - BOTÃO FLUTUANTE DO ASSISTENTE EM QUALQUER TELA ===== */
+(function () {
+  var raiz = document.getElementById('nfAssist');
+  if (!raiz || document.getElementById('nfFab')) return;
+  var origem = raiz.parentNode, depois = raiz.nextSibling;
+
+  var estilo = document.createElement('style');
+  estilo.textContent = [
+    '#nfFab{position:fixed;right:max(16px,env(safe-area-inset-right));bottom:max(18px,calc(env(safe-area-inset-bottom) + 12px));z-index:9000;width:58px;height:58px;border:0;border-radius:50%;padding:0;display:none;align-items:center;justify-content:center;cursor:pointer;color:var(--on-acento,#fff);background:var(--grad-acento,linear-gradient(135deg,#4F46E5,#2F5BFF));box-shadow:0 12px 30px rgba(0,0,0,.4)}',
+    '#nfFab.on{display:inline-flex}',
+    '#nfFab svg{width:26px;height:26px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}',
+    '#nfFab:active{transform:scale(.94)}',
+    '#nfFabFundo{position:fixed;inset:0;z-index:100060;background:rgba(5,8,20,.55);display:flex;align-items:flex-end;justify-content:center}',
+    '@media (min-width:700px){#nfFabFundo{align-items:center}}',
+    '#nfFabFolha{width:100%;max-width:560px;max-height:88vh;display:flex;flex-direction:column;gap:10px;padding:16px 16px calc(16px + env(safe-area-inset-bottom));border-radius:24px 24px 0 0;color:var(--on-acento,#fff);background:var(--grad-acento,linear-gradient(135deg,#4F46E5,#2F5BFF));box-shadow:0 -10px 50px rgba(0,0,0,.45);overflow:auto}',
+    '@media (min-width:700px){#nfFabFolha{border-radius:24px;max-height:82vh}}',
+    '#nfFabFolha .nf-fab-topo{display:flex;align-items:center;justify-content:space-between;gap:10px}',
+    '#nfFabFolha .nf-fab-topo b{font-size:17px}',
+    '#nfFabFolha .nf-fab-topo button{border:0;border-radius:10px;padding:7px 11px;background:rgba(255,255,255,.2);color:inherit;font:inherit;font-size:13px;font-weight:700;cursor:pointer}',
+    '#nfFabFolha .nf-as-msgs{max-height:42vh}'
+  ].join('\n');
+  document.head.appendChild(estilo);
+
+  var fab = document.createElement('button');
+  fab.type = 'button'; fab.id = 'nfFab';
+  fab.setAttribute('aria-label', 'Abrir o assistente');
+  fab.title = 'Assistente';
+  fab.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/><path d="M19 16l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7z"/></svg>';
+  document.body.appendChild(fab);
+
+  var fundo = null;
+  function visivel(id) { var e = document.getElementById(id); return !!e && !e.classList.contains('oculto') && e.offsetParent !== null; }
+  function logado() { return typeof tokenAtual === 'function' && !!tokenAtual(); }
+  function atualizar() {
+    var mostrar = logado() && !fundo && !visivel('view-entrada') && !visivel('view-hoje');
+    fab.classList.toggle('on', mostrar);
+  }
+  function abrir() {
+    if (fundo) return;
+    fundo = document.createElement('div'); fundo.id = 'nfFabFundo';
+    var folha = document.createElement('div'); folha.id = 'nfFabFolha';
+    folha.setAttribute('role', 'dialog'); folha.setAttribute('aria-label', 'Assistente');
+    var topo = document.createElement('div'); topo.className = 'nf-fab-topo';
+    var t = document.createElement('b'); t.textContent = 'Assistente'; topo.appendChild(t);
+    var dir = document.createElement('div'); dir.style.cssText = 'display:flex;gap:8px';
+    var lim = document.createElement('button'); lim.type = 'button'; lim.textContent = 'Limpar';
+    lim.onclick = function () { var o = document.querySelector('.nf-as-limpar'); if (o && !o.hidden) o.click(); };
+    var x = document.createElement('button'); x.type = 'button'; x.textContent = 'Fechar'; x.onclick = fechar;
+    dir.appendChild(lim); dir.appendChild(x); topo.appendChild(dir);
+    folha.appendChild(topo);
+    folha.appendChild(raiz);          /* o mesmo assistente (texto, voz, histórico) muda de lugar */
+    fundo.appendChild(folha);
+    fundo.addEventListener('click', function (e) { if (e.target === fundo) fechar(); });
+    document.body.appendChild(fundo);
+    atualizar();
+    setTimeout(function () { var c = document.getElementById('nfAssistCampo'); if (c) c.focus(); }, 80);
+  }
+  function fechar() {
+    if (!fundo) return;
+    if (origem) origem.insertBefore(raiz, depois && depois.parentNode === origem ? depois : null);
+    fundo.remove(); fundo = null;
+    atualizar();
+  }
+  fab.addEventListener('click', abrir);
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && fundo) { var g = document.querySelector('#nfAssist .nf-as-voz.ativo'); if (!g) fechar(); } });
+  setInterval(atualizar, 700);
+  atualizar();
+  window.NFAssistenteFlutuante = { abrir: abrir, fechar: fechar };
+})();
+/* ===== AJUSTES 58 - FIM ===== */
+/* ===== AJUSTES 59 - COLUNAS NOVAS NO QUADRO (além das 5 padrão) ===== */
+(function () {
+  if (window.NFColExtra || !window.NFV || typeof STATUS_ESP === 'undefined' || typeof renderProjeto !== 'function') return;
+  window.NFColExtra = true;
+  var U = NFV.u, h = U.h;
+  var BASE = STATUS_ESP.length;           /* as colunas padrão (5) */
+  var MAX_EXTRAS = 6;
+
+  /* ---------- onde ficam as colunas novas de cada projeto ---------- */
+  function regLocal(pid) { return (dados.projetos || []).filter(function (p) { return p.id === pid; })[0] || null; }
+  function dono(pid) {
+    if (!pid || pid === 'avulsas') return null;
+    if (NFV.ehLocal()) return regLocal(pid);
+    return (typeof projEsp !== 'undefined' && projEsp[pid]) ? projEsp[pid].dados : null;
+  }
+  function extrasDe(pid) { var d = dono(pid); return (d && Array.isArray(d.colunasExtras)) ? d.colunasExtras : []; }
+  function gravarExtras(pid, lista) {
+    var d = dono(pid); if (!d) return;
+    d.colunasExtras = lista;
+    if (NFV.ehLocal()) d.atualizadoEm = new Date().toISOString();
+    sincronizar(pid);
+    NFV.salvar(pid);
+  }
+  function todosExtras() {
+    var mapa = {};
+    (dados.projetos || []).forEach(function (p) { (p.colunasExtras || []).forEach(function (e) { mapa[e.id] = e; }); });
+    if (typeof projEsp !== 'undefined') Object.keys(projEsp).forEach(function (k) { ((projEsp[k].dados || {}).colunasExtras || []).forEach(function (e) { mapa[e.id] = e; }); });
+    return Object.keys(mapa).map(function (k) { return mapa[k]; });
+  }
+
+  /* ---------- a lista de status do app acompanha o projeto aberto ---------- */
+  function tirarExtras() { while (STATUS_ESP.length > BASE) STATUS_ESP.pop(); }
+  function colocar(lista) { lista.forEach(function (e) { STATUS_ESP.push([e.id, e.nome, e.cor, true]); }); }
+  function sincronizar(pid) {
+    tirarExtras();
+    var lista = extrasDe(pid);
+    colocar(lista);
+    /* o código das colunas padrão lê nome, cor, limite e visibilidade daqui */
+    var d = dono(pid);
+    if (d && lista.length) {
+      if (!d.colunas || typeof d.colunas !== 'object') d.colunas = {};
+      lista.forEach(function (e) {
+        d.colunas[e.id] = { nome: e.nome, cor: e.cor };
+        if (e.wip) d.colunas[e.id].wip = e.wip;
+        if (e.oculta) d.colunas[e.id].oculta = true;
+      });
+    }
+  }
+  function ordemFluxo() {
+    var ex = STATUS_ESP.slice(BASE).map(function (s) { return s[0]; });
+    return ['afazer', 'andamento', 'aguardando'].concat(ex, ['realizado', 'validado']);
+  }
+
+  var renderEspBase = renderEsp;
+  renderEsp = function () {
+    var pid = NFV.pid();
+    var semProjeto = !pid || typeof projEsp === 'undefined' || !projEsp[pid] || (typeof espNaHub !== 'undefined' && espNaHub && !NFV.ehLocal());
+    if (semProjeto) tirarExtras();
+    return renderEspBase.apply(this, arguments);
+  };
+  var renderProjetoBase = renderProjeto;
+  renderProjeto = function () {
+    sincronizar(NFV.pid());
+    return renderProjetoBase.apply(this, arguments);
+  };
+  if (typeof reconstruirLocal === 'function') {
+    var recBase = reconstruirLocal;
+    reconstruirLocal = function () {
+      tirarExtras(); colocar(todosExtras());     /* para nenhuma tarefa sumir ao reconstruir */
+      return recBase.apply(this, arguments);
+    };
+  }
+  if (typeof proximoStatus === 'function') {
+    proximoStatus = function (s) {
+      var o = ordemFluxo(), i = o.indexOf(s);
+      return (i >= 0 && i < o.length - 1) ? infoStatus(o[i + 1]) : null;
+    };
+  }
+  /* a janela de editar tarefa tem a lista de status fixa no HTML */
+  if (typeof abrirTarefaEsp === 'function') {
+    var abrirBase = abrirTarefaEsp;
+    abrirTarefaEsp = function () {
+      var sel = document.getElementById('teStatus');
+      if (sel) {
+        sel.textContent = '';
+        ordemFluxo().forEach(function (id) { var inf = infoStatus(id); var o = document.createElement('option'); o.value = id; o.textContent = inf[1]; sel.appendChild(o); });
+      }
+      return abrirBase.apply(this, arguments);
+    };
+  }
+  /* na nuvem, a mesclagem de conflitos guarda também as colunas novas */
+  if (typeof mesclarProjEsp === 'function') {
+    var mesBase = mesclarProjEsp;
+    mesclarProjEsp = function (a, b) {
+      var r = mesBase(a, b);
+      var novo = ((a.atualizadoEm || '') >= (b.atualizadoEm || '')) ? a : b;
+      var ex = novo.colunasExtras || a.colunasExtras || b.colunasExtras;
+      if (ex) r.colunasExtras = ex;
+      return r;
+    };
+  }
+  /* quadro: as colunas novas ficam entre "Aguardando" e "Realizado" */
+  var kanbanBase = renderKanban;
+  renderKanban = function () {
+    sincronizar(NFV.pid());
+    var r = kanbanBase.apply(this, arguments);
+    try {
+      var caixa = document.getElementById('aba-quadro');
+      if (caixa && STATUS_ESP.length > BASE) {
+        var cols = {};
+        caixa.querySelectorAll('.col-esp').forEach(function (c) { var a = c.querySelector('.cards-esp'); if (a) cols[a.getAttribute('data-status')] = c; });
+        var alvo = cols.realizado;
+        STATUS_ESP.slice(BASE).forEach(function (s) { if (cols[s[0]] && alvo) caixa.insertBefore(cols[s[0]], alvo); });
+      }
+    } catch (e) {}
+    return r;
+  };
+
+  /* ---------- botão e janela ---------- */
+  var acoes = document.querySelector('#espProjeto .pv-acoes');
+  if (!acoes) return;
+  var btn = h('button', 'nf-v-btn oculto'); btn.type = 'button'; btn.id = 'btnColunaNova';
+  btn.innerHTML = U.ICO.mais + '<span>Nova coluna</span>';
+  var ref = document.getElementById('btnColunasQuadro');
+  if (ref && ref.parentNode === acoes) acoes.insertBefore(btn, ref.nextSibling); else acoes.insertBefore(btn, acoes.firstChild);
+  btn.addEventListener('click', abrir);
+  function mostrarBotao() {
+    var pid = NFV.pid();
+    var quadro = (typeof abaProj !== 'undefined' && abaProj === 'quadro');
+    btn.classList.toggle('oculto', !quadro || !pid || pid === 'avulsas' || !dono(pid));
+  }
+  var rpBase = renderProjeto;
+  renderProjeto = function () { var r = rpBase.apply(this, arguments); mostrarBotao(); return r; };
+
+  var PALETA = ['#8E44AD', '#E67E22', '#16A085', '#C0392B', '#2980B9', '#7F8C8D'];
+  function abrir() {
+    var pid = NFV.pid(); if (!pid || !dono(pid)) return;
+    var lista = JSON.parse(JSON.stringify(extrasDe(pid)));
+    var fundo = h('div', 'nf-v-modal'), folha = h('div', 'nf-v-folha');
+    folha.setAttribute('role', 'dialog'); folha.setAttribute('aria-label', 'Colunas novas');
+    folha.appendChild(h('h3', null, 'Colunas novas do quadro'));
+    folha.appendChild(h('p', 'nf-dica', 'Crie etapas além das padrão, como "Em revisão" ou "Bloqueado". Elas ficam entre "Aguardando" e "Realizado" e valem só para este projeto. Ao remover uma coluna, as tarefas dela voltam para "A fazer".'));
+    var caixa = h('div'); folha.appendChild(caixa);
+    var msg = h('div', 'nf-dica'); folha.appendChild(msg);
+    var ac = h('div', 'nf-v-acoes');
+    var add = h('button', 'nf-v-btn', '+ Adicionar coluna'); add.type = 'button';
+    var cancelar = h('button', 'nf-v-btn', 'Cancelar'); cancelar.type = 'button';
+    var salvar = h('button', 'nf-v-btn nf-v-prim', 'Salvar'); salvar.type = 'button';
+    ac.appendChild(add); ac.appendChild(cancelar); ac.appendChild(salvar); folha.appendChild(ac);
+    fundo.appendChild(folha); document.body.appendChild(fundo);
+    function fechar() { fundo.remove(); }
+    fundo.addEventListener('click', function (e) { if (e.target === fundo) fechar(); });
+    cancelar.onclick = fechar;
+    function pintar() {
+      caixa.textContent = '';
+      if (!lista.length) caixa.appendChild(h('div', 'nf-dica', 'Nenhuma coluna nova ainda.'));
+      lista.forEach(function (e, i) {
+        var l = h('div', 'nf-v-col-linha'); l.style.gridTemplateColumns = '44px minmax(0,1fr) 70px 38px';
+        var cor = document.createElement('input'); cor.type = 'color'; cor.value = e.cor; cor.setAttribute('aria-label', 'Cor');
+        cor.oninput = function () { e.cor = cor.value; };
+        var nome = document.createElement('input'); nome.type = 'text'; nome.maxLength = 30; nome.value = e.nome; nome.setAttribute('aria-label', 'Nome da coluna');
+        nome.oninput = function () { e.nome = nome.value; };
+        var wip = document.createElement('input'); wip.type = 'number'; wip.min = '0'; wip.max = '99'; wip.value = e.wip || 0; wip.title = 'Limite de trabalho em andamento (0 = sem limite)';
+        wip.oninput = function () { e.wip = Math.max(0, Math.min(99, Math.floor(Number(wip.value) || 0))); };
+        var rm = h('button', 'nf-v-btn', '×'); rm.type = 'button'; rm.setAttribute('aria-label', 'Remover coluna');
+        rm.onclick = function () { lista.splice(i, 1); e._remover = true; removidas.push(e); pintar(); };
+        l.appendChild(cor); l.appendChild(nome); l.appendChild(wip); l.appendChild(rm); caixa.appendChild(l);
+      });
+    }
+    var removidas = [];
+    add.onclick = function () {
+      if (lista.length >= MAX_EXTRAS) { msg.textContent = 'No máximo ' + MAX_EXTRAS + ' colunas novas.'; return; }
+      lista.push({ id: 'x_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), nome: 'Nova coluna', cor: PALETA[lista.length % PALETA.length], wip: 0 });
+      pintar();
+    };
+    salvar.onclick = function () {
+      var vistos = {};
+      for (var k = 0; k < lista.length; k++) {
+        var n = String(lista[k].nome || '').trim();
+        if (!n) { msg.textContent = 'Dê um nome a todas as colunas.'; return; }
+        if (vistos[n.toLowerCase()]) { msg.textContent = 'Há duas colunas com o nome "' + n + '".'; return; }
+        vistos[n.toLowerCase()] = 1; lista[k].nome = n.slice(0, 30);
+      }
+      /* tarefas das colunas removidas voltam para "A fazer" */
+      var ids = removidas.map(function (r) { return r.id; });
+      var afetadas = NFV.tarefas(pid).filter(function (t) { return ids.indexOf(t.status) >= 0; }).map(function (t) { return t.id; });
+      if (afetadas.length) NFV.editar(pid, afetadas, { status: 'afazer' }, true);
+      var d = dono(pid);
+      if (d && d.colunas) ids.forEach(function (id) { delete d.colunas[id]; });
+      fechar();
+      gravarExtras(pid, lista.map(function (e) { var o = { id: e.id, nome: e.nome, cor: e.cor }; if (e.wip) o.wip = e.wip; if (e.oculta) o.oculta = true; return o; }));
+      if (typeof toast === 'function') toast('Colunas atualizadas.', false);
+    };
+    pintar();
+  }
+  window.NFColExtraAbrir = abrir;
+  mostrarBotao();
+})();
+/* ===== AJUSTES 59 - FIM ===== */
+/* ===== AJUSTES 60 - AGENDA DO CELULAR / EXTERNA (SÓ LEITURA) NO CALENDÁRIO ===== */
+(function () {
+  if (window.NFAgExt || typeof URL_CONTA === 'undefined' || typeof carregarEventosHome !== 'function') return;
+  window.NFAgExt = true;
+  var MOVEL = !!(window.NowFindCelular && window.NowFindCelular.movel);
+  var NOME = MOVEL ? 'Agenda do celular' : 'Agenda externa';
+  var URL_AX = URL_CONTA + '/agenda-externa';
+  var cache = { chave: '', quando: 0, eventos: [] };
+
+  async function api(caminho, metodo, corpo) {
+    var r = await fetch(URL_AX + caminho, { method: metodo || 'GET', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tokenAtual() }, body: corpo ? JSON.stringify(corpo) : undefined });
+    var j = {}; try { j = await r.json(); } catch (e) {}
+    return { status: r.status, j: j };
+  }
+  function h(tag, cls, txt) { var e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; }
+
+  /* traz os eventos de fora junto com os do NowFind, sempre marcados como somente leitura */
+  var base = carregarEventosHome;
+  carregarEventosHome = async function () {
+    var r = await base.apply(this, arguments);
+    try { await juntar(); } catch (e) {}
+    return r;
+  };
+  async function juntar() {
+    if (typeof tokenAtual !== 'function' || !tokenAtual() || typeof homeEventos === 'undefined') return;
+    var m = (typeof homeMesExibido !== 'undefined' && homeMesExibido) ? homeMesExibido : new Date();
+    var ini = new Date(m.getFullYear(), m.getMonth(), 1 - 14), fim = new Date(m.getFullYear(), m.getMonth() + 1, 1 + 14);
+    var chave = ini.toISOString().slice(0, 10) + '|' + fim.toISOString().slice(0, 10);
+    var lista;
+    if (cache.chave === chave && Date.now() - cache.quando < 120000) lista = cache.eventos;
+    else {
+      var x = await api('/eventos?inicio=' + encodeURIComponent(ini.toISOString()) + '&fim=' + encodeURIComponent(fim.toISOString()), 'GET');
+      if (!x.j.ok) return;
+      lista = x.j.eventos || [];
+      cache = { chave: chave, quando: Date.now(), eventos: lista };
+      if ((x.j.erros || []).length && typeof toast === 'function') toast('Não consegui ler: ' + x.j.erros.join(', ') + '.', true);
+    }
+    if (!lista.length) return;
+    var tem = {}; homeEventos.forEach(function (e) { tem[e.id] = 1; });
+    var novos = lista.filter(function (e) { return !tem[e.id]; }).map(function (e) {
+      var c = Object.assign({}, e); c.editavel = false; c.somenteLeitura = true; c.descricao = 'Vem da sua ' + NOME.toLowerCase() + ' (' + (e.fonte || '') + '). Só leitura aqui: para mudar, edite no aplicativo de origem.'; return c;
+    });
+    if (!novos.length) return;
+    homeEventos = homeEventos.concat(novos);
+    if (typeof renderizarCalendarioHome === 'function') renderizarCalendarioHome();
+    if (typeof renderizarAgendaHome === 'function') renderizarAgendaHome();
+    if (window.NFHomeAtualizar) window.NFHomeAtualizar();
+  }
+
+  /* ---------- janela para conectar ---------- */
+  function abrir() {
+    var fundo = h('div', 'nf-v-modal'), folha = h('div', 'nf-v-folha');
+    folha.setAttribute('role', 'dialog'); folha.setAttribute('aria-label', NOME);
+    folha.appendChild(h('h3', null, NOME + ' (só leitura)'));
+    folha.appendChild(h('p', 'nf-dica', 'Mostra no calendário do NowFind os compromissos que você já tem em ' + (MOVEL ? 'outro aplicativo do celular' : 'outra agenda') + ' (Apple, Google, Outlook). Eles não podem ser editados aqui. Nada é enviado de volta.'));
+    var lista = h('div'); folha.appendChild(lista);
+    var passos = h('div', 'nf-dica');
+    passos.innerHTML = '<b>No iPhone (app Calendário):</b> toque em "Calendários", no (i) ao lado do calendário, ative <b>Calendário Público</b>, toque em <b>Compartilhar Link</b> e copie.<br><b>No Google Agenda (computador):</b> Configurações do calendário &gt; <b>Endereço secreto no formato iCal</b>.<br><b>Dica:</b> use um calendário só para isso. Quem tiver o link consegue ler os eventos dele.';
+    folha.appendChild(passos);
+    var nome = document.createElement('input'); nome.type = 'text'; nome.maxLength = 40; nome.placeholder = 'Nome (ex.: Família)';
+    var link = document.createElement('input'); link.type = 'text'; link.placeholder = 'Cole o link (webcal://... ou https://...)';
+    [nome, link].forEach(function (i) { i.style.cssText = 'width:100%;margin:0 0 8px;padding:11px 12px;border-radius:12px;border:1px solid var(--borda,#DDDDE8);background:transparent;color:inherit;font:inherit;font-size:14px'; folha.appendChild(i); });
+    var msg = h('div', 'nf-dica'); folha.appendChild(msg);
+    var ac = h('div', 'nf-v-acoes');
+    var fe = h('button', 'nf-v-btn', 'Fechar'); fe.type = 'button';
+    var ad = h('button', 'nf-v-btn nf-v-prim', 'Conectar'); ad.type = 'button';
+    ac.appendChild(fe); ac.appendChild(ad); folha.appendChild(ac);
+    fundo.appendChild(folha); document.body.appendChild(fundo);
+    function fechar() { fundo.remove(); }
+    fe.onclick = fechar; fundo.addEventListener('click', function (e) { if (e.target === fundo) fechar(); });
+    async function pintar() {
+      lista.textContent = '';
+      var x = await api('/lista', 'GET');
+      (x.j.agendas || []).forEach(function (a) {
+        var l = h('div'); l.style.cssText = 'display:flex;align-items:center;gap:10px;padding:9px 12px;margin:0 0 8px;border-radius:12px;border:1px solid var(--borda,#DDDDE8)';
+        var t = h('div'); t.style.cssText = 'flex:1;min-width:0';
+        var b1 = h('b', null, a.nome); b1.style.display = 'block';
+        var b2 = h('small', null, a.ultimo_erro ? 'Erro: ' + a.ultimo_erro : (a.ultimo_ok_em ? 'Lida com sucesso' : 'Aguardando')); b2.style.cssText = 'opacity:.7;' + (a.ultimo_erro ? 'color:#E5202E;opacity:1' : '');
+        t.appendChild(b1); t.appendChild(b2);
+        var rm = h('button', 'nf-v-btn', 'Remover'); rm.type = 'button';
+        rm.onclick = async function () { if (!confirm('Remover "' + a.nome + '" do NowFind? A agenda original não é afetada.')) return; await api('/remover', 'POST', { id: a.id }); cache.chave = ''; await pintar(); await recarregar(); };
+        l.appendChild(t); l.appendChild(rm); lista.appendChild(l);
+      });
+      if (!(x.j.agendas || []).length) lista.appendChild(h('div', 'nf-dica', 'Nenhuma agenda conectada ainda.'));
+    }
+    ad.onclick = async function () {
+      if (!link.value.trim()) { msg.textContent = 'Cole o link da agenda.'; return; }
+      ad.disabled = true; msg.textContent = 'Lendo a agenda...';
+      var x = await api('/adicionar', 'POST', { nome: nome.value, url: link.value });
+      ad.disabled = false;
+      if (!x.j.ok) { msg.textContent = x.j.erro || 'Não consegui conectar.'; return; }
+      msg.textContent = 'Conectada. ' + x.j.proximos60dias + ' compromisso(s) nos próximos 60 dias.';
+      link.value = ''; nome.value = ''; cache.chave = '';
+      await pintar(); await recarregar();
+    };
+    pintar();
+  }
+  async function recarregar() { try { await carregarEventosHome(); } catch (e) {} }
+
+  /* ---------- item nas Configurações ---------- */
+  (function () {
+    var f = document.querySelector('#modalConfig .folha');
+    if (!f || document.getElementById('cfgAgExtSec')) return;
+    var sec = document.createElement('div'); sec.id = 'cfgAgExtSec';
+    var rot = document.createElement('label'); rot.textContent = NOME; sec.appendChild(rot);
+    var b = document.createElement('button'); b.type = 'button';
+    b.style.cssText = 'display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:12px 14px;border-radius:14px;border:1px solid var(--borda,#DDDDE8);background:transparent;color:inherit;font:inherit;cursor:pointer';
+    var t = document.createElement('span'); t.style.cssText = 'flex:1;min-width:0';
+    var t1 = document.createElement('b'); t1.style.display = 'block'; t1.textContent = 'Ver compromissos de outra agenda aqui';
+    var t2 = document.createElement('small'); t2.style.cssText = 'display:block;opacity:.75;margin-top:2px;font-size:12.5px'; t2.textContent = 'Só leitura: Apple, Google ou Outlook por link';
+    t.appendChild(t1); t.appendChild(t2); b.appendChild(t);
+    var seta = document.createElement('span'); seta.textContent = '›'; seta.style.cssText = 'font-size:22px;opacity:.5'; b.appendChild(seta);
+    b.addEventListener('click', function () { var x = document.getElementById('modalConfig'); if (x) x.classList.add('oculto'); abrir(); });
+    sec.appendChild(b);
+    var ref = document.getElementById('cfgCelularSec');
+    if (ref && ref.nextSibling) f.insertBefore(sec, ref.nextSibling);
+    else { var d = f.querySelector('p.dica'); if (d) f.insertBefore(sec, d); else f.appendChild(sec); }
+  })();
+  window.NFAgExtAbrir = abrir;
+  setTimeout(recarregar, 1500);
+})();
+/* ===== AJUSTES 60 - FIM ===== */
 
 
 carregarSortable();
